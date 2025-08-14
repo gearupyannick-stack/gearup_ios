@@ -1,0 +1,520 @@
+RollsRoyce,Phantom,The ultimate luxury sedan with unparalleled craftsmanship and comfort,V12,250 km/h,5.3 seconds,563 HP,450000-500000,2023,Made in the UK,Starlight headliner
+RollsRoyce,Ghost,A slightly smaller but equally refined luxury sedan,V12,250 km/h,4.8 seconds,563 HP,320000-350000,2023,Made in the UK,Effortless doors
+RollsRoyce,Cullinan,The world’s most luxurious SUV offering opulence and off-road capability,V12,250 km/h,5.2 seconds,563 HP,350000-400000,2023,Made in the UK,All-terrain suspension
+RollsRoyce,Spectre,Rolls-Royce’s first fully electric super coupe,Electric,250 km/h,4.5 seconds,577 HP,400000-450000,2023,Made in the UK,Electric silence
+Bentley,Continental GT Mulliner,A grand tourer with Mulliner's bespoke craftsmanship and luxury enhancements,W12,333 km/h,3.6 seconds,650 HP,250000-300000,2023,Made in the UK,Bespoke customization
+Bentley,Continental GTC Mulliner,The convertible version of the Continental GT with Mulliner's bespoke enhancements,W12,327 km/h,3.7 seconds,650 HP,270000-320000,2023,Made in the UK,Open-top luxury
+Bentley,Flying Spur Mulliner,An elegant luxury sedan with Mulliner's bespoke craftsmanship and advanced technology,V8,318 km/h,4.1 seconds,542 HP,200000-250000,2023,Made in the UK,All-wheel steering
+Bentley,Flying Spur Hybrid Mulliner,A refined luxury sedan with hybrid powertrain and Mulliner's bespoke enhancements,V6 Hybrid,285 km/h,4.3 seconds,536 HP,210000-260000,2023,Made in the UK,Electric drive mode
+Bentley,Bentayga Mulliner,A luxury SUV with Mulliner's bespoke customization options and exceptional performance,V8,290 km/h,4.4 seconds,542 HP,180000-240000,2023,Made in the UK,Diamond knurling
+Bentley,Bentayga EWB Mulliner,A long-wheelbase version of the Bentayga with Mulliner's enhancements for enhanced rear comfort,V8,290 km/h,4.6 seconds,550 HP,220000-280000,2023,Made in the UK,Rear-seat luxury
+Bentley,Bentayga Hybrid Mulliner,A sustainable luxury SUV with plug-in hybrid technology and Mulliner's bespoke features,V6 Hybrid,254 km/h,5.3 seconds,456 HP,160000-200000,2023,Made in the UK,Electric-only mode
+Bentley,Bacalar,A limited-edition, open-air two-seater grand tourer handcrafted by Mulliner,W12,322 km/h,3.5 seconds,659 HP,1900000-2000000,2023,Made in the UK,Coachbuilt exclusivity
+Bentley,Batur Convertible,A limited-production convertible grand tourer with Mulliner's bespoke craftsmanship,W12,330 km/h,3.7 seconds,740 HP,2000000-2200000,2023,Made in the UK,Open-top exclusivity
+Lamborghini,Revuelto,Lamborghini's first plug-in hybrid V12 supercar combining electrification with iconic performance,V12 Hybrid,350 km/h,2.5 seconds,1015 HP,500000-600000,2023,Made in Italy,High Performance Electrified Vehicle (HPEV)
+Lamborghini,Temerario,Successor to the Huracán featuring a twin-turbo V8 hybrid powertrain,V8 Hybrid,330 km/h,2.8 seconds,920 HP,250000-300000,2025,Made in Italy,Advanced hybrid technology
+Lamborghini,Huracan Tecnica,A refined version of the Huracán with improved aerodynamics and rear-wheel drive,V10,325 km/h,3.2 seconds,640 HP,250000-270000,2023,Made in Italy,Enhanced aerodynamics
+Lamborghini,Huracan STO,A track-focused Huracán variant with aggressive styling and performance,V10,310 km/h,3.0 seconds,640 HP,300000-320000,2023,Made in Italy,Super Trofeo Omologata
+Lamborghini,Huracan Sterrato,An off-road capable Huracán with raised suspension and rugged features,V10,260 km/h,3.4 seconds,610 HP,270000-290000,2023,Made in Italy,All-terrain supercar
+Lamborghini,Huracan STJ,Final edition of the Huracán with exclusive features and limited production,V10,310 km/h,3.0 seconds,640 HP,350000-370000,2024,Made in Italy,Limited to 10 units
+Lamborghini,Urus S,The standard version of Lamborghini's luxury SUV with versatile performance,V8,305 km/h,3.6 seconds,666 HP,200000-220000,2023,Made in Italy,Super SUV
+Lamborghini,Urus Performante,A performance-oriented Urus variant with reduced weight and enhanced dynamics,V8,306 km/h,3.3 seconds,666 HP,220000-240000,2023,Made in Italy,Lightweight design
+Lamborghini,Urus SE,The plug-in hybrid version of the Urus combining performance with efficiency,V8 Hybrid,300 km/h,3.5 seconds,800 HP,230000-250000,2024,Made in Italy,Plug-in hybrid SUV
+Ferrari,12Cilindri,A modern grand tourer celebrating Ferrari's V12 heritage,V12,340 km/h,2.9 seconds,830 HP,400000-450000,2024,Made in Italy,Clamshell bonnet design
+Ferrari,12Cilindri Spider,Convertible version of the 12Cilindri with open-air driving experience,V12,340 km/h,2.9 seconds,830 HP,420000-470000,2024,Made in Italy,Retractable hardtop
+Ferrari,296 GTB,Mid-engine plug-in hybrid sports car combining performance and efficiency,V6 Hybrid,330 km/h,2.9 seconds,830 HP,320000-350000,2023,Made in Italy,Plug-in hybrid powertrain
+Ferrari,296 GTS,Convertible variant of the 296 GTB offering open-top driving,V6 Hybrid,330 km/h,2.9 seconds,830 HP,340000-370000,2023,Made in Italy,Retractable hardtop
+Ferrari,812 Competizione,Limited-edition track-focused version of the 812 Superfast,V12,340 km/h,2.8 seconds,830 HP,500000-550000,2023,Made in Italy,Enhanced aerodynamics
+Ferrari,812 Competizione A,Open-top version of the 812 Competizione with similar performance,V12,340 km/h,2.8 seconds,830 HP,520000-570000,2023,Made in Italy,Targa roof design
+Ferrari,Daytona SP3,Limited-production hypercar inspired by Ferrari's 1960s prototypes,V12,340 km/h,2.85 seconds,829 HP,2200000-2300000,2023,Made in Italy,Icona series design
+Ferrari,F80,Successor to the LaFerrari featuring advanced hybrid technology,V6 Hybrid,350 km/h,2.15 seconds,1200 HP,3100000-3200000,2025,Made in Italy,F1-inspired hybrid system
+Ferrari,Purosangue,Ferrari's first SUV combining performance with practicality,V12,310 km/h,3.3 seconds,715 HP,390000-430000,2023,Made in Italy,Four-door configuration
+Ferrari,Roma,Elegant front-engine grand tourer with timeless design,V8,320 km/h,3.4 seconds,620 HP,250000-270000,2023,Made in Italy,Minimalist interior
+Ferrari,Roma Spider,Convertible version of the Roma offering open-air luxury,V8,320 km/h,3.4 seconds,620 HP,270000-290000,2023,Made in Italy,Soft-top roof
+Ferrari,SF90 Stradale,Ferrari's first series-production plug-in hybrid supercar,V8 Hybrid,340 km/h,2.5 seconds,1000 HP,500000-550000,2023,Made in Italy,All-wheel drive
+Ferrari,SF90 Spider,Convertible variant of the SF90 Stradale with similar performance,V8 Hybrid,340 km/h,2.5 seconds,1000 HP,520000-570000,2023,Made in Italy,Retractable hardtop
+Ferrari,SF90 XX Stradale,Track-focused version of the SF90 Stradale with enhanced performance,V8 Hybrid,340 km/h,2.3 seconds,1030 HP,600000-650000,2024,Made in Italy,Limited to 799 units
+Ferrari,SF90 XX Spider,Open-top variant of the SF90 XX Stradale offering similar capabilities,V8 Hybrid,340 km/h,2.3 seconds,1030 HP,620000-670000,2024,Made in Italy,Limited to 599 units
+AstonMartin,Vantage,A dynamic sports car offering thrilling performance and refined design,V8,314 km/h,3.4 seconds,665 HP,191000-210000,2025,Made in the UK,Enhanced infotainment system
+AstonMartin,Vantage Roadster,Convertible variant of the Vantage providing open-air exhilaration,V8,314 km/h,3.5 seconds,665 HP,200000-220000,2025,Made in the UK,Retractable soft-top
+AstonMartin,DB12,A luxurious grand tourer combining elegance with powerful performance,V8,325 km/h,3.5 seconds,671 HP,245000-265000,2025,Made in the UK,Advanced driver assistance systems
+AstonMartin,DB12 Volante,Open-top version of the DB12 offering grand touring with the sky above,V8,325 km/h,3.6 seconds,671 HP,260000-280000,2025,Made in the UK,Retractable soft-top
+AstonMartin,DBX707,A high-performance luxury SUV blending versatility with Aston Martin's signature style,V8,310 km/h,3.3 seconds,697 HP,197000-242000,2025,Made in the UK,Adaptive triple-chamber air suspension
+AstonMartin,Valhalla,A mid-engine hybrid supercar delivering cutting-edge performance and technology,V8 Hybrid,350 km/h,2.5 seconds,1012 HP,800000-1000000,2025,Made in the UK,Carbon fibre monocoque chassis
+AstonMartin,Valkyrie,A hypercar engineered with Formula 1 technology for the ultimate driving experience,V12 Hybrid,354 km/h,2.5 seconds,1140 HP,3000000-3500000,2025,Made in the UK,Active aerodynamics
+AstonMartin,Valkyrie Spider,Open-top variant of the Valkyrie offering an immersive hypercar experience,V12 Hybrid,350 km/h,2.6 seconds,1140 HP,3200000-3700000,2025,Made in the UK,Removable roof panels
+AstonMartin,Valkyrie AMR Pro,Track-only version of the Valkyrie designed for uncompromised performance,V12 Hybrid,No limit,2.3 seconds,1160 HP,3500000-4000000,2025,Made in the UK,Track-optimized aerodynamics
+AstonMartin,Valour,A limited-edition sports car celebrating Aston Martin's heritage with modern performance,V12,320 km/h,3.4 seconds,705 HP,1500000-1700000,2025,Made in the UK,Manual transmission
+AstonMartin,Valiant,A track-focused evolution of the Valour developed in collaboration with Fernando Alonso,V12,330 km/h,3.3 seconds,735 HP,1800000-2000000,2025,Made in the UK,Lightweight carbon fibre construction
+Bugatti,Chiron,Flagship hypercar known for its unparalleled performance and luxury,W16,420 km/h,2.4 seconds,1500 HP,3000000-3500000,2024,Made in France,Limited to 500 units
+Bugatti,Divo,Track-focused hypercar with enhanced aerodynamics and handling,W16,380 km/h,2.4 seconds,1500 HP,5000000-6000000,2021,Made in France,Limited to 40 units
+Bugatti,W16 Mistral,The final road-going Bugatti powered by the iconic W16 engine, offering an open-top driving experience,W16,420 km/h,2.4 seconds,1600 HP,5000000-6000000,2025,Made in France,Limited to 99 units
+Bugatti,Bolide,A track-only hypercar emphasizing lightweight construction and extreme aerodynamics,W16,500+ km/h,2.2 seconds,1600 HP,4000000-4500000,2025,Made in France,Limited to 40 units
+Bugatti,Tourbillon,A hybrid hypercar featuring a V16 engine paired with three electric motors, marking a new era for Bugatti,V16 Hybrid,445 km/h,2.0 seconds,1800 HP,3800000-4000000,2025,Made in France,Innovative analog instrument cluster
+McLaren,750S,Successor to the 720S with enhanced performance and reduced weight,V8,332 km/h,2.8 seconds,750 HP,330000-350000,2025,Made in the UK,30% new components
+McLaren,750S Spider,Convertible version of the 750S offering open-air exhilaration,V8,332 km/h,2.8 seconds,750 HP,350000-370000,2025,Made in the UK,Retractable hardtop
+McLaren,Artura,Hybrid supercar combining a twin-turbo V6 with an electric motor,V6 Hybrid,330 km/h,3.0 seconds,690 HP,250000-270000,2025,Made in the UK,Plug-in hybrid powertrain
+McLaren,Artura Spider,Convertible variant of the Artura with similar hybrid performance,V6 Hybrid,330 km/h,3.0 seconds,690 HP,270000-290000,2025,Made in the UK,Retractable hardtop
+McLaren,GTS,Grand tourer blending performance with everyday usability,V8,326 km/h,3.1 seconds,626 HP,220000-240000,2025,Made in the UK,Spacious luggage capacity
+McLaren,Solus GT,Track-only single-seater hypercar with a naturally aspirated V10,V10,322 km/h,2.5 seconds,829 HP,3500000-4000000,2025,Made in the UK,Limited to 25 units
+McLaren,P1,Limited-production hybrid hypercar combining a twin-turbo V8 with an electric motor,V8 Hybrid,350 km/h,2.8 seconds,903 HP,1100000-1300000,2015,Made in the UK,Limited to 375 units
+Porsche,911 Carrera,Iconic rear-engine sports car delivering a balance of performance and comfort,Flat-6,295 km/h,3.9 seconds,388 HP,122100-140000,2025,Made in Germany,Timeless design
+Porsche,911 Carrera Cabriolet,Convertible version of the Carrera offering open-top driving pleasure,Flat-6,293 km/h,4.1 seconds,388 HP,135395-150000,2025,Made in Germany,Electrically operated soft top
+Porsche,911 Carrera T,Lightweight variant focusing on driving purity and engagement,Flat-6,291 km/h,4.5 seconds,388 HP,138700-150000,2025,Made in Germany,Reduced weight
+Porsche,911 Carrera S,Enhanced performance model with increased power and dynamic capabilities,Flat-6,308 km/h,3.5 seconds,473 HP,148395-160000,2025,Made in Germany,Upgraded turbochargers
+Porsche,911 Carrera S Cabriolet,Convertible version of the Carrera S offering open-top performance,Flat-6,306 km/h,3.7 seconds,473 HP,159600-170000,2025,Made in Germany,Enhanced aerodynamics
+Porsche,911 Carrera 4,All-wheel-drive variant providing enhanced traction and stability,Flat-6,295 km/h,4.0 seconds,388 HP,135000-150000,2025,Made in Germany,All-weather capability
+Porsche,911 Carrera 4 Cabriolet,All-wheel-drive convertible providing enhanced traction and open-top driving,Flat-6,290 km/h,4.2 seconds,388 HP,140900-155000,2025,Made in Germany,Versatile performance
+Porsche,911 Carrera 4S,Enhanced all-wheel-drive model with increased power and performance,Flat-6,306 km/h,3.6 seconds,473 HP,145000-160000,2025,Made in Germany,Improved dynamics
+Porsche,911 Carrera 4S Cabriolet,Convertible version of the Carrera 4S offering open-top performance,Flat-6,304 km/h,3.8 seconds,473 HP,160000-175000,2025,Made in Germany,Open-air versatility
+Porsche,911 Carrera GTS T-Hybrid,Hybrid-enhanced Carrera offering improved performance and efficiency,Flat-6 Hybrid,312 km/h,3.0 seconds,534 HP,150000-165000,2025,Made in Germany,Electrified powertrain
+Porsche,911 Carrera GTS Cabriolet T-Hybrid,Hybrid-powered convertible combining performance with open-air driving,Flat-6 Hybrid,312 km/h,3.1 seconds,534 HP,155000-170000,2025,Made in Germany,Electrified open-top experience
+Porsche,911 Carrera 4 GTS T-Hybrid,All-wheel-drive hybrid variant offering enhanced traction and performance,Flat-6 Hybrid,312 km/h,3.1 seconds,534 HP,155000-170000,2025,Made in Germany,All-weather capability
+Porsche,911 Carrera 4 GTS Cabriolet T-Hybrid,All-wheel-drive hybrid convertible combining performance with open-air driving,Flat-6 Hybrid,312 km/h,3.1 seconds,534 HP,160000-175000,2025,Made in Germany,Versatile performance
+Porsche,911 Targa 4,Iconic Targa model combining coupe rigidity with open-air driving,Flat-6,290 km/h,4.4 seconds,388 HP,135000-150000,2025,Made in Germany,Classic design
+Porsche,911 Targa 4S,Enhanced Targa variant with increased power and performance,Flat-6,304 km/h,3.8 seconds,473 HP,145000-160000,2025,Made in Germany,Refined performance
+Porsche,911 Targa 4 GTS T-Hybrid,Hybrid-powered Targa model combining open-air driving with enhanced performance,Flat-6 Hybrid,312 km/h,3.1 seconds,534 HP,160000-175000,2025,Made in Germany,Electrified Targa experience
+Porsche,911 Turbo,High-performance model offering a balance of power and luxury,Flat-6,320 km/h,2.8 seconds,572 HP,182900-200000,2025,Made in Germany,Dynamic performance
+Porsche,911 Turbo Cabriolet,Convertible version of the Turbo offering open-top high performance,Flat-6,318 km/h,2.9 seconds,572 HP,190000-210000,2025,Made in Germany,Open-air exhilaration
+Porsche,911 Turbo S,Top-tier performance model with exceptional acceleration and top speed,Flat-6,330 km/h,2.7 seconds,640 HP,216100-230000,2025,Made in Germany,Advanced aerodynamics
+Porsche,911 Turbo S Cabriolet,Convertible version of the Turbo S offering unparalleled open-top performance,Flat-6,328 km/h,2.8 seconds,640 HP,225000-240000,2025,Made in Germany,Ultimate open-air performance
+Porsche,911 GT3,Performance-focused model with naturally aspirated engine and precise handling,Flat-6,318 km/h,3.4 seconds,502 HP,182900-200000,2025,Made in Germany,Track-tuned suspension
+Porsche,911 GT3 Touring,Subtle variant of the GT3 without the rear wing, offering a more understated look,Flat-6,318 km/h,3.4 seconds,502 HP,182900-200000,2025,Made in Germany,Discreet performance
+Porsche,911 GT3 RS,Track-oriented model with race-derived technology and design,Flat-6,296 km/h,3.0 seconds,518 HP,223800-240000,2025,Made in Germany,Active aerodynamics
+Porsche,911 Dakar,Limited-edition off-road capable 911 with rugged enhancements,Flat-6,240 km/h,3.4 seconds,473 HP,222000-240000,2025,Made in Germany,All-terrain capabilities
+Porsche,911 S/T,Lightweight anniversary model celebrating 60 years of the 911,Flat-6,300 km/h,3.7 seconds,518 HP,290000-310000,2025,Made in Germany,Limited to 1963 units
+Porsche,718 Cayman,Mid-engine sports coupe offering agile handling and performance,Flat-4,275 km/h,4.9 seconds,300 HP,72800-85000,2025,Made in Germany,Precise steering
+Porsche,718 Cayman GT4 RS,Track-focused variant of the Cayman with enhanced aerodynamics,Flat-6,315 km/h,3.4 seconds,493 HP,141700-160000,2025,Made in Germany,Lightweight construction
+Porsche,718 Boxster,Convertible sports car combining performance with open-air driving,Flat-4,275 km/h,4.9 seconds,300 HP,74900-87000,2025,Made in Germany,Electrically operated soft top
+Porsche,718 Boxster S,Enhanced performance variant of the Boxster with increased power,Flat-4,285 km/h,4.4 seconds,350 HP,82000-95000,2025,Made in Germany,Turbocharged engine
+Porsche,718 Boxster GTS 4.0,Performance-focused Boxster with naturally aspirated engine,Flat-6,293 km/h,4.0 seconds,394 HP,90000-105000,2025,Made in Germany,Sport-tuned suspension
+Porsche,718 Spyder RS,High-performance open-top variant with motorsport-inspired features,Flat-6,308 km/h,3.4 seconds,493 HP,160700-180000,2025,Made in Germany,Lightweight design
+Porsche,Taycan,Porsche's all-electric sports sedan offering dynamic performance,Electric,250 km/h,4.5 seconds,402 HP,99400-110000,2025,Made in Germany,Two-speed transmission
+Porsche,Taycan 4S,All-wheel-drive variant of the Taycan with enhanced performance,Electric,260 km/h,3.8 seconds,522 HP,118500-130000,2025,Made in Germany,Performance Battery Plus
+Porsche,Taycan GTS,Performance-oriented Taycan model with sporty design elements,Electric,270 km/h,3.5 seconds,590 HP,147900-160000,2025,Made in Germany,Sport Chrono Package
+Porsche,Taycan Turbo,High-performance Taycan variant with increased power output,Electric,280 km/h,3.2 seconds,670 HP,153300-165000,2025,Made in Germany,Adaptive air suspension
+Porsche,Taycan Turbo S,Top-tier Taycan model offering maximum performance and acceleration,Electric,285 km/h,2.8 seconds,750 HP,185000-200000,2025,Made in Germany,Carbon-ceramic brakes
+Porsche,Panamera,Four-door luxury sedan combining performance with comfort,V6,270 km/h,5.4 seconds,348 HP,102800-115000,2025,Made in Germany,Adaptive cruise control
+Porsche,Panamera 4,All-wheel-drive variant of the Panamera offering enhanced traction,V6,275 km/h,5.2 seconds,348 HP,107800-120000,2025,Made in Germany,All-wheel drive system
+Porsche,Panamera GTS,Performance-focused Panamera with upgraded powertrain,V8,295 km/h,3.6 seconds,493 HP,135000-150000,2025,Made in Germany,Sport exhaust system
+Porsche,Panamera Turbo E-Hybrid,Plug-in hybrid Panamera combining performance with efficiency,V8 Hybrid,315 km/h,3.0 seconds,670 HP,150000-165000,2025,Made in Germany,Electric range up to 50 miles
+Porsche,Panamera Turbo S E-Hybrid,Top-tier Panamera model offering maximum performance and hybrid efficiency,V8 Hybrid,320 km/h,2.9 seconds,771 HP,180000-200000,2025,Made in Germany,Active suspension management
+Porsche,Macan,Compact luxury SUV offering sporty handling and versatility,Inline-4,230 km/h,6.2 seconds,261 HP,62900-70000,2025,Made in Germany,All-wheel drive
+Porsche,Macan S,Enhanced performance variant of the Macan with increased power,V6,250 km/h,5.1 seconds,375 HP,74500-82000,2025,Made in Germany,Sport-tuned suspension
+Porsche,Macan GTS,Sport-focused Macan model with upgraded powertrain and features,V6,260 km/h,4.7 seconds,434 HP,89000-95000,2025,Made in Germany,Adaptive air suspension
+Porsche,Macan Electric,All-electric variant of the Macan offering zero-emission driving,Electric,220 km/h,5.0 seconds,355 HP,80000-90000,2025,Made in Germany,Electric range up to 315 miles
+Porsche,Macan 4 Electric,All-wheel-drive electric Macan with enhanced performance,Electric,230 km/h,4.5 seconds,402 HP,85000-95000,2025,Made in Germany,Dual-motor setup
+Porsche,Macan Turbo Electric,Top-tier electric Macan model offering maximum performance,Electric,240 km/h,3.3 seconds,630 HP,100000-110000,2025,Made in Germany,Performance Battery Plus
+Porsche,Cayenne,Midsize luxury SUV offering a balance of performance and practicality,V6,245 km/h,5.7 seconds,348 HP,84700-90000,2025,Made in Germany,All-wheel drive
+Porsche,Cayenne S,Enhanced performance variant of the Cayenne with increased power,V8,265 km/h,4.7 seconds,468 HP,101600-110000,2025,Made in Germany,Sport Chrono Package
+Porsche,Cayenne GTS,Sport-focused Cayenne model with upgraded powertrain and features,V8,270 km/h,4.4 seconds,493 HP,129900-140000,2025,Made in Germany,Adaptive air suspension
+Porsche,Cayenne S E-Hybrid,Plug-in hybrid Cayenne combining performance with efficiency,V6 Hybrid,250 km/h,4.4 seconds,512 HP,105100-115000,2025,Made in Germany,Electric range up to 30 miles
+Porsche,Cayenne Turbo E-Hybrid,Top-tier Cayenne model offering maximum performance and hybrid efficiency,V8 Hybrid,290 km/h,3.6 seconds,729 HP,160000-175000,2025,Made in Germany,Active suspension management
+Tesla,Model S,Flagship electric sedan offering luxury and high performance,Electric,322 km/h,1.99 seconds,1020 HP,79990-94990,2025,Made in USA,Tri-motor AWD with Plaid performance
+Tesla,Model 3,Compact electric sedan combining affordability with advanced features,Electric,261 km/h,3.3 seconds,510 HP,42490-54990,2025,Made in USA,Facelifted design with improved range
+Tesla,Model X,Luxury electric SUV with falcon-wing doors and spacious interior,Electric,262 km/h,2.5 seconds,1020 HP,86880-101880,2025,Made in USA,Tri-motor Plaid variant available
+Tesla,Model Y,Compact electric SUV offering versatility and performance,Electric,250 km/h,3.5 seconds,455 HP,44990-51490,2025,Made in USA,Redesigned 'Juniper' version with enhanced features
+Tesla,Cybertruck,Futuristic electric pickup truck with robust performance,Electric,209 km/h,2.6 seconds,845 HP,79990-99990,2025,Made in USA,Available in dual and tri-motor configurations
+Tesla,Roadster,High-performance electric sports car with exceptional speed,Electric,402 km/h,1.9 seconds,1000 HP,200000-250000,2025,Made in USA,Expected production in 2025 with advanced specs
+Maserati,MC20,Flagship mid-engine supercar featuring the Nettuno V6 engine,V6,325 km/h,3.2 seconds,621 HP,239000-285000,2025,Made in Italy,Butterfly doors and carbon fiber monocoque
+Maserati,MC20 Cielo,Convertible variant of the MC20 with a retractable hardtop,V6,320 km/h,3.3 seconds,621 HP,265000-310000,2025,Made in Italy,Electrochromic glass roof
+Maserati,MC20 GT2 Stradale,Road-legal version of the GT2 race car with enhanced performance,V6,323 km/h,2.8 seconds,640 HP,313995-350000,2025,Made in Italy,Limited to 914 units
+Maserati,MC20 Folgore,Upcoming all-electric supercar variant of the MC20,Electric,330 km/h,2.7 seconds,830 HP,250000-300000,2025,Made in Italy,Tri-motor AWD system
+Maserati,Grecale GT,Entry-level luxury SUV with mild-hybrid technology,I4 Hybrid,229 km/h,6.3 seconds,296 HP,65000-75000,2025,Made in Italy,Spacious interior with advanced infotainment
+Maserati,Grecale Modena,Mid-tier Grecale offering enhanced performance,I4 Hybrid,240 km/h,5.6 seconds,325 HP,75000-85000,2025,Made in Italy,Sport-tuned suspension
+Maserati,Grecale Trofeo,High-performance Grecale variant with Nettuno V6,V6,285 km/h,3.8 seconds,523 HP,95000-105000,2025,Made in Italy,Launch control and adaptive air suspension
+Maserati,Grecale Folgore,All-electric Grecale SUV with dual-motor setup,Electric,220 km/h,4.1 seconds,557 HP,100000-110000,2025,Made in Italy,105 kWh battery with 500 km range
+Maserati,GranTurismo Modena,Luxury grand tourer with twin-turbo V6 engine,V6,302 km/h,3.9 seconds,483 HP,141995-150000,2025,Made in Italy,All-wheel drive and refined interior
+Maserati,GranTurismo Trofeo,Performance-focused GranTurismo variant,V6,320 km/h,3.5 seconds,542 HP,165000-175000,2025,Made in Italy,Active aerodynamics and sport exhaust
+Maserati,GranTurismo Folgore,All-electric GranTurismo with tri-motor setup,Electric,325 km/h,2.7 seconds,751 HP,193995-200000,2025,Made in Italy,92.5 kWh battery with 450 km range
+Maserati,GranCabrio Trofeo,Convertible version of the GranTurismo Trofeo,V6,310 km/h,3.6 seconds,542 HP,170000-180000,2025,Made in Italy,Retractable soft top and premium audio system
+Maserati,Levante GT Hybrid,Base model of the Levante SUV with mild-hybrid engine,I4 Hybrid,245 km/h,6.0 seconds,330 HP,147600-160000,2025,Made in Italy,All-wheel drive and adaptive cruise control
+Maserati,Levante Modena S,Mid-tier Levante with enhanced V6 performance,V6,264 km/h,5.0 seconds,424 HP,160000-180000,2025,Made in Italy,Sport mode and upgraded brakes
+Maserati,Levante Trofeo,Top-tier Levante SUV with V8 engine,V8,302 km/h,3.9 seconds,580 HP,304600-320000,2025,Made in Italy,Performance suspension and exclusive interior trims
+Maserati,Ghibli GT,Executive sedan with mild-hybrid technology,I4 Hybrid,255 km/h,5.7 seconds,330 HP,80000-90000,2025,Made in Italy,Advanced driver assistance systems
+Maserati,Ghibli Modena,Enhanced Ghibli variant with V6 engine,V6,285 km/h,4.9 seconds,424 HP,90000-100000,2025,Made in Italy,Sport design elements and adaptive suspension
+Maserati,Ghibli Trofeo,High-performance Ghibli with V8 engine,V8,326 km/h,4.3 seconds,580 HP,110000-120000,2025,Made in Italy,Track mode and carbon fiber accents
+Pagani,Huayra,A bespoke hypercar with breathtaking design and craftsmanship,V12,383 km/h,3.2 seconds,720 HP,2000000-2500000,2023,Made in Italy,Active aerodynamics
+Pagani,Zonda,A legendary hypercar with a naturally aspirated V12 engine,V12,345 km/h,3.6 seconds,760 HP,1500000-1800000,2023,Made in Italy,Carbon fiber body
+Pagani,Huayra R,A track-only hypercar with extreme performance,V12,350 km/h,2.8 seconds,850 HP,3000000-3500000,2023,Made in Italy,Track-spec engineering
+Pagani,Utopia,Third-generation hypercar with a focus on craftsmanship and performance,V12,350 km/h,2.9 seconds,864 HP,2100000-2200000,2025,Made in Italy,Manual or automated transmission options
+Pagani,Utopia Roadster,Open-top variant of the Utopia offering the same performance with added open-air experience,V12,350 km/h,2.9 seconds,864 HP,3350000-3500000,2025,Made in Italy,Available with soft or hard top
+Koenigsegg,Agera RS,A record-breaking hypercar with cutting-edge engineering and mind-blowing speed,V8,447 km/h,2.6 seconds,1341 HP,2500000-3000000,2023,Made in Sweden,One:1 power-to-weight ratio
+Koenigsegg,Jesko Absolut,High-speed variant of the Jesko aiming for top speed records,V8,531 km/h,2.6 seconds,1600 HP,3000000-3500000,2025,Made in Sweden,Optimized for low drag and high-speed stability
+Koenigsegg,Jesko Attack,Track-oriented version of the Jesko with advanced aerodynamics,V8,400 km/h,2.5 seconds,1600 HP,3000000-3500000,2025,Made in Sweden,Designed for maximum downforce and cornering
+Koenigsegg,Gemera,First four-seater hypercar combining performance with practicality,V8 Hybrid,400 km/h,1.9 seconds,2300 HP,3000000-3500000,2025,Made in Sweden,Features innovative Light Speed Tourbillon Transmission
+Koenigsegg,CC850,Modern reinterpretation of the original CC8S with manual transmission,V8,400 km/h,2.5 seconds,1385 HP,3500000-4000000,2025,Made in Sweden,Limited production honoring Koenigsegg's heritage
+Jaguar,F-Pace,Luxury performance SUV with refined design and handling,I4/V6,250 km/h,6.6 seconds,246-395 HP,55000-75000,2025,Made in the UK,All-wheel drive
+Jaguar,E-Pace,Compact SUV blending agility and advanced technology,I4,230 km/h,7.0 seconds,246 HP,48000-60000,2025,Made in the UK,Sporty driving dynamics
+Jaguar,I-Pace,All-electric SUV with dynamic handling and luxury features,Electric,200 km/h,4.5 seconds,394 HP,70000-85000,2025,Made in the UK,Zero-emissions performance
+Jaguar,F-Type,Stylish sports car offering thrilling performance and design,V8,275 km/h,4.6 seconds,444 HP,75000-100000,2025,Made in the UK,Distinctive exhaust note
+Jaguar,XF,Elegant executive sedan offering refinement and comfort,I4,250 km/h,6.1 seconds,246 HP,52000-65000,2025,Made in the UK,Luxurious interior
+LandRover,Defender 110,Rugged off-road SUV with modern technology and comfort,I4/I6,191 km/h,6.7 seconds,296-395 HP,65000-80000,2025,Made in the UK,Configurable Terrain Response
+LandRover,Defender 90,Compact version of the Defender with off-road prowess,I4/I6,191 km/h,6.0 seconds,296-395 HP,62000-77000,2025,Made in the UK,Short wheelbase agility
+LandRover,Discovery Sport,Versatile SUV with seating for up to seven and premium features,I4,210 km/h,7.3 seconds,246 HP,48000-60000,2025,Made in the UK,Optional third-row seating
+LandRover,Discovery,"Family SUV offering space, luxury, and off-road capability",I6,210 km/h,6.5 seconds,355 HP,68000-80000,2025,Made in the UK,Versatile seating configuration
+LandRover,Range Rover,Flagship luxury SUV with refined performance and technology,I6/V8,250 km/h,4.4 seconds,434-523 HP,120000-160000,2025,Made in the UK,Executive Class Rear Seats
+LandRover,Range Rover Sport,Performance-oriented luxury SUV with dynamic capabilities,I6/V8,250 km/h,4.3 seconds,434-523 HP,95000-130000,2025,Made in the UK,Dynamic Air Suspension
+LandRover,Range Rover Velar,Mid-size luxury SUV with sleek design and tech features,I4/I6,240 km/h,5.2 seconds,247-395 HP,65000-85000,2025,Made in the UK,Floating roof design
+LandRover,Range Rover Evoque,Compact luxury SUV with a distinctive design and tech,I4,230 km/h,7.0 seconds,246 HP,55000-70000,2025,Made in the UK,Coupé-like silhouette
+AlfaRomeo,Giulia,Sporty compact sedan with Italian style and engaging dynamics,I4,240 km/h,5.5 seconds,280 HP,45000-60000,2025,Made in Italy,Driver-focused cockpit
+AlfaRomeo,Giulia Quadrifoglio,High-performance version of the Giulia with track-ready tuning,V6,307 km/h,3.9 seconds,505 HP,80000-90000,2025,Made in Italy,Active aero splitter
+AlfaRomeo,Stelvio,Performance SUV blending utility with Italian flair,I4,230 km/h,5.4 seconds,280 HP,50000-65000,2025,Made in Italy,Q4 all-wheel drive
+AlfaRomeo,Stelvio Quadrifoglio,High-performance Stelvio SUV with exhilarating power,V6,283 km/h,3.6 seconds,505 HP,85000-95000,2025,Made in Italy,Torque vectoring differential
+AlfaRomeo,Tonale,Compact luxury SUV with bold styling and hybrid options,I4,210 km/h,6.2 seconds,256 HP,44000-55000,2025,Made in Italy,Plug-in hybrid capability
+AlfaRomeo,Tonale Hybrid,Hybrid version of the Tonale offering efficiency and performance,I4 Hybrid,210 km/h,6.0 seconds,285 HP,46000-57000,2025,Made in Italy,E-motor for rear axle
+Lotus,Evija,All-electric hypercar with extreme performance and futuristic design,Electric,320 km/h,2.9 seconds,2000 HP,2100000-2200000,2025,Made in the UK,Carbon fibre monocoque
+Lotus,Emira,Sports car blending everyday usability with driving excitement,I4/V6,290 km/h,4.3 seconds,360-400 HP,85000-100000,2025,Made in the UK,Manual transmission available
+Lotus,Eletre,High-performance electric SUV combining luxury with agility,Electric,258 km/h,2.9 seconds,905 HP,120000-130000,2025,Made in China,Advanced active aerodynamics
+Lotus,Emeya,Electric grand tourer blending power and refinement,Electric,256 km/h,2.8 seconds,905 HP,115000-125000,2025,Made in China,Fast charging and active suspension
+Cadillac,CT4,Compact luxury sedan with athletic handling and upscale features,I4,240 km/h,5.6 seconds,237 HP,36000-45000,2025,Made in USA,Rear-wheel drive
+Cadillac,CT4-V,Performance version of the CT4 with enhanced dynamics,I4,250 km/h,4.8 seconds,325 HP,47000-55000,2025,Made in USA,Track mode
+Cadillac,CT5,Midsize luxury sedan offering comfort and cutting-edge tech,I4/V6,250 km/h,5.3 seconds,237-335 HP,39000-48000,2025,Made in USA,Super Cruise optional
+Cadillac,CT5-V Blackwing,High-performance sports sedan with supercharged V8,V8,322 km/h,3.4 seconds,668 HP,92000-100000,2025,Made in USA,Available with manual
+Cadillac,Celestiq,Ultra-luxury all-electric flagship sedan with bespoke features,Electric,240 km/h,3.8 seconds,600 HP,300000-340000,2025,Made in USA,Hand-built customization
+Cadillac,Escalade,Iconic full-size luxury SUV with commanding presence,V8,190 km/h,6.1 seconds,420 HP,82000-100000,2025,Made in USA,36-speaker audio system
+Cadillac,Escalade IQ,All-electric version of the Escalade with futuristic tech,Electric,180 km/h,4.8 seconds,750 HP,130000-150000,2025,Made in USA,Hands-free driving
+Cadillac,Lyriq,All-electric luxury SUV combining performance and sustainability,Electric,190 km/h,4.8 seconds,500 HP,58000-70000,2025,Made in USA,33-inch LED display
+Cadillac,Optiq,Upcoming entry-level electric SUV with Cadillac design language,Electric,180 km/h,5.5 seconds,300 HP,50000-60000,2025,Made in USA,Next-gen UI and connectivity
+Cadillac,XT4,Compact luxury SUV with style and tech features,I4,210 km/h,7.8 seconds,235 HP,39000-46000,2025,Made in USA,Hands-free liftgate
+Cadillac,XT5,Midsize luxury SUV offering space and refinement,V6,210 km/h,6.9 seconds,310 HP,46000-56000,2025,Made in USA,Spacious interior
+Cadillac,XT6,Three-row SUV blending performance with versatility,V6,210 km/h,6.8 seconds,310 HP,52000-62000,2025,Made in USA,Tri-zone climate control
+Cadillac,Vistiq,Upcoming luxury electric SUV with sleek design,Electric,190 km/h,4.6 seconds,500 HP,70000-85000,2025,Made in USA,Panoramic glass roof
+Audi,A3,Compact luxury sedan offering agile handling and advanced tech,I4,250 km/h,6.3 seconds,201 HP,34000-43000,2025,Made in Germany,Virtual Cockpit digital display
+Audi,A5,Stylish coupe combining performance with everyday usability,I4,250 km/h,5.6 seconds,261 HP,45000-55000,2025,Made in Germany,MMI Touch Response system
+Audi,A7 Sportback,Five-door luxury liftback blending elegance and versatility,I4,250 km/h,5.3 seconds,335 HP,70000-85000,2025,Made in Germany,Integrated smart trunk
+Audi,S7 Sportback,High-performance variant of the A7 with sporty upgrades,V6,250 km/h,4.3 seconds,444 HP,92000-105000,2025,Made in Germany,Quad exhaust outlets
+Audi,RS 7 Sportback Performance,Track-focused RS model with enhanced power and dynamics,V8,305 km/h,3.5 seconds,600 HP,120000-140000,2025,Made in Germany,Dynamic Ride Control suspension
+Audi,A8,Full-size luxury sedan with cutting-edge comfort and technology,V6,250 km/h,5.1 seconds,335 HP,90000-110000,2025,Made in Germany,Bang & Olufsen 3D Premium Sound
+Audi,A8 L,Long-wheelbase version of the A8 for enhanced rear comfort,V6,250 km/h,5.3 seconds,335 HP,95000-120000,2025,Made in Germany,Executive rear seating package
+Audi,S8,Top-tier A8 variant with sport-tuned performance and luxury,V8,250 km/h,3.8 seconds,563 HP,145000-160000,2025,Made in Germany,Adaptive air suspension
+Audi,Q2,Compact SUV with urban agility and modern design,I4,210 km/h,7.4 seconds,201 HP,35000-40000,2025,Made in Germany,Compact city driving package
+Audi,Q3,Versatile compact SUV blending practicality with performance,I4,230 km/h,6.8 seconds,201 HP,36000-45000,2025,Made in Germany,Adaptive cruise control
+Audi,Q3 Sportback,Coupé-style variant of the Q3 with dynamic silhouette,I4,230 km/h,7.0 seconds,201 HP,38000-47000,2025,Made in Germany,Sloping roofline design
+Audi,Q5,Popular luxury SUV offering balanced performance and comfort,I4,237 km/h,6.1 seconds,261 HP,52000-65000,2025,Made in Germany,Quattro all-wheel drive
+Audi,Q5 Sportback,Coupé-inspired Q5 with sportier styling,I4,235 km/h,6.3 seconds,261 HP,54000-67000,2025,Made in Germany,Slanted rear roof
+Audi,Q5 Plug-in Hybrid,Sustainable Q5 combining electric drive with petrol engine,I4 Hybrid,222 km/h,5.1 seconds,362 HP,59000-70000,2025,Made in Germany,Hybrid drive mode
+Audi,SQ5,Performance SUV with powerful engine and sporty tuning,V6,250 km/h,5.1 seconds,354 HP,65000-80000,2025,Made in Germany,Sport differential
+Audi,SQ5 Sportback,Sportback version of the SQ5 with dynamic profile,V6,250 km/h,5.3 seconds,354 HP,67000-82000,2025,Made in Germany,Flat-bottom steering wheel
+Audi,Q7,Three-row luxury SUV with advanced tech and comfort,I6,245 km/h,6.0 seconds,335 HP,65000-85000,2025,Made in Germany,Air suspension
+Audi,SQ7,High-performance Q7 variant with enhanced power and handling,V8,250 km/h,4.8 seconds,500 HP,90000-115000,2025,Made in Germany,Electric torque splitter
+Audi,Q8,Flagship luxury SUV coupe blending style and performance,V6,250 km/h,5.6 seconds,335 HP,80000-100000,2025,Made in Germany,Matrix LED headlights
+Audi,SQ8,Sport-tuned Q8 with V8 power and dynamic chassis,V8,250 km/h,4.5 seconds,503 HP,105000-125000,2025,Made in Germany,Adaptive air suspension
+Audi,e-tron GT,Electric grand tourer combining performance with luxury,Electric,245 km/h,4.1 seconds,469 HP,102000-144000,2025,Made in Germany,800-volt charging architecture
+Audi,S e-tron GT,Sport variant of the e-tron GT with increased output,Electric,250 km/h,3.9 seconds,514 HP,120000-160000,2025,Made in Germany,RS sport suspension
+Audi,RS e-tron GT,High-performance electric GT with RS upgrades,Electric,250 km/h,3.3 seconds,646 HP,142000-200000,2025,Made in Germany,Carbon ceramic brakes
+Audi,RS e-tron GT Performance,Top-tier RS e-tron GT with peak performance,Electric,250 km/h,3.1 seconds,659 HP,150000-210000,2025,Made in Germany,Performance torque splitter
+Audi,RS 6 Avant GT,High-performance estate with race-derived tech,V8,250 km/h,3.3 seconds,591 HP,120000-140000,2025,Made in Germany,Wide-body design
+Audi,RS 6 Avant Performance,Top-spec estate with enhanced power and speed,V8,305 km/h,3.2 seconds,612 HP,135000-155000,2025,Made in Germany,Dynamic Ride Control
+Audi,RS 7 Sportback GT,Race-inspired Sportback with flagship performance,V8,305 km/h,3.3 seconds,640 HP,130000-150000,2025,Made in Germany,Active aerodynamics
+Audi,RS Q8 Performance,Extreme performance SUV with RS enhancements,V8,250 km/h,3.8 seconds,600 HP,130000-150000,2025,Made in Germany,Carbon fiber interior trims
+Audi,RS Q8 GT,Track-focused RS Q8 with maximum dynamics,V8,305 km/h,3.5 seconds,650 HP,150000-170000,2025,Made in Germany,RS Dynamic Package
+Audi,Q4 e-tron,Entry-level electric SUV with modern styling,Electric,180 km/h,8.5 seconds,201 HP,52000-62000,2025,Made in Germany,Progressive Sportback grille
+Audi,Q4 Sportback e-tron,Coupé-SUV electric with dynamic design,Electric,180 km/h,8.9 seconds,201 HP,52000-63000,2025,Made in Germany,Sleek roofline
+Audi,Q8 e-tron,Electric flagship SUV with luxury amenities,Electric,200 km/h,5.6 seconds,355 HP,70000-90000,2025,Made in Germany,Virtual exterior mirrors
+Audi,Q8 Sportback e-tron,Coupé-style electric SUV with refined performance,Electric,200 km/h,5.5 seconds,355 HP,72000-92000,2025,Made in Germany,Panoramic glass roof
+Audi,SQ8 e-tron,Performance electric SUV with enhanced power,Electric,210 km/h,4.5 seconds,503 HP,95000-115000,2025,Made in Germany,Air suspension tuning
+Audi,SQ8 Sportback e-tron,Coupé electric with sport styling and power,Electric,210 km/h,4.6 seconds,503 HP,97000-117000,2025,Made in Germany,Flat-bottom steering wheel
+Audi,Q6 e-tron,Upcoming electric SUV with spacious interior,Electric,200 km/h,6.1 seconds,340 HP,70000-80000,2025,Made in Germany,VR headset connectivity
+Audi,Q6 Sportback e-tron,Coupé electric SUV variant with style,Electric,200 km/h,6.3 seconds,340 HP,72000-82000,2025,Made in Germany,Panoramic display dashboard
+Audi,SQ6 e-tron,Electric performance SUV with RS dynamics,Electric,210 km/h,4.8 seconds,402 HP,105000-125000,2025,Made in Germany,RS sport differential
+Audi,SQ6 Sportback e-tron,Coupé electric RS variant with agile handling,Electric,210 km/h,4.9 seconds,402 HP,107000-127000,2025,Made in Germany,RS sport suspension
+Audi,E5 Sportback,China-market electric sedan with compact dimensions,Electric,160 km/h,10.0 seconds,114 HP,20000-30000,2025,Made in China,Region-specific fast charging
+BMW,2 Series Coupe,Compact luxury coupe with agile handling and driver-focused dynamics,I4,240 km/h,6.0 seconds,255 HP,38 000-45 000,2025,Made in Germany,M Sport package  
+BMW,M2 Coupe,High-performance coupe with track-ready chassis and powerful engine,I6,250 km/h,4.1 seconds,453 HP,70 000-80 000,2025,Made in Germany,Track-focused chassis  
+BMW,3 Series Sedan,Popular executive sedan blending comfort with sporty driving,I4,250 km/h,5.8 seconds,255 HP,43 000-55 000,2025,Made in Germany,Gesture control  
+BMW,M3 Sedan,High-performance sports sedan with motorsport technology,I6,290 km/h,3.8 seconds,503 HP,70 000-85 000,2025,Made in Germany,Carbon fibre roof  
+BMW,4 Series Coupe,Stylish coupe offering dynamic performance and luxury,I4,240 km/h,6.0 seconds,255 HP,47 000-55 000,2025,Made in Germany,Harman Kardon sound  
+BMW,4 Series Convertible,Open-top coupe delivering refined performance and luxury,I4,240 km/h,6.5 seconds,255 HP,52 000-60 000,2025,Made in Germany,Soft top roof  
+BMW,4 Series Gran Coupe,Four-door coupe with sleek design and versatile practicality,I4,240 km/h,6.1 seconds,255 HP,48 000-56 000,2025,Made in Germany,Frameless doors  
+BMW,M4 Coupe,Performance coupe with adaptive suspension and aggressive styling,I6,270 km/h,3.9 seconds,503 HP,75 000-90 000,2025,Made in Germany,Adaptive M suspension  
+BMW,M4 Convertible,Convertible performance coupe with retractable top and track DNA,I6,270 km/h,4.2 seconds,503 HP,80 000-95 000,2025,Made in Germany,Retractable soft top  
+BMW,5 Series Sedan,Executive sedan combining luxury comfort with sporty dynamics,I4,250 km/h,6.1 seconds,248 HP,55 000-65 000,2025,Made in Germany,Remote engine start  
+BMW,M5 Sedan,High-performance luxury sedan with M xDrive and track capability,V8,305 km/h,3.3 seconds,600 HP,110 000-130 000,2025,Made in Germany,M xDrive  
+BMW,7 Series Sedan,Flagship luxury sedan with advanced tech and executive amenities,I6,250 km/h,5.4 seconds,335 HP,90 000-110 000,2025,Made in Germany,Executive Lounge seating  
+BMW,8 Series Coupe,Grand tourer coupe with elegant design and powerful performance,I6,250 km/h,5.8 seconds,340 HP,90 000-105 000,2025,Made in Germany,Sky Lounge Panorama Roof  
+BMW,8 Series Convertible,Open-top grand tourer with refined luxury and performance,I6,250 km/h,6.0 seconds,340 HP,95 000-110 000,2025,Made in Germany,Soft top roof  
+BMW,8 Series Gran Coupe,Four-door coupe with sporty silhouette and luxury features,I6,250 km/h,5.0 seconds,340 HP,92 000-108 000,2025,Made in Germany,Four-door coupe styling  
+BMW,Z4 Roadster,Two-seat roadster with driver-centric dynamics and timeless design,I4,240 km/h,5.9 seconds,255 HP,50 000-61 000,2025,Made in Germany,Retractable hardtop  
+BMW,X1,Compact luxury SUV with versatile cargo space and modern tech,I4,210 km/h,6.9 seconds,241 HP,37 000-45 000,2025,Made in Germany,Versatile cargo area  
+BMW,X2,Sporty coupe-crossover with dynamic styling and agile handling,I4,230 km/h,6.8 seconds,228 HP,38 000-46 000,2025,Made in Germany,Sporty design  
+BMW,X3,Midsize luxury SUV balancing performance with practicality,I4,240 km/h,6.3 seconds,248 HP,43 000-54 000,2025,Made in Germany,Live Cockpit Professional  
+BMW,X4,Coupe-style SUV with athletic stance and refined dynamics,I4,230 km/h,6.1 seconds,255 HP,50 000-61 000,2025,Made in Germany,Coupe-like roofline  
+BMW,X5,Versatile midsize SUV with powerful performance and advanced comfort,I6,245 km/h,5.6 seconds,335 HP,61 000-72 000,2025,Made in Germany,Sliding panoramic sunroof  
+BMW,X6,Coupe-SUV blending sporty character with luxury features,I6,250 km/h,5.5 seconds,335 HP,69 000-80 000,2025,Made in Germany,Coupe SUV styling  
+BMW,X7,Full-size luxury SUV with three rows and executive amenities,I6,240 km/h,6.1 seconds,335 HP,92 000-105 000,2025,Made in Germany,Captain’s chairs option  
+BMW,i4,All-electric Gran Coupe with eDrive technology and sporty dynamics,Electric,210 km/h,5.7 seconds,340 HP,56 000-67 000,2025,Made in Germany,eDrive technology  
+BMW,i5,All-electric executive sedan with dual-motor AWD and refined comfort,Electric,200 km/h,6.0 seconds,299 HP,62 000-73 000,2025,Made in Germany,Dual-motor AWD  
+BMW,i7,All-electric flagship sedan with Executive Lounge and advanced digital tech,Electric,230 km/h,4.7 seconds,536 HP,91 000-105 000,2025,Made in Germany,Executive Lounge seating  
+BMW,iX,All-electric SUV with BMW Curved Display and adaptive suspension,Electric,200 km/h,4.6 seconds,516 HP,83 000-94 000,2025,Made in Germany,BMW Curved Display  
+BMW,XM,High-performance plug-in hybrid SUV with M Performance hybrid powertrain,V8 Hybrid,250 km/h,4.1 seconds,644 HP,160 000-180 000,2025,Made in Germany,Hybrid M Performance  
+BMW,Neue Klasse Sedan,Upcoming all-electric compact sedan on next-gen EV platform,Electric,200 km/h,6.0 seconds,250 HP,45 000-55 000,2025,Made in Germany,Next-gen EV platform  
+BMW,Neue Klasse X,Upcoming all-electric coupe-SUV on next-gen EV platform,Electric,200 km/h,5.8 seconds,250 HP,50 000-60 000,2025,Made in Germany,Next-gen EV platform  
+Mercedes,CLA 250+ EQ,Electric compact sedan with efficiency and sport,Electric,200 km/h,6.9 seconds,225 HP,45000-55000,2025,Made in Germany,MBUX Hyperscreen
+Mercedes,CLA 350 4MATIC EQ,Performance electric sedan with all-wheel drive and luxury,Electric,210 km/h,5.3 seconds,310 HP,55000-65000,2025,Made in Germany,All-wheel drive
+Mercedes,CLA 200 Hybrid,Petrol-hybrid compact sedan with EQ Boost mild-hybrid, I4 Hybrid,220 km/h,7.2 seconds,204 HP,40000-50000,2025,Made in Germany,EQ Boost mild-hybrid
+Mercedes,CLA 220 Hybrid,Enhanced-hybrid CLA with improved power delivery,I4 Hybrid,230 km/h,6.8 seconds,218 HP,42000-52000,2025,Made in Germany,EQ Boost mild-hybrid
+Mercedes,CLA 250 Hybrid,Plug-in hybrid sedan combining efficiency and performance,I4 Hybrid,240 km/h,6.3 seconds,265 HP,45000-55000,2025,Made in Germany,Plug-in hybrid
+Mercedes,E-Class E350,Executive sedan with smooth I6 engine and luxury tech,I6,250 km/h,6.1 seconds,286 HP,60000-75000,2025,Made in Germany,Air Body Control suspension
+Mercedes,E-Class E450,Mild-hybrid executive sedan with 4MATIC all-wheel drive,I6 Hybrid,250 km/h,5.2 seconds,367 HP,70000-85000,2025,Made in Germany,4MATIC AWD
+Mercedes,E-Class E53 HYBRID Wagon,High-performance hybrid wagon with AMG styling,I6 Hybrid,250 km/h,4.5 seconds,429 HP,75000-90000,2025,Made in Germany,AMG body styling
+Mercedes,S-Class,Flagship luxury sedan with V8 power and rear-axle steering,V8,250 km/h,4.6 seconds,435 HP,115000-140000,2025,Made in Germany,Rear-axle steering
+Mercedes,C-Class,Popular compact executive sedan with MBUX and AR display,I4,250 km/h,6.0 seconds,255 HP,45000-60000,2025,Made in Germany,MBUX with AR
+Mercedes,A-Class,Entry-level luxury hatch with sporty design and MBUX,I4,240 km/h,6.2 seconds,221 HP,35000-45000,2025,Made in Germany,MBUX interface
+Mercedes,GLA,Subcompact SUV with dual touchscreen displays and agility,I4,210 km/h,7.0 seconds,218 HP,40000-50000,2025,Made in Germany,Dual 10.25" screens
+Mercedes,GLB,Compact SUV with optional third row and modern tech,I4,215 km/h,7.1 seconds,221 HP,42000-52000,2025,Made in Germany,Seating for 7
+Mercedes,GLC,Midsize luxury SUV with E-Active Body Control suspension,I4,240 km/h,5.7 seconds,258 HP,55000-70000,2025,Made in Germany,E-Active Body Control
+Mercedes,GLE,Midsize SUV with hybrid options and adaptive air suspension,I6,250 km/h,5.5 seconds,362 HP,68000-85000,2025,Made in Germany,E-Active Body Control
+Mercedes,GLS,Full-size SUV with three rows and executive rear seating,I6,250 km/h,5.9 seconds,362 HP,90000-110000,2025,Made in Germany,Executive rear seats
+Mercedes,G-Class G550,Iconic off-road SUV with V8 power and ladder-frame chassis,V8,210 km/h,5.4 seconds,416 HP,140000-160000,2025,Made in Austria,Ladder-frame chassis
+Mercedes,EQB,Compact electric SUV with family-friendly design and Hyperscreen,Electric,180 km/h,7.2 seconds,228 HP,55000-65000,2025,Made in Germany,MBUX Hyperscreen
+Mercedes,EQE,Executive electric sedan with luxury interior and Hyperscreen,Electric,210 km/h,5.3 seconds,288 HP,70000-90000,2025,Made in Germany,Hyperscreen
+Mercedes,EQS,Flagship electric sedan with ENERGIZING comfort control,Electric,210 km/h,4.3 seconds,536 HP,100000-130000,2025,Made in Germany,ENERGIZING comfort control
+Mercedes,EQC,Electric SUV with dual motors and smooth performance,Electric,180 km/h,5.1 seconds,300 HP,60000-80000,2025,Made in Germany,All-wheel drive
+Mercedes,Vision VLS,Concept luxury van with autonomous Level 4 capability,Electric,160 km/h,6.0 seconds,350 HP,Concept,2025,Made in Germany,Autonomous Level 4
+Mercedes,Vision VLE,Concept electric luxury van with advanced infotainment,Electric,160 km/h,6.2 seconds,350 HP,Concept,2025,Made in Germany,Level 4 autonomy
+Mercedes,AMG GT43,Performance four-door coupe with AMG 4MATIC+ and luxury,V6,285 km/h,4.9 seconds,435 HP,95000-110000,2025,Made in Germany,AMG Performance 4MATIC+
+Mercedes,AMG GT55,High-performance four-door coupe with rear-axle steering,V8,292 km/h,4.0 seconds,470 HP,100000-120000,2025,Made in Germany,Rear-axle steering
+Mercedes,AMG GT63,Flagship four-door coupe with active aerodynamics,V8,315 km/h,3.3 seconds,577 HP,135000-155000,2025,Made in Germany,Active aerodynamics
+Mercedes,AMG GT63 Pro,Track-optimized four-door coupe with enhanced power,V8,325 km/h,3.1 seconds,639 HP,150000-170000,2025,Made in Germany,Track-optimized setup
+Mercedes,AMG GT63 S E Performance,Hybrid hyper-sedan with peak AMG performance,V8 Hybrid,316 km/h,2.9 seconds,843 HP,200000-230000,2025,Made in Germany,Hybrid boost
+Mercedes,AMG PureSpeed,Concept hypercar with F1-derived hybrid technology,V8 Hybrid,350 km/h,2.7 seconds,1000 HP,Concept,2025,Made in Germany,F1 tech
+Mercedes,Maybach SL,Ultra-luxury convertible with V8 power and plush interior,V8,260 km/h,4.4 seconds,503 HP,250000-300000,2025,Made in Germany,Plush interior
+Mercedes,AMG 4-Door EV,Concept electric sedan with solid-state battery tech,Electric,250 km/h,3.5 seconds,751 HP,Concept,2025,Made in Germany,Solid-state batteries
+Alpine,A110,Two-seater lightweight sports coupe with racing heritage,I4,250 km/h,4.5 seconds,252 HP,65000-75000 €,2025,Made in France,Aluminium chassis :contentReference[oaicite:0]{index=0}
+Alpine,A110 Pure,Focused performance variant with reduced weight and minimal trim,I4,250 km/h,4.5 seconds,252 HP,68000-78000 €,2025,Made in France,Minimalist interior :contentReference[oaicite:1]{index=1}
+Alpine,A110 Legende,Comfort-oriented model with bespoke Alcantara upholstery,I4,250 km/h,4.5 seconds,252 HP,70000-80000 €,2025,Made in France,Alcantara trim :contentReference[oaicite:2]{index=2}
+Alpine,A110 GT,GT-focused variant with enhanced suspension and front-lift system,I4,250 km/h,4.5 seconds,252 HP,75000-85000 €,2025,Made in France,Front-lift system :contentReference[oaicite:3]{index=3}
+Chevrolet,Corvette Stingray,Mid-engine American sports car with removable roof panel,V8,312 km/h,2.9 seconds,495 HP,62000-70000 USD,2025,Made in USA,Removable roof panel
+Chevrolet,Corvette Z06,Race-inspired track-focused variant with wide-body aerodynamics,V8,315 km/h,2.6 seconds,670 HP,105000-120000 USD,2025,Made in USA,Carbon-ceramic brakes
+Chevrolet,Camaro SS,Classic muscle car with modern performance and Brembo brakes,V8,250 km/h,4.0 seconds,455 HP,38000-45000 USD,2025,Made in USA,Brembo brakes
+Chevrolet,Camaro ZL1,High-performance supercharged model with Magnetic Ride Control,V8,298 km/h,3.5 seconds,650 HP,65000-70000 USD,2025,Made in USA,Magnetic Ride Control
+Chevrolet,Bolt EV,Compact electric hatchback with DC fast-charging capability,Electric,146 km/h,6.5 seconds,200 HP,26000-31000 USD,2025,Made in USA,DC fast charging
+Chevrolet,Silverado 1500,Full-size pickup with Multi-Flex tailgate and strong towing capacity,V8,180 km/h,6.5 seconds,355 HP,38000-45000 USD,2025,Made in USA,Multi-Flex tailgate
+Chevrolet,Silverado 2500HD,Heavy-duty pickup featuring Duramax diesel V8 and high torque,V8 Diesel,170 km/h,7.5 seconds,445 HP,45000-55000 USD,2025,Made in USA,Duramax diesel engine
+Chevrolet,Colorado,Mid-size pickup with Z71 off-road package and 308 HP V6,V6,180 km/h,7.0 seconds,308 HP,26000-34000 USD,2025,Made in USA,Z71 Off-Road Package
+Chevrolet,Tahoe,Luxury full-size SUV with Adaptive Ride Control and spacious interior,V8,193 km/h,6.2 seconds,355 HP,52000-62000 USD,2025,Made in USA,Adaptive Ride Control
+Chevrolet,Suburban,Extended-length full-size SUV offering maximum cargo space,V8,190 km/h,6.5 seconds,355 HP,55000-65000 USD,2025,Made in USA,Rear cargo volume
+Chevrolet,Equinox,Compact SUV with fuel-efficient turbo engine and Chevy Safety Assist,I4,200 km/h,8.7 seconds,175 HP,27000-35000 USD,2025,Made in USA,Chevy Safety Assist
+Chevrolet,Trailblazer,Subcompact SUV featuring available AWD and youthful styling,I3,190 km/h,9.0 seconds,155 HP,23500-30000 USD,2025,Made in USA,Available AWD
+Chevrolet,Trax,Entry-level SUV with nimble handling and 7-inch touchscreen,I4,185 km/h,9.5 seconds,137 HP,22000-27500 USD,2025,Made in USA,7-inch touchscreen
+Chevrolet,Blazer,Sporty mid-size SUV with hands-free programmable power liftgate,I4,230 km/h,7.5 seconds,228 HP,36000-45000 USD,2025,Made in USA,Hands-free power liftgate
+Chevrolet,Blazer EV,All-electric mid-size SUV with GM Ultium battery and Super Cruise,Electric,215 km/h,4.5 seconds,290 HP,45000-55000 USD,2025,Made in USA,Super Cruise
+Ford,Focus,Compact hatchback combining practicality with agile handling and modern tech,I4,210 km/h,8.5 seconds,125 HP,22000-30000 €,2025,Made in Germany,SYNC 4 infotainment
+Ford,Mustang,Iconic sports coupe with retro styling and modern performance,V8,250 km/h,4.3 seconds,450 HP,55000-65000 USD,2025,Made in USA,MagneRide Damping System
+Ford,Mustang Mach-E,All-electric crossover blending Mustang styling with EV technology,Electric,200 km/h,5.1 seconds,346 HP,47000-65000 USD,2025,Made in USA,Ford Co-Pilot360
+Ford,Mustang Dark Horse,Track-focused Mustang coupe with enhanced chassis and power,V8,283 km/h,3.9 seconds,500 HP,70000-80000 USD,2025,Made in USA,Dark Horse chassis tuning
+Ford,F-150,Best-selling full-size pickup with robust towing and versatile bed features,V6 Hybrid,180 km/h,6.5 seconds,430 HP,35000-55000 USD,2025,Made in USA,ProPower Onboard generator
+Ford,F-150 Lightning,All-electric version of the F-150 with instant torque and onboard power,Electric,155 km/h,4.5 seconds,580 HP,50000-75000 USD,2025,Made in USA,Frunk storage
+Ford,F-250 Super Duty,Heavy-duty pickup offering diesel power and class-leading torque,V8 Diesel,170 km/h,8.5 seconds,475 HP,45000-70000 USD,2025,Made in USA,TorqShift 10-speed transmission
+Ford,F-350 Super Duty,Top-tier heavy-duty pickup for extreme towing capacity and durability,V8 Diesel,165 km/h,9.0 seconds,475 HP,50000-75000 USD,2025,Made in USA,Dual rear wheels
+Ford,Bronco,Retro-styled off-road SUV with removable roof and advanced 4×4 system,I6,180 km/h,6.8 seconds,310 HP,35000-50000 USD,2025,Made in USA,Terrain Management System
+Ford,Bronco Sport,Compact SUV with off-road capability and EcoBoost efficiency,I3,190 km/h,8.8 seconds,181 HP,30000-40000 USD,2025,Made in USA,Bang & Olufsen sound
+Ford,Bronco Raptor,High-performance off-road SUV with FOX live valve shocks,V6,209 km/h,5.5 seconds,418 HP,70000-85000 USD,2025,Made in USA,FOX Live Valve shocks
+Ford,Explorer,Three-row SUV with hybrid options and family-friendly tech,I4 Hybrid,200 km/h,6.1 seconds,318 HP,38000-55000 USD,2025,Made in USA,Ford Co-Pilot360
+Ford,Expedition,Full-size SUV delivering V6 TwinTurbo power and spacious seating for eight,V6 TwinTurbo,180 km/h,7.1 seconds,400 HP,50000-75000 USD,2025,Made in USA,Max Trailer Tow Package
+Ford,Ranger,Midsize pickup with EcoBoost power and off-road Trail variant,I4,180 km/h,7.4 seconds,270 HP,35000-45000 USD,2025,Made in USA,Trail Control system
+Ford,Maverick,Compact unibody pickup with hybrid standard powertrain,I4 Hybrid,180 km/h,8.3 seconds,191 HP,20000-30000 USD,2025,Made in USA,Flexbed storage system
+Ford,Escape,Compact crossover with hybrid and plug-in hybrid options,I4 Hybrid,200 km/h,8.4 seconds,200 HP,28000-36000 USD,2025,Made in USA,Active grille shutters
+Ford,Edge,Midsize SUV combining sporty styling with turbocharged performance,I4,210 km/h,7.1 seconds,250 HP,32000-43000 USD,2025,Made in USA,Terrain Management System
+Ford,Transit,Full-size van with configurable cargo area and EcoBlue diesel option,I4 Diesel,175 km/h,11.0 seconds,185 HP,35000-45000 USD,2025,Made in USA,Cargo Management System
+Ford,Transit Connect,Compact van offering versatile cargo solutions and fuel efficiency,I4,175 km/h,12.0 seconds,162 HP,25000-32000 USD,2025,Made in USA,Available side-loading door
+Ford,Puma,Sporty compact crossover with EcoBoost agility and modern tech,I3,200 km/h,7.5 seconds,200 HP,28000-36000 €,2025,Made in Romania,Active City Stop
+Ford,Kuga,Midsize SUV with hybrid and plug-in hybrid powertrains,I4 Hybrid,200 km/h,8.4 seconds,225 HP,34000-44000 €,2025,Made in Romania,Active Park Assist
+Ford,GT,High-performance supercar with advanced aerodynamics and racing heritage,V6 TwinTurbo,347 km/h,3.0 seconds,660 HP,500000-600000 USD,2025,Made in USA,Carbon fiber monocoque chassis
+Ford,EcoSport,Compact SUV offering practicality and urban-friendly dimensions,I4,180 km/h,11.0 seconds,109 HP,20000-25000 €,2025,Made in Romania,SYNC 3 infotainment
+Ford,Fiesta,Popular compact hatchback known for its efficiency and agility,I3,200 km/h,6.5 seconds,200 HP,22000-28000 €,2025,Made in Germany,1.5L EcoBoost engine
+Ford,Transit Custom,Versatile mid-size van with multiple powertrain options,I4 Diesel,175 km/h,12.1 seconds,150 HP,35000-45000 €,2025,Made in Turkey,Ford SYNC 4 with 13" touchscreen
+Ford,Transit Courier,Compact van designed for urban deliveries and efficiency,I3,180 km/h,11.0 seconds,125 HP,20000-25000 €,2025,Made in Romania,Advanced driver assistance systems
+Ford,Tourneo Connect,Multi-purpose vehicle offering flexibility and comfort,I4 Diesel,175 km/h,11.4 seconds,122 HP,30000-40000 €,2025,Made in Germany,Seven-seat configuration
+Ford,Tourneo Custom,Spacious MPV with advanced features and seating for nine,I4 Diesel,175 km/h,12.0 seconds,170 HP,40000-50000 €,2025,Made in Turkey,Mobile Office package
+Ford,Tourneo Courier,Urban activity vehicle combining style and practicality,I3,175 km/h,11.0 seconds,125 HP,22000-28000 €,2025,Made in Romania,Modern infotainment system
+Fiat,500e,Stylish electric city car with compact dimensions and modern tech,Electric,150 km/h,9.0 seconds,117 HP,26000-30000 €,2025,Made in Italy,Infotainment with 10.25" touchscreen
+Fiat,Grande Panda,Affordable compact hatchback with hybrid and electric options,I4 Hybrid,170 km/h,10.5 seconds,100 HP,22000-28000 €,2025,Made in Serbia,Smart car platform
+Fiat,500X,Compact crossover with Italian flair and versatile performance,I4,190 km/h,9.5 seconds,150 HP,25000-32000 €,2025,Made in Italy,Advanced safety features
+Fiat,Toro,Compact pickup combining utility with comfort and modern design,I4,180 km/h,10.0 seconds,140 HP,24000-30000 €,2025,Made in Brazil,Multimedia system with 8.4" display
+Renault,5 E-Tech,Retro-inspired electric hatchback with modern features,Electric,150 km/h,8.0 seconds,120 HP,25000-30000 €,2025,Made in France,OpenR Link infotainment
+Renault,4 E-Tech,Compact electric crossover blending nostalgia with innovation,Electric,160 km/h,8.5 seconds,150 HP,28000-35000 €,2025,Made in France,Bidirectional charging capability
+Renault,Megane E-Tech,Electric hatchback offering dynamic performance and tech,Electric,180 km/h,7.5 seconds,220 HP,35000-45000 €,2025,Made in France,OpenR Link with Google integration
+Renault,Austral,Hybrid SUV with sleek design and advanced driver aids,I4 Hybrid,200 km/h,7.0 seconds,200 HP,32000-42000 €,2025,Made in Spain,Multi-sense driving modes
+Renault,Captur E-Tech,Compact SUV with efficient hybrid powertrain and style,I4 Hybrid,180 km/h,8.5 seconds,145 HP,28000-35000 €,2025,Made in Spain,Esprit Alpine trim
+Renault,Scenic E-Tech,Spacious electric family SUV with long-range capability,Electric,170 km/h,7.9 seconds,215 HP,40000-50000 €,2025,Made in France,OpenR Link infotainment
+Peugeot,E-208,Electric hatchback combining style with urban agility,Electric,150 km/h,8.1 seconds,136 HP,30000-35000 €,2025,Made in France,i-Cockpit digital display
+Peugeot,E-3008,Electric fastback SUV with futuristic design and tech,Electric,180 km/h,7.5 seconds,210 HP,40000-50000 €,2025,Made in France,Panoramic i-Cockpit
+Peugeot,E-5008,Seven-seater electric SUV offering space and efficiency,Electric,170 km/h,8.0 seconds,230 HP,45000-55000 €,2025,Made in France,Advanced driver assistance systems
+Peugeot,408,Fastback sedan blending elegance with performance,I4 Hybrid,210 km/h,7.8 seconds,180 HP,35000-45000 €,2025,Made in France,3D i-Cockpit
+Peugeot,508 PHEV,Plug-in hybrid sedan offering comfort and low emissions,I4 Plug-in Hybrid,230 km/h,8.2 seconds,180 HP,40000-50000 €,2025,Made in France,12.4 kWh battery with 64 km electric range
+Citroen,e-C3,Affordable electric hatchback with practical features,Electric,135 km/h,11.0 seconds,113 HP,22000-28000 €,2025,Made in Slovakia,10.25" infotainment display
+Citroen,e-C3 Aircross,Electric compact SUV with spacious interior and comfort,Electric,140 km/h,10.5 seconds,120 HP,25000-32000 €,2025,Made in Slovakia,Advanced comfort seats
+Citroen,e-C4,Electric hatchback offering smooth ride and modern tech,Electric,150 km/h,9.7 seconds,136 HP,28000-35000 €,2025,Made in Spain,Citroën Advanced Comfort suspension
+Citroen,e-C4 X,Electric saloon combining elegance with practicality,Electric,150 km/h,9.5 seconds,136 HP,29000-36000 €,2025,Made in Spain,Fast charging capability
+Citroen,e-C5 Aircross,Flagship electric SUV with long-range and luxury,Electric,170 km/h,8.5 seconds,180 HP,35000-45000 €,2025,Made in France,97 kWh battery with 422 miles range
+Citroen,Ami,Ultra-compact electric quadricycle for urban mobility,Electric,45 km/h,No data,8 HP,8000-10000 €,2025,Made in France,Two-seater with 46-mile range can you complete it with these cars
+Volkswagen,Golf,Compact hatchback with sporty handling and advanced digital cockpit,I4 1.5 TSI,230 km/h,7.2 seconds,150 HP,25000–30000,2025,Made in Germany,Digital cockpit
+Volkswagen,Polo,Subcompact hatch with efficient engine and flexible interior,I4 1.0 TSI,180 km/h,9.5 seconds,95 HP,18000–22000,2025,Made in Germany,Flexible seating
+Volkswagen,Passat,Executive sedan/estate combining comfort with performance,I4 2.0 TSI,235 km/h,7.5 seconds,190 HP,35000–45000,2025,Made in Germany,Spacious interior
+Volkswagen,Arteon,Premium fastback with sleek design and R-line performance,I4 2.0 TSI,250 km/h,4.9 seconds,320 HP,60000–70000,2025,Made in Germany,R Performance model
+Volkswagen,Tiguan,Compact SUV with versatile interior and dynamic performance,I4 2.0 TSI,225 km/h,6.9 seconds,245 HP,35000–45000,2025,Made in Germany,Modular infotainment
+Volkswagen,Touareg,Luxury SUV with advanced off-road capability and premium comfort,V6 3.0 TDI,250 km/h,6.1 seconds,286 HP,60000–80000,2025,Made in Germany,Advanced off-road tech
+Volkswagen,T-Roc,Stylish compact SUV with sporty traits and premium options,I4 1.5 TSI,210 km/h,8.4 seconds,150 HP,25000–35000,2025,Made in Germany,Beats audio
+Volkswagen,Touran,Seven-seat MPV with flexible seating and family-friendly tech,I4 1.5 TSI,204 km/h,9.0 seconds,150 HP,27000–35000,2025,Made in Germany,Flexible seating
+Volkswagen,ID3,Compact electric hatchback offering zero-emission driving and connectivity,Electric,160 km/h,7.3 seconds,204 HP,35000–45000,2025,Made in Germany,MEB platform
+Volkswagen,ID4,Electric SUV with spacious interior and long-range capability,Electric,180 km/h,8.5 seconds,204 HP,40000–50000,2025,Made in Germany,Modular MEB architecture
+Toyota,Yaris,Subcompact hatchback balancing efficiency and agility,I4 1.5 Hybrid,175 km/h,9.7 seconds,116 HP,20000–23000,2025,Made in Japan,Hybrid efficiency
+Toyota,Corolla,Compact sedan/hatchback with reliability and hybrid option,I4 2.0 Hybrid,180 km/h,8.0 seconds,196 HP,22000–28000,2025,Made in Japan,Toyota Safety Sense
+Toyota,Camry,Midsize sedan with refined hybrid powertrain,I4 2.5 Hybrid,210 km/h,7.6 seconds,208 HP,25000–35000,2025,Made in Japan,Spacious trunk
+Toyota,Prius,Iconic hybrid hatchback with ultra-efficient powertrain,I4 1.8 Hybrid,180 km/h,10.9 seconds,121 HP,25000–30000,2025,Made in Japan,Aerodynamic design
+Toyota,C-HR,Compact crossover with bold styling and hybrid power,I4 2.0 Hybrid,180 km/h,8.2 seconds,184 HP,24000–31000,2025,Made in Japan,Distinctive coupe design
+Toyota,RAV4,Compact SUV with hybrid option and rugged capability,I4 2.5 Hybrid,180 km/h,7.8 seconds,219 HP,26000–36000,2025,Made in Japan,All-wheel drive
+Toyota,Highlander,Midsize SUV with three-row seating and hybrid option,I4 2.5 Hybrid,180 km/h,7.5 seconds,243 HP,35000–48000,2025,Made in Japan,Three-row seating
+Toyota,Supra,Sports coupe with turbocharged engine and sharp handling,I6 3.0 Turbo,250 km/h,4.1 seconds,382 HP,50000–55000,2025,Made in Japan,BMW-sourced inline-six
+Toyota,bZ4X,Electric crossover with zero-emission driving,Electric,160 km/h,6.9 seconds,201 HP,43000–48000,2025,Made in Japan,Solar roof option
+Toyota,Century,Ultra-luxury sedan with V8 hybrid and bespoke craftsmanship,V8 Hybrid 5.0,220 km/h,6.8 seconds,430 HP,60000–80000,2025,Made in Japan,Rear executive seating
+Suzuki,Swift,Subcompact hatch with sporty handling and efficient engine,I4 1.2 BoosterJet,190 km/h,8.1 seconds,110 HP,16000–18000,2025,Made in Japan,Sporty handling
+Suzuki,Baleno,Compact hatchback offering generous cargo space,I4 1.2 Dualjet,180 km/h,9.5 seconds,90 HP,15000–17000,2025,Made in Japan,Large boot capacity
+Suzuki,Ignis,Mini-SUV with upright styling and agile dynamics,I4 1.2 Dualjet,160 km/h,11.2 seconds,82 HP,14000–16000,2025,Made in Japan,Compact SUV styling
+Suzuki,Celerio,Entry-level hatchback with outstanding fuel economy,I3 1.0 Dualjet,160 km/h,14.2 seconds,67 HP,10000–12000,2025,Made in Japan,Excellent fuel economy
+Suzuki,S-Presso,Mini crossover with elevated seating position and city agility,I3 1.0 Dualjet,135 km/h,13.1 seconds,67 HP,11000–13000,2025,Made in Japan,Elevated driving position
+Suzuki,S-Cross,Compact crossover with optional AWD and spacious cabin,I4 1.4 BoosterJet,200 km/h,9.0 seconds,140 HP,20000–23000,2025,Made in Japan,AllGrip AWD
+Suzuki,Vitara,Subcompact SUV with mild-hybrid option and rugged capability,I4 1.4 BoosterJet,195 km/h,8.8 seconds,140 HP,22000–26000,2025,Made in Japan,Mild-hybrid system
+Suzuki,Jimny,Iconic compact 4×4 with ladder-frame chassis,I4 1.5,145 km/h,13.0 seconds,102 HP,25000–28000,2025,Made in Japan,Ladder-frame chassis
+Suzuki,Kizashi,Midsize sedan with sport-tuned suspension and premium feel,I4 2.4,200 km/h,8.9 seconds,178 HP,23000–27000,2025,Made in Japan,Sport-tuned suspension
+Suzuki,Ciaz,Midsize sedan with spacious cabin and smooth ride,I4 1.5 Dualjet,180 km/h,10.2 seconds,104 HP,15000–18000,2025,Made in Japan,Spacious interior
+Lexus,UX,Subcompact luxury crossover with hybrid power and high-tech cabin,I4 2.0 Hybrid,175 km/h,8.5 seconds,181 HP,35000–40000,2025,Made in Japan,Lexus Enform
+Lexus,NX,Compact luxury SUV with hybrid option and premium amenities,I4 2.5 Hybrid,180 km/h,7.9 seconds,239 HP,43000–50000,2025,Made in Japan,Panoramic roof
+Lexus,RX,Midsize luxury SUV with smooth V6 power and refined interior,V6 3.5,220 km/h,7.7 seconds,295 HP,55000–65000,2025,Made in Japan,Mark Levinson audio
+Lexus,RZ,Electric luxury SUV with dual-motor AWD and advanced driver aids,Electric,200 km/h,6.2 seconds,308 HP,58000–65000,2025,Made in Japan,e-Axle system
+Lexus,LC 500,Grand tourer coupe with naturally aspirated V8 and striking design,V8 5.0,270 km/h,4.4 seconds,471 HP,100000–110000,2025,Made in Japan,Double-bubble roof
+Lexus,ES 300h,Luxury hybrid sedan blending comfort with efficiency,I4 2.5 Hybrid,200 km/h,8.9 seconds,215 HP,45000–55000,2025,Made in Japan,Power sunroof
+Lexus,LM,Ultra-luxury minivan with hybrid power and executive-class rear,I6 3.5 Hybrid,160 km/h,9.5 seconds,295 HP,80000–90000,2025,Made in Japan,Rear executive seats
+Honda,Civic,Compact sedan with sporty handling and advanced tech,I4 1.5 Turbo,200 km/h,8.2 seconds,182 HP,24000–30000,2025,Made in Japan,Honda Sensing
+Honda,Accord eHEV,Midsize hybrid sedan with smooth power delivery,I4 2.0 Hybrid,190 km/h,7.8 seconds,212 HP,30000–37000,2025,Made in Japan,Earth Dreams hybrid
+Honda,ZR-V,Compact crossover with spirited performance and versatility,I4 1.5 Turbo,210 km/h,8.5 seconds,193 HP,28000–35000,2025,Made in Japan,Magic Seat flexibility
+Honda,HR-V,Subcompact SUV with efficient engine and roomy interior,I4 1.5 Turbo,200 km/h,9.2 seconds,182 HP,26000–32000,2025,Made in Japan,Multi-mode cargo
+Honda,CR-V Hybrid,Family SUV with hybrid efficiency and AWD,I4 2.0 Hybrid,200 km/h,9.1 seconds,204 HP,30000–38000,2025,Made in Japan,Real Time AWD
+Honda,eNy1,Electric compact crossover with modern connectivity,Electric,160 km/h,8.5 seconds,175 HP,35000–42000,2025,Made in Japan,HUD display
+Nissan,Micra,Subcompact hatch with nimble handling and efficiency,I3 1.0,170 km/h,12.0 seconds,90 HP,15000–18000,2025,Made in Japan,e-POWER option
+Nissan,Juke,Stylish crossover with turbo engine and tech,I4 1.0 Turbo,180 km/h,10.6 seconds,117 HP,20000–24000,2025,Made in Japan,ProPILOT Assist
+Nissan,Qashqai,Versatile compact SUV with hybrid option,I4 1.3 e-Power,200 km/h,9.5 seconds,140 HP,25000–33000,2025,Made in Japan,Panoramic roof
+Nissan,X-Trail e-POWER,Hybrid SUV with electric drive and torque,I4 1.5 e-Power,180 km/h,10.0 seconds,150 HP,30000–38000,2025,Made in Japan,360° camera
+Nissan,Ariya,Electric SUV with dual-motor AWD and long range,Electric,200 km/h,5.3 seconds,290 HP,45000–55000,2025,Made in Japan,e-4ORCE AWD
+Nissan,Z,Sports coupe with twin-turbo V6 and heritage design,V6 3.0 Twin-Turbo,260 km/h,4.5 seconds,405 HP,40000–50000,2025,Made in Japan,6-speed manual
+Nissan,GT-R,Flagship supercar with twin-turbo V6 and ATTESA AWD,V6 3.8 Twin-Turbo,315 km/h,2.9 seconds,565 HP,120000–150000,2025,Made in Japan,BYO AWD
+Volvo,EX30,Entry-level electric SUV with performance variant,Electric,180 km/h,3.6 seconds,300 HP,45000–53000,2025,Made in Sweden,Google built-in
+Volvo,EX90,Flagship electric SUV with advanced safety suite,Electric,180 km/h,4.9 seconds,340 HP,70000–90000,2025,Made in Sweden,Autonomous Pilot
+Volvo,XC40,Subcompact SUV with mild-hybrid tech and city safety,I4 1.5 Mild-Hybrid,180 km/h,7.5 seconds,197 HP,40000–50000,2025,Made in Sweden,City Safety
+Volvo,XC60,Compact luxury SUV with plug-in hybrid option,I4 2.0 PHEV,230 km/h,5.3 seconds,340 HP,55000–70000,2025,Made in Sweden,Pilot Assist
+Volvo,XC90,Three-row luxury SUV with plug-in hybrid power,I4 2.0 PHEV,230 km/h,5.8 seconds,400 HP,60000–85000,2025,Made in Sweden,Seven-seat layout
+Volvo,C40 Recharge,Electric coupe-SUV with rapid charging capability,Electric,180 km/h,4.9 seconds,408 HP,55000–65000,2025,Made in Sweden,Google integration
+Volvo,S60,Executive sedan with mild-hybrid and premium audio,I4 2.0 Mild-Hybrid,230 km/h,6.2 seconds,265 HP,42000–54000,2025,Made in Sweden,Bowers & Wilkins
+Volvo,S90,Flagship sedan with mild-hybrid power and spacious cabin,I4 2.0 Mild-Hybrid,250 km/h,5.8 seconds,316 HP,56000–70000,2025,Made in Sweden,Four-zone climate
+Polestar,2,Electric fastback with dual-motor AWD and Google services,Electric,205 km/h,4.5 seconds,408 HP,45000–60000,2025,Made in Sweden,Android Automotive
+Polestar,3,Electric luxury SUV with sustainable materials,Electric,200 km/h,6.5 seconds,348 HP,55000–70000,2025,Made in Sweden,Google built-in
+Polestar,4,Coupe-SUV EV with carbon roof and rapid charge,Electric,200 km/h,4.2 seconds,435 HP,65000–80000,2025,Made in Sweden,Fixed glass roof
+Polestar,5,Four-door GT EV with high-output dual motors,Electric,230 km/h,3.8 seconds,578 HP,80000–95000,2025,Made in Sweden,Carbon fibre panels
+Polestar,6,Limited-edition electric roadster with bespoke tech,Electric,250 km/h,3.2 seconds,884 HP,200000–250000,2025,Made in Sweden,B&O audio
+Hyundai,i20,Subcompact hatch with efficient engine and connectivity,I4 1.0 T-GDI,182 km/h,10.2 seconds,100 HP,18000–22000,2025,Made in South Korea,Bluelink
+Hyundai,i30,Compact hatch with sporty chassis and tech,I4 1.5 T-GDI,210 km/h,8.0 seconds,160 HP,22000–28000,2025,Made in South Korea,Wireless charger
+Hyundai,Tucson,Compact SUV with hybrid option and safety tech,I4 1.6 Turbo Hybrid,200 km/h,7.7 seconds,230 HP,30000–38000,2025,Made in South Korea,Surround View Monitor
+Hyundai,Santa Fe,Mid-size SUV with hybrid power and three-row seating,I4 2.5 Hybrid,190 km/h,8.7 seconds,230 HP,35000–45000,2025,Made in South Korea,Smart Power Tailgate
+Hyundai,Kona Electric,Electric subcompact SUV with long range,Electric,167 km/h,7.9 seconds,204 HP,35000–42000,2025,Made in South Korea,64 kWh battery
+Hyundai,Ioniq 5,Electric crossover with 800V architecture,Electric,185 km/h,5.2 seconds,320 HP,42000–55000,2025,Made in South Korea,Ultra-fast charging
+Hyundai,Ioniq 6,Electric fastback with aerodynamic design,Electric,185 km/h,9.9 seconds,149 HP,45000–58000,2025,Made in South Korea,Fastback silhouette
+Hyundai,Ioniq 7,Upcoming three-row electric SUV concept,Electric,180 km/h,6.1 seconds,300 HP,60000–75000,2025,Made in South Korea,Three-row seating
+Kia,Picanto,Entry-level hatch with compact dimensions and nimble handling,I3 1.0 MPI,157 km/h,15.1 seconds,67 HP,11000–15000,2025,Made in South Korea,Urban agility
+Kia,Ceed,Compact hatch with sporty chassis and advanced tech,I4 1.5 T-GDI,210 km/h,8.5 seconds,160 HP,21000–28000,2025,Made in South Korea,MHEV option
+Kia,Sportage,Compact SUV with hybrid option and rugged styling,I4 1.6 Turbo Hybrid,200 km/h,8.6 seconds,230 HP,30000–38000,2025,Made in South Korea,AI-powered safety
+Kia,Sorento,Midsize SUV with three-row seating and hybrid power,I4 1.6 Turbo Hybrid,205 km/h,8.8 seconds,230 HP,38000–45000,2025,Made in South Korea,Panoramic roof
+Kia,Niro EV,Electric crossover with long range and efficient design,Electric,167 km/h,7.8 seconds,239 HP,35000–42000,2025,Made in South Korea,Solar roof panel
+Kia,EV6,Electric fastback with rapid charging and GT variant,Electric,260 km/h,5.2 seconds,325 HP,45000–60000,2025,Made in South Korea,800V architecture
+Kia,EV9,Electric three-row SUV with spacious interior,Electric,200 km/h,6.0 seconds,379 HP,55000–70000,2025,Made in South Korea,Dual-motor AWD
+Genesis,G70,Sporty luxury sedan with turbocharged engine and refined handling,I4 2.0 Turbo,240 km/h,7.0 seconds,255 HP,37000–45000,2025,Made in South Korea,Brembo brakes
+Genesis,G80,Executive sedan with smooth turbo power and premium amenities,I4 2.5 Turbo,250 km/h,6.0 seconds,300 HP,58000–68000,2025,Made in South Korea,Kinetic design
+Genesis,GV70,Compact luxury SUV with dynamic styling and turbo power,I4 2.5 Turbo,240 km/h,5.8 seconds,300 HP,50000–60000,2025,Made in South Korea,Head-Up Display
+Genesis,GV80,Midsize luxury SUV with spacious cabin and turbo engine,I4 2.5 Turbo,230 km/h,6.5 seconds,300 HP,65000–75000,2025,Made in South Korea,E-Latch doors
+Genesis,GV60,Electric luxury SUV with dual-motor performance,Electric,220 km/h,4.5 seconds,314 HP,55000–65000,2025,Made in South Korea,Crystal Sphere shifter
+Genesis,Electrified G80,Electric executive sedan with refined ride and range,Electric,210 km/h,6.0 seconds,272 HP,65000–75000,2025,Made in South Korea,V2L charging
+Subaru,Impreza,Compact sedan/hatch with Symmetrical AWD and reliability,I4 2.0,205 km/h,10.1 seconds,152 HP,25000–30000,2025,Made in Japan,EyeSight safety
+Subaru,Legacy,Midsize sedan with turbocharged engine and Symmetrical AWD,I4 2.4 Turbo,230 km/h,7.2 seconds,275 HP,32000–40000,2025,Made in Japan,DriverFocus
+Subaru,Forester,Compact SUV with AWD and rugged capability,I4 2.5,200 km/h,9.1 seconds,182 HP,30000–35000,2025,Made in Japan,X-MODE
+Subaru,Outback,Wagon-SUV with ample cargo space and AWD,I4 2.5,210 km/h,9.4 seconds,182 HP,35000–42000,2025,Made in Japan,Raised suspension
+Subaru,Solterra,Electric SUV with AWD and modern connectivity,Electric,160 km/h,6.9 seconds,204 HP,40000–50000,2025,Made in Japan,Bi-modal regenerative braking
+Mazda,Mazda2 Hybrid,Subcompact hybrid hatch with Skyactiv tech,I3 1.5 Hybrid,180 km/h,10.0 seconds,115 HP,20000–24000,2025,Made in Japan,G-Vectoring Control
+Mazda,Mazda3,Compact sedan/hatch with driver-centric dynamics,I4 2.0,210 km/h,8.0 seconds,165 HP,25000–30000,2025,Made in Japan,Kodo design
+Mazda,MX-30,Electric crossover with minimalist interior,Electric,140 km/h,9.7 seconds,145 HP,35000–40000,2025,Made in Japan,Freestyle doors
+Mazda,CX-5,Compact SUV with refined handling and Skyactiv engine,I4 2.5,210 km/h,8.4 seconds,187 HP,30000–35000,2025,Made in Japan,Active Driving Display
+Mazda,CX-60,Midsize SUV with inline-six mild-hybrid power,I6 3.0 MHEV,230 km/h,5.8 seconds,300 HP,50000–60000,2025,Made in Japan,T E-Skyactiv
+Mazda,MX-5 Miata,Legendary roadster with lightweight chassis,I4 2.0,215 km/h,6.5 seconds,181 HP,28000–35000,2025,Made in Japan,Manual transmission
+MINI,Cooper,Iconic hatch with go-kart handling,I4 1.5 Turbo,200 km/h,7.9 seconds,136 HP,22000–28000,2025,Made in the UK,MINI Connected
+MINI,Cooper S,Performance hatch with sport-tuned engine,I4 2.0 Turbo,228 km/h,6.6 seconds,178 HP,30000–35000,2025,Made in the UK,Sport mode
+MINI,Countryman,Compact SUV with adventurous styling,I4 1.5 Turbo,200 km/h,8.8 seconds,136 HP,28000–35000,2025,Made in the UK,ALL4 AWD
+MINI,Aceman,Electric crossover with futuristic design,Electric,160 km/h,7.0 seconds,184 HP,30000–35000,2025,Made in the UK,Smartlight system
+Opel,Corsa Electric,Electric hatch with agile handling,Electric,150 km/h,8.1 seconds,134 HP,25000–30000,2025,Made in Germany,EASY charging
+Opel,Astra Sports Tourer Electric,Electric estate with spacious cargo,Electric,180 km/h,8.2 seconds,156 HP,30000–35000,2025,Made in Germany,Intelli-Lux LED
+Opel,Mokka Electric,Electric crossover with striking design,Electric,150 km/h,9.0 seconds,136 HP,28000–33000,2025,Made in Germany,OPC line styling
+Opel,Grandland,Midsize SUV with hybrid powertrain,I4 1.2 Turbo,205 km/h,9.8 seconds,130 HP,26000–32000,2025,Made in Germany,Center Display
+DS,DS 3,Premium subcompact with electric option,Electric,150 km/h,8.3 seconds,156 HP,30000–35000,2025,Made in France,DS Iris system
+DS,DS 4,Compact premium hatch with sleek design,I4 1.6 Turbo,225 km/h,7.5 seconds,180 HP,35000–40000,2025,Made in France,DS Smart Access
+DS,DS 7,Midsize SUV with PHEV option,I4 1.6 PHEV,225 km/h,6.0 seconds,300 HP,45000–55000,2025,Made in France,E-Tense mode
+DS,DS 9,Executive sedan with hybrid elegance,I4 1.6 Hybrid,240 km/h,7.4 seconds,225 HP,50000–60000,2025,Made in France,DS Night Vision
+Cupra,Born,Electric hatchback with sharp styling and digital cockpit,Electric,160 km/h,7.3 seconds,204 HP,35000–40000,2025,Made in Spain,Virtual Cockpit  
+Cupra,Formentor,Compact SUV with turbo petrol engine and dynamic chassis,I4 2.0 TSI,245 km/h,6.6 seconds,245 HP,38000–45000,2025,Made in Spain,Drive Profile  
+Cupra,Tavascan,Coupe-SUV electric concept with sporty proportions,Electric,250 km/h,6.5 seconds,306 HP,60000–65000,2025,Made in Spain,LED light signature  
+Cupra,Raval,Electric compact sedan concept with agile handling,Electric,200 km/h,7.5 seconds,204 HP,30000–35000,2025,Made in Spain,Augmented reality HUD  
+Cupra,Leon,eHybrid hatch combining petrol and electric drive,I4 1.4 eTSI Hybrid,225 km/h,6.8 seconds,245 HP,35000–45000,2025,Made in Spain,Clutch-free hybrid  
+Cupra,Ateca,Performance SUV with turbo engine and ALLDRIVE,I4 2.0 TSI,247 km/h,5.2 seconds,300 HP,45000–50000,2025,Made in Spain,Adaptive chassis  
+Skoda,Fabia,Subcompact hatch with efficient engine and modern tech,I4 1.0 TSI,200 km/h,9.9 seconds,110 HP,15000–18000,2025,Made in Czech Republic,Digital Cockpit  
+Skoda,Scala,Compact liftback with spacious interior and safety systems,I4 1.0 TSI,200 km/h,9.5 seconds,110 HP,18000–22000,2025,Made in Czech Republic,Travel Assist  
+Skoda,Octavia,Versatile sedan/estate with turbo power and refined ride,I4 2.0 TSI,220 km/h,7.9 seconds,150 HP,25000–35000,2025,Made in Czech Republic,Bolero infotainment  
+Skoda,Superb,Executive sedan/estate with premium comfort and tech,I4 2.0 TSI,240 km/h,7.6 seconds,190 HP,35000–45000,2025,Made in Czech Republic,Virtuo Cockpit  
+Skoda,Karoq,Compact SUV with optional AWD and flexible seating,I4 1.5 TSI,204 km/h,8.9 seconds,150 HP,28000–35000,2025,Made in Czech Republic,Area View  
+Skoda,Kodiaq,Three-row SUV with turbo engine and advanced safety,I4 2.0 TSI,215 km/h,7.9 seconds,190 HP,35000–45000,2025,Made in Czech Republic,Multi-Collision Brake  
+Skoda,Enyaq iV,Electric SUV with long range and sustainable materials,Electric,180 km/h,8.5 seconds,204 HP,35000–45000,2025,Made in Czech Republic,iV Matrix Lights  
+Dacia,Spring,Affordable city EV with compact dimensions and efficiency,Electric,125 km/h,11.6 seconds,44 HP,17000–20000,2025,Made in Romania,City pad interior  
+Dacia,Sandero,Practical hatch with economical petrol engine,I4 1.0 TCe,180 km/h,11.2 seconds,100 HP,11000–15000,2025,Made in Romania,Easy-R gearbox  
+Dacia,Duster,Value-priced SUV with optional 4×4 and rugged styling,I4 1.3 TCe,180 km/h,10.5 seconds,130 HP,16000–20000,2025,Made in Romania,All-Mode 4×4  
+Dacia,Jogger,Versatile 7-seat wagon with hybrid option coming soon,I4 1.0 TCe,175 km/h,12.2 seconds,110 HP,14000–18000,2025,Made in Romania,Modular seats  
+Dacia,Bigster,Upcoming compact SUV concept with bold design,I4 1.3 TCe,200 km/h,8.9 seconds,150 HP,30000–35000,2025,Made in Romania,Coupe-SUV silhouette  
+Smart,1,Electric subcompact crossover with digital cockpit,Electric,180 km/h,7.0 seconds,272 HP,35000–40000,2025,Made in Germany,Augmented Reality Nav  
+Smart,3,Electric hatchback for urban agility,Electric,150 km/h,9.0 seconds,100 HP,20000–25000,2025,Made in Germany,City Safety Assist  
+Smart,EQ fortwo,Micro EV with iconic twin-seater layout,Electric,125 km/h,11.5 seconds,82 HP,18000–22000,2025,Made in Germany,Twin cabin design  
+BYD,Atto 3,Electric crossover with DiLink OS and long range,Electric,185 km/h,7.3 seconds,204 HP,30000–35000,2025,Made in China,Blade Battery  
+BYD,Seal,Electric fastback with low drag and hybrid variant available,Electric,180 km/h,7.9 seconds,230 HP,35000–40000,2025,Made in China,DM-i hybrid  
+BYD,Dolphin,Compact electric hatch with distinctive styling,Electric,150 km/h,8.5 seconds,171 HP,25000–30000,2025,Made in China,Dragon Face design  
+BYD,Han,Flagship electric sedan with dual-motor AWD,Electric,250 km/h,3.9 seconds,544 HP,45000–55000,2025,Made in China,DiLink 4.0  
+BYD,Tang,Seven-seat plug-in hybrid SUV with bold design,I4 2.0 Plug-in Hybrid,180 km/h,7.5 seconds,321 HP,35000–45000,2025,Made in China,Dragon Comfort  
+BYD,Song Plus,Electric fastback SUV with level 2 ADAS,Electric,170 km/h,8.5 seconds,204 HP,20000–28000,2025,Made in China,DiPilot Assist  
+MG,MG4,Electric hatchback with SSD traction and long range,Electric,160 km/h,7.2 seconds,170 HP,28000–32000,2025,Made in China,One-Pedal Driving  
+MG,MG5,Electric estate with versatile cargo space,Electric,150 km/h,7.3 seconds,154 HP,25000–30000,2025,Made in China,Flex Estate  
+MG,Marvel R,Electric SUV with sports performance and AR HUD,Electric,200 km/h,4.9 seconds,288 HP,35000–42000,2025,Made in China,Induction Charging  
+MG,ZS EV,Affordable electric SUV with efficient battery,Electric,140 km/h,8.2 seconds,143 HP,25000–30000,2025,Made in China,One-Pedal Regen  
+MG,Cyberster,Electric roadster concept with digital wrap,Electric,200 km/h,4.0 seconds,430 HP,60000–70000,2025,Made in China,CyberSkin canopy  
+Lucid,Air,Luxury electric sedan with DreamDrive and up to 1,020 HP,Electric,270 km/h,2.5 seconds,1020 HP,70000–90000,2025,Made in USA,Glass Canopy Roof  
+Lucid,Gravity,Electric three-row SUV concept with cutting-edge tech,Electric,240 km/h,3.1 seconds,620 HP,90000–110000,2025,Made in USA,Three-row layout  
+Rivian,R1T,Electric adventure pickup with quad-motor AWD and off-road capability,Electric,201 km/h,3.0 seconds,835 HP,70000–90000,2025,Made in USA,Adjustable air suspension
+Rivian,R1S,Electric adventure SUV with quad-motor AWD and spacious cabin,Electric,201 km/h,3.1 seconds,835 HP,75000–95000,2025,Made in USA,Camp mode
+Rivian,R2,Compact electric SUV with flexible cargo and efficient range,Electric,190 km/h,4.5 seconds,500 HP,50000–70000,2025,Made in USA,Skateboard platform
+Jeep,Wrangler,Iconic off-road SUV with removable doors and roof,I4 2.0 Turbo,180 km/h,7.1 seconds,270 HP,35000–45000,2025,Made in USA,Terrain Management
+Jeep,Grand Cherokee,Full-size SUV with luxury and 4xe hybrid option,I4 2.0 Turbo PHEV,210 km/h,6.3 seconds,375 HP,40000–60000,2025,Made in USA,Quadra-Lift
+Jeep,Compass,Compact SUV with off-road capability and refined interior,I4 2.4,200 km/h,8.5 seconds,177 HP,30000–38000,2025,Made in USA,Selec-Terrain
+Jeep,Avenger,Subcompact electric SUV with modern tech,Electric,150 km/h,8.0 seconds,154 HP,28000–34000,2025,Made in Italy,4Drive
+Jeep,Wagoneer S,Electric three-row SUV with premium interior,Electric,200 km/h,4.5 seconds,600 HP,80000–100000,2025,Made in USA,Adaptive Air Suspension
+Jeep,Recon EV,Electric off-road SUV concept with removable roof panels,Electric,200 km/h,4.8 seconds,600 HP,70000–90000,2025,Made in USA,Removable panels
+Dodge,Charger Daytona EV,Electric muscle sedan with retro styling and high torque,Electric,200 km/h,5.0 seconds,600 HP,40000–60000,2025,Made in USA,Scat Pack legacy
+Dodge,Challenger,Iconic muscle coupe with supercharged V8 option,V8 6.2 Supercharged,250 km/h,3.5 seconds,807 HP,45000–70000,2025,Made in USA,SRT Hellcat
+Dodge,Durango,Three-row SUV with V8 power and towing capability,V8 5.7,210 km/h,6.4 seconds,360 HP,40000–55000,2025,Made in USA,CommandView roof
+Ram,1500 REV,Electric full-size pickup with luxury interior and multifunction tailgate,Electric,180 km/h,4.7 seconds,654 HP,60000–80000,2025,Made in USA,eTorque system
+GMC,Sierra,Full-size pickup with AT4 off-road trim and ProGrade trailering,V8 5.3,180 km/h,6.4 seconds,355 HP,40000–60000,2025,Made in USA,MultiPro tailgate
+GMC,Hummer EV Pickup,Electric supertruck with CrabWalk and Extreme Off-Road modes,Electric,200 km/h,3.0 seconds,1000 HP,80000–120000,2025,Made in USA,Ultium battery
+GMC,Canyon,Midsize pickup with Denali luxury trim and advanced towing,I4 2.7 Turbo,190 km/h,6.8 seconds,310 HP,35000–50000,2025,Made in USA,ProGrade camera
+Chrysler,Pacifica,Family minivan with plug-in hybrid option and Stow ’n Go seating,I4 2.0 PHEV,180 km/h,7.4 seconds,260 HP,40000–50000,2025,Made in USA,Uconnect 5
+Buick,Envision,Compact luxury SUV with Turbo engine and quiet tuning,I4 2.0 Turbo,210 km/h,7.8 seconds,228 HP,35000–45000,2025,Made in USA,QuietTuning
+Buick,Encore GX,Subcompact SUV with mild-hybrid option and premium interior,I3 1.2 Turbo,200 km/h,8.9 seconds,137 HP,30000–38000,2025,Made in USA,Advanced GMC infotainment
+Buick,Electra E5,Electric compact crossover with Ultium powertrain,Electric,190 km/h,7.0 seconds,340 HP,40000–50000,2025,Made in USA,Wireless charging
+Rimac,Nevera,Electric hypercar with 1914 HP and sub-2 second 0-60 mph,Electric,412 km/h,1.85 seconds,1914 HP,2000000–2200000,2025,Made in Croatia,C2 drivetrain
+Hennessey,Venom F5,Track-focused hypercar with 1817 HP V8 and low weight,V8 6.6 Twin-Turbo,484 km/h,2.0 seconds,1817 HP,2000000–2200000,2025,Made in USA,Carbon monocoque
+Zenvo,Aurora Tur,Hybrid hypercar with active aerodynamics and bespoke craftsmanship,V12 Hybrid,406 km/h,2.6 seconds,1176 HP,1800000–2000000,2025,Made in Denmark,TGTC tail design
+SSC,Tuatara,American hypercar with 1750 HP twin-turbo V8 and top speed run,V8 5.9 Twin-Turbo,508 km/h,2.5 seconds,1750 HP,1800000–2000000,2025,Made in USA,Carbon frame
+DeTomaso,P72,Retro-inspired supercar with 700 HP V12 and bespoke coachwork,V12 5.0,322 km/h,3.2 seconds,700 HP,1500000–1800000,2025,Made in Italy,Coachbuilt body
+Czinger,21C,Track-focused hypercar with 1250 HP twin-turbo V8 and 3D-printed chassis,V8 Twin-Turbo,454 km/h,1.9 seconds,1250 HP,1500000–1800000,2025,Made in USA,3D-printed monocoque
+FaradayFuture,FF 91,Electric luxury SUV with 1050 HP and ultra-fast charging,Electric,200 km/h,2.5 seconds,1050 HP,120000–140000,2025,Made in USA,4-chassis architecture
