@@ -31,9 +31,11 @@ jobs:
 
       - name: Upload to App Store Connect
         env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
           APP_STORE_CONNECT_APP_ID: ${{ secrets.APP_STORE_CONNECT_APP_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.yruz-ngnd-yehk-oksf }}
-          APP_BUNDLE_ID: ${{ secrets.com.gearup.app }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           cd ios
           fastlane deliver \
@@ -44,4 +46,3 @@ jobs:
             --skip_metadata \
             --force \
             --submit_for_review false
-
