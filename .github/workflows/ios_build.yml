@@ -1,0 +1,46 @@
+name: Build & Upload iOS App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.0'
+          channel: 'stable'
+
+      - name: Install CocoaPods
+        run: sudo gem install cocoapods
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS (no signing)
+        run: flutter build ipa --release --no-codesign
+
+      - name: Install Fastlane
+        run: brew install fastlane
+
+      - name: Upload to App Store Connect
+        env:
+          APPLE_ID: ${{ secrets.6751094678 }}
+          APPLE_ID_PASSWORD: ${{ secrets.yruz-ngnd-yehk-oksf }}
+          APP_BUNDLE_ID: ${{ secrets.com.gearup.app }}
+        run: |
+          cd ios
+          fastlane deliver \
+            --username "$APPLE_ID" \
+            --app_identifier "$APP_BUNDLE_ID" \
+            --ipa "../build/ios/ipa/Runner.ipa" \
+            --skip_screenshots \
+            --skip_metadata \
+            --force \
+            --submit_for_review false
