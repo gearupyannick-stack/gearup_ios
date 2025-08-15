@@ -31,7 +31,7 @@ jobs:
 
       - name: Upload to App Store Connect
         env:
-          APPLE_ID: ${{ secrets.6751094678 }}
+          APP_STORE_CONNECT_APP_ID: ${{ secrets.APP_STORE_CONNECT_APP_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.yruz-ngnd-yehk-oksf }}
           APP_BUNDLE_ID: ${{ secrets.com.gearup.app }}
         run: |
@@ -44,3 +44,4 @@ jobs:
             --skip_metadata \
             --force \
             --submit_for_review false
+
