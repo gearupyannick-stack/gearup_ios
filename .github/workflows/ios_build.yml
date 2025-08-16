@@ -24,13 +24,17 @@ jobs:
 
       - name: Force iOS 15.0 deployment target
         run: |
-          cd ios
-          rm -f Podfile Podfile.lock
-          flutter create --platforms=ios --project-name=gearup .
-          sed -i '' 's/platform :ios, .*/platform :ios, "15.0"/' Podfile
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0/' Runner.xcodeproj/project.pbxproj
-          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" Flutter/AppFrameworkInfo.plist || \
-          /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" Flutter/AppFrameworkInfo.plist
+          # Remove existing Podfile and Podfile.lock from the ios directory
+          rm -f ios/Podfile ios/Podfile.lock
+          # Let Flutter generate a new Podfile (run from the project root)
+          flutter create --platforms=ios .
+          # Set the deployment target in the Podfile
+          sed -i '' 's/platform :ios, .*/platform :ios, "15.0"/' ios/Podfile
+          # Set the deployment target in the Xcode project
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0/' ios/Runner.xcodeproj/project.pbxproj
+          # Set MinimumOSVersion in AppFrameworkInfo.plist
+          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" ios/Flutter/AppFrameworkInfo.plist || \
+          /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" ios/Flutter/AppFrameworkInfo.plist
 
       - name: Prepare CocoaPods
         working-directory: ios
