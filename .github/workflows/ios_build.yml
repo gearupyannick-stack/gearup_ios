@@ -1,12 +1,9 @@
 name: Build & Upload iOS App
-
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: macos-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,31 +21,50 @@ jobs:
 
       - name: Force iOS 15.0 deployment target
         run: |
-          # Remove existing Podfile and Podfile.lock from the ios directory
           rm -f ios/Podfile ios/Podfile.lock
-          # Let Flutter generate a new Podfile (run from the project root)
-          flutter create --platforms=ios .
-          # Set the deployment target in the Podfile
-          sed -i '' 's/platform :ios, .*/platform :ios, "15.0"/' ios/Podfile
+          cat > ios/Podfile <<'EOF'
+          platform :ios, '15.0'
+
+          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+          workspace 'Runner.xcworkspace'
+          project 'Runner.xcodeproj'
+
+          target 'Runner' do
+            use_frameworks! :linkage => :static
+            use_modular_headers!
+
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+          end
+
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+                config.build_settings['ENABLE_BITCODE'] = 'NO'
+              end
+            end
+          end
+          EOF
+
           # Set the deployment target in the Xcode project
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0/' ios/Runner.xcodeproj/project.pbxproj
           # Set MinimumOSVersion in AppFrameworkInfo.plist
           /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" ios/Flutter/AppFrameworkInfo.plist || \
           /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" ios/Flutter/AppFrameworkInfo.plist
 
-      - name: Prepare CocoaPods
-        working-directory: ios
-        run: |
-          sudo gem install cocoapods --no-document
-          pod repo update
-          pod install
-
-
       - name: Flutter doctor
         run: flutter doctor -v
 
       - name: Pub get
         run: flutter pub get
+
+      - name: Prepare CocoaPods
+        working-directory: ios
+        run: |
+          sudo gem install cocoapods --no-document
+          pod repo update
+          pod install --repo-update
 
       - name: Build iOS (no signing, verbose)
         run: flutter build ipa --release --no-codesign -v
