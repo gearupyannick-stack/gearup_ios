@@ -25,15 +25,39 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: Generate Podfile using Flutter
+      - name: Generate Podfile
         run: |
+          rm -f ios/Podfile ios/Podfile.lock
           cd ios
-          rm -f Podfile Podfile.lock
-          flutter create --platforms=ios --project-name=gearup .
-          sed -i '' 's/platform :ios, .*/platform :ios, "15.0"/' Podfile
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0/' Runner.xcodeproj/project.pbxproj
-          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" Flutter/AppFrameworkInfo.plist || \
-          /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" Flutter/AppFrameworkInfo.plist
+          pod init
+          cat > Podfile <<'EOF'
+          # Uncomment this line to define a global platform for your project
+          platform :ios, '15.0'
+
+          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+          workspace 'Runner.xcworkspace'
+          project 'Runner.xcodeproj'
+
+          target 'Runner' do
+            use_frameworks! :linkage => :static
+            use_modular_headers!
+
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+          end
+
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+              end
+            end
+          end
+          EOF
+          cd ..
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0/' ios/Runner.xcodeproj/project.pbxproj
+          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" ios/Flutter/AppFrameworkInfo.plist || \
+          /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" ios/Flutter/AppFrameworkInfo.plist
 
       - name: Prepare CocoaPods
         working-directory: ios
