@@ -1,24 +1,31 @@
-cd ios
-cat > Podfile << 'EOF'
 platform :ios, '15.0'
-
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-workspace 'Runner.xcworkspace'
-project 'Runner.xcodeproj'
+install! 'cocoapods', :generate_multiple_pod_projects => true
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  raise "Run 'flutter pub get' first." unless File.exist?(generated_xcode_build_settings_path)
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    m = line.match(/FLUTTER_ROOT\=(.*)/)
+    return m[1].strip if m
+  end
+  raise "FLUTTER_ROOT not found."
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
 target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
-
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
 post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    target.build_configurations.each do |config|
+  installer.pods_project.targets.each do |t|
+    t.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
     end
   end
 end
-EOF
