@@ -25,26 +25,25 @@ jobs:
       # Make sure deployment target is 15.0 even if files change later
       - name: Force iOS 15.0 deployment target
         run: |
-          # Podfile
           if [ ! -f ios/Podfile ]; then
             cat > ios/Podfile <<'RUBY'
-            platform :ios, '15.0'
-            ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-            install! 'cocoapods', :generate_multiple_pod_projects => true
-            target 'Runner' do
-              use_frameworks! :linkage => :static
-              use_modular_headers!
-              flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-            end
-            post_install do |installer|
-              installer.pods_project.targets.each do |t|
-                t.build_configurations.each do |config|
-                  config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-                  config.build_settings['ENABLE_BITCODE'] = 'NO'
-                end
+          platform :ios, '15.0'
+          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+          install! 'cocoapods', :generate_multiple_pod_projects => true
+          target 'Runner' do
+            use_frameworks! :linkage => :static
+            use_modular_headers!
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+          end
+          post_install do |installer|
+            installer.pods_project.targets.each do |t|
+              t.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+                config.build_settings['ENABLE_BITCODE'] = 'NO'
               end
             end
-            RUBY
+          end
+          RUBY
           fi
           # AppFrameworkInfo.plist
           /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" ios/Flutter/AppFrameworkInfo.plist || \
