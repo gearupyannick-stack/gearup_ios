@@ -1,13 +1,11 @@
 name: Build & Upload iOS App
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-latest
 
     steps:
       - name: Checkout code
@@ -22,7 +20,37 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.0'
-          channel: 'stable'
+          channel: stable
+
+      # Make sure deployment target is 15.0 even if files change later
+      - name: Force iOS 15.0 deployment target
+        run: |
+          # Podfile
+          if [ ! -f ios/Podfile ]; then
+            cat > ios/Podfile <<'RUBY'
+platform :ios, '15.0'
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+install! 'cocoapods', :generate_multiple_pod_projects => true
+target 'Runner' do
+  use_frameworks! :linkage => :static
+  use_modular_headers!
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+post_install do |installer|
+  installer.pods_project.targets.each do |t|
+    t.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+    end
+  end
+end
+RUBY
+          fi
+          # AppFrameworkInfo.plist
+          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" ios/Flutter/AppFrameworkInfo.plist || \
+          /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" ios/Flutter/AppFrameworkInfo.plist
+          # Xcode project
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]\+/IPHONEOS_DEPLOYMENT_TARGET = 15.0/g' ios/Runner.xcodeproj/project.pbxproj
 
       - name: Flutter doctor
         run: flutter doctor -v
@@ -31,9 +59,9 @@ jobs:
         run: flutter pub get
 
       - name: Prepare CocoaPods
+        working-directory: ios
         run: |
           sudo gem install cocoapods --no-document
-          cd ios
           pod repo update
           pod install
 
@@ -41,13 +69,16 @@ jobs:
         run: flutter build ipa --release --no-codesign -v
 
       - name: Install Fastlane
-        run: sudo gem install fastlane -NV
+        run: brew install fastlane
 
       - name: Upload to App Store Connect
+        if: ${{ success() }}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          APP_STORE_CONNECT_APP_ID: ${{ secrets.APP_STORE_CONNECT_APP_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           cd ios
           fastlane deliver \
