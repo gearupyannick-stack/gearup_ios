@@ -1,4 +1,6 @@
-cat > Podfile <<'EOF'
+cd ios
+cat > Podfile << 'EOF'
+# Uncomment this line to define a global platform for your project
 platform :ios, '15.0'
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'

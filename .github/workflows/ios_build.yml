@@ -25,13 +25,10 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: Generate Podfile
+      - name: Generate and Configure Podfile
         run: |
-          rm -f ios/Podfile ios/Podfile.lock
           cd ios
-          pod init
-          cat > Podfile <<'EOF'
-          # Uncomment this line to define a global platform for your project
+          cat > Podfile << 'EOF'
           platform :ios, '15.0'
 
           ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -54,10 +51,9 @@ jobs:
             end
           end
           EOF
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' Runner.xcodeproj/project.pbxproj || echo "Deployment target not found, manually check project.pbxproj"
+          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" Flutter/AppFrameworkInfo.plist
           cd ..
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0/' ios/Runner.xcodeproj/project.pbxproj
-          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" ios/Flutter/AppFrameworkInfo.plist || \
-          /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" ios/Flutter/AppFrameworkInfo.plist
 
       - name: Prepare CocoaPods
         working-directory: ios
@@ -66,8 +62,8 @@ jobs:
           pod repo update
           pod install
 
-      - name: Build iOS (no signing, verbose)
-        run: flutter build ipa --release --no-codesign -v
+      - name: Build iOS (verbose)
+        run: flutter build ipa --release -v
 
       - name: Install Fastlane
         run: brew install fastlane
