@@ -19,52 +19,28 @@ jobs:
           flutter-version: '3.35.0'
           channel: stable
 
-      - name: Force iOS 15.0 deployment target
-        run: |
-          rm -f ios/Podfile ios/Podfile.lock
-          cat > ios/Podfile <<'EOF'
-          platform :ios, '15.0'
-
-          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-
-          workspace 'Runner.xcworkspace'
-          project 'Runner.xcodeproj'
-
-          target 'Runner' do
-            use_frameworks! :linkage => :static
-            use_modular_headers!
-
-            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-          end
-
-          post_install do |installer|
-            installer.pods_project.targets.each do |target|
-              target.build_configurations.each do |config|
-                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-                config.build_settings['ENABLE_BITCODE'] = 'NO'
-              end
-            end
-          end
-          EOF
-
-          # Set the deployment target in the Xcode project
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0/' ios/Runner.xcodeproj/project.pbxproj
-          # Set MinimumOSVersion in AppFrameworkInfo.plist
-          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" ios/Flutter/AppFrameworkInfo.plist || \
-          /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" ios/Flutter/AppFrameworkInfo.plist
-
       - name: Flutter doctor
         run: flutter doctor -v
 
       - name: Pub get
         run: flutter pub get
 
+      - name: Generate Podfile using Flutter
+        run: |
+          cd ios
+          rm -f Podfile Podfile.lock
+          flutter create --platforms=ios --project-name=gearup .
+          sed -i '' 's/platform :ios, .*/platform :ios, "15.0"/' Podfile
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0/' Runner.xcodeproj/project.pbxproj
+          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" Flutter/AppFrameworkInfo.plist || \
+          /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" Flutter/AppFrameworkInfo.plist
+
       - name: Prepare CocoaPods
         working-directory: ios
         run: |
           sudo gem install cocoapods --no-document
           pod repo update
-          pod install --repo-update
+          pod install
 
       - name: Build iOS (no signing, verbose)
         run: flutter build ipa --release --no-codesign -v
