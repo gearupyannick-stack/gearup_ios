@@ -1,7 +1,12 @@
+# ios/Podfile
 platform :ios, '15.0'
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-install! 'cocoapods', :generate_multiple_pod_projects => true
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
 
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
@@ -10,7 +15,7 @@ def flutter_root
     m = line.match(/FLUTTER_ROOT\=(.*)/)
     return m[1].strip if m
   end
-  raise "FLUTTER_ROOT not found."
+  raise "FLUTTER_ROOT not found in Generated.xcconfig."
 end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
