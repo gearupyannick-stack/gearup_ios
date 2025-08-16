@@ -25,6 +25,7 @@ jobs:
       - name: Force iOS 15.0 deployment target
         run: |
           cd ios
+          rm -f Podfile Podfile.lock
           flutter create --platforms=ios --project-name=gearup .
           sed -i '' 's/platform :ios, .*/platform :ios, "15.0"/' Podfile
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0/' Runner.xcodeproj/project.pbxproj
@@ -37,6 +38,7 @@ jobs:
           sudo gem install cocoapods --no-document
           pod repo update
           pod install
+
 
       - name: Flutter doctor
         run: flutter doctor -v
