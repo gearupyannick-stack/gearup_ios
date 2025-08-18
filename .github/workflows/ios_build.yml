@@ -29,8 +29,27 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      # Do NOT call pod install yourself. Flutter will invoke CocoaPods correctly.
+      # CocoaPods 1.16 has been breaking some Flutter Podfiles.
+      # Pin to 1.14.x and clear stale Pods state before building.
+      - name: Pin CocoaPods and clear Pods
+        run: |
+          sudo gem uninstall cocoapods -aIx || true
+          sudo gem install cocoapods -v 1.14.3 --no-document
+          pod --version
+          rm -rf ios/Pods ios/Podfile.lock
+
+      # Sanity-check the Podfile syntax and presence
+      - name: Verify Podfile
+        run: |
+          test -f ios/Podfile
+          ruby -c ios/Podfile
+          sed -n '1,80p' ios/Podfile
+
+      # Let Flutter drive CocoaPods; do NOT call `pod install` manually
       - name: Build IPA (unsigned)
+        env:
+          LC_ALL: en_US.UTF-8
+          LANG: en_US.UTF-8
         run: flutter build ipa --release --no-codesign -v
 
       - name: Upload build artifact
@@ -39,18 +58,18 @@ jobs:
           name: ios-ipa
           path: build/ios/ipa/*.ipa
 
-      # Recommended: App Store Connect API key auth (no Apple ID password)
+      # OPTIONAL: App Store upload via API key (preferred). Keep if you already set secrets.
       - name: Install Fastlane
         run: brew install fastlane
 
       - name: Upload to App Store Connect (API key)
-        if: ${{ success() }}
+        if: ${{ success() && vars.ASC_UPLOAD == '1' }}
         env:
           APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
           APP_STORE_CONNECT_APP_ID: ${{ secrets.APP_STORE_CONNECT_APP_ID }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}             # e.g. ABCDEFGHIJ
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}       # GUID
-          ASC_KEY_BASE64: ${{ secrets.ASC_KEY_BASE64 }}     # Contents of .p8 base64-encoded
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_BASE64: ${{ secrets.ASC_KEY_BASE64 }}
         run: |
           cd ios
           echo "$ASC_KEY_BASE64" | base64 --decode > AuthKey_${ASC_KEY_ID}.p8
@@ -60,7 +79,5 @@ jobs:
             --api_key_issuer_id "$ASC_ISSUER_ID" \
             --app_identifier "$APP_BUNDLE_ID" \
             --ipa "../build/ios/ipa/Runner.ipa" \
-            --skip_screenshots \
-            --skip_metadata \
-            --force \
+            --skip_screenshots --skip_metadata --force \
             --submit_for_review false

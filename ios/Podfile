@@ -7,7 +7,6 @@ project 'Runner', {
   'Release' => :release,
 }
 
-# Load Flutter CocoaPods helpers
 require File.expand_path('Flutter/podhelper.rb', __dir__)
 flutter_ios_podfile_setup
 
