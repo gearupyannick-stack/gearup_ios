@@ -1,5 +1,4 @@
 name: Build & Upload iOS App
-
 on:
   workflow_dispatch:
 
@@ -8,13 +7,14 @@ jobs:
     runs-on: macos-14
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show macOS/Xcode
+      - name: macOS / Xcode
         run: |
           sw_vers
           xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -29,8 +29,7 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      # CocoaPods 1.16 has been breaking some Flutter Podfiles.
-      # Pin to 1.14.x and clear stale Pods state before building.
+      # CocoaPods: pin to a stable version and reset Pods to avoid stale state
       - name: Pin CocoaPods and clear Pods
         run: |
           sudo gem uninstall cocoapods -aIx || true
@@ -38,19 +37,30 @@ jobs:
           pod --version
           rm -rf ios/Pods ios/Podfile.lock
 
-      # Sanity-check the Podfile syntax and presence
+      # Sanity check Podfile content (this prints first 80 lines)
       - name: Verify Podfile
         run: |
           test -f ios/Podfile
           ruby -c ios/Podfile
           sed -n '1,80p' ios/Podfile
 
-      # Let Flutter drive CocoaPods; do NOT call `pod install` manually
+      # Run pod install explicitly so we fail early with a clear CocoaPods error
+      - name: CocoaPods install
+        working-directory: ios
+        run: |
+          pod repo update
+          pod install --verbose
+
+      # Build .ipa without signing, with unbuffered Xcode output
       - name: Build IPA (unsigned)
         env:
+          NSUnbufferedIO: "YES"
           LC_ALL: en_US.UTF-8
           LANG: en_US.UTF-8
-        run: flutter build ipa --release --no-codesign -v
+        run: |
+          set -euo pipefail
+          flutter clean
+          flutter build ipa --release --no-codesign -v
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -58,10 +68,9 @@ jobs:
           name: ios-ipa
           path: build/ios/ipa/*.ipa
 
-      # OPTIONAL: App Store upload via API key (preferred). Keep if you already set secrets.
+      # Optional: upload to App Store with API key (set secrets first)
       - name: Install Fastlane
         run: brew install fastlane
-
       - name: Upload to App Store Connect (API key)
         if: ${{ success() && vars.ASC_UPLOAD == '1' }}
         env:
