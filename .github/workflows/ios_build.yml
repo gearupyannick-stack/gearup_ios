@@ -1,9 +1,12 @@
 name: Build & Upload iOS App
+
 on:
   workflow_dispatch:
+
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-14
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -16,8 +19,9 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.0'
           channel: stable
+          flutter-version: '3.35.0'
+          cache: true
 
       - name: Flutter doctor
         run: flutter doctor -v
@@ -25,61 +29,35 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: Generate and Configure Podfile
-        run: |
-          cd ios
-          cat > Podfile << 'EOF'
-          platform :ios, '15.0'
+      # Do NOT call pod install yourself. Flutter will invoke CocoaPods correctly.
+      - name: Build IPA (unsigned)
+        run: flutter build ipa --release --no-codesign -v
 
-          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
 
-          workspace 'Runner.xcworkspace'
-          project 'Runner.xcodeproj'
-
-          target 'Runner' do
-            use_frameworks! :linkage => :static
-            use_modular_headers!
-
-            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-          end
-
-          post_install do |installer|
-            installer.pods_project.targets.each do |target|
-              target.build_configurations.each do |config|
-                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-              end
-            end
-          end
-          EOF
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' Runner.xcodeproj/project.pbxproj || echo "Deployment target not found, manually check project.pbxproj"
-          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" Flutter/AppFrameworkInfo.plist
-          cd ..
-
-      - name: Prepare CocoaPods
-        working-directory: ios
-        run: |
-          sudo gem install cocoapods --no-document
-          pod repo update
-          pod install
-
-      - name: Build iOS (verbose)
-        run: flutter build ipa --release -v
-
+      # Recommended: App Store Connect API key auth (no Apple ID password)
       - name: Install Fastlane
         run: brew install fastlane
 
-      - name: Upload to App Store Connect
+      - name: Upload to App Store Connect (API key)
         if: ${{ success() }}
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
           APP_STORE_CONNECT_APP_ID: ${{ secrets.APP_STORE_CONNECT_APP_ID }}
-          TEAM_ID: ${{ secrets.TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}             # e.g. ABCDEFGHIJ
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}       # GUID
+          ASC_KEY_BASE64: ${{ secrets.ASC_KEY_BASE64 }}     # Contents of .p8 base64-encoded
         run: |
           cd ios
+          echo "$ASC_KEY_BASE64" | base64 --decode > AuthKey_${ASC_KEY_ID}.p8
           fastlane deliver \
-            --username "$APPLE_ID" \
+            --api_key_path AuthKey_${ASC_KEY_ID}.p8 \
+            --api_key_id "$ASC_KEY_ID" \
+            --api_key_issuer_id "$ASC_ISSUER_ID" \
             --app_identifier "$APP_BUNDLE_ID" \
             --ipa "../build/ios/ipa/Runner.ipa" \
             --skip_screenshots \
