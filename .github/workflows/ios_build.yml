@@ -1,92 +1,114 @@
-name: Build & Upload iOS App
+name: iOS Release (TestFlight)
+
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'ios-v*'   # push a tag like ios-v1.2.3 to trigger
 
 jobs:
-  build:
+  release:
     runs-on: macos-14
+    env:
+      BUNDLE_ID: com.gearup.learn
+      APPLE_TEAM_ID: YOUR_TEAM_ID_HERE   # put your 10-char Team ID
+      SCHEME: Runner                      # Flutter default
+      CONFIG: Release
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: macOS / Xcode
+      - name: Show runner info
         run: |
           sw_vers
           xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
           flutter-version: '3.35.0'
-          cache: true
+          channel: stable
 
       - name: Flutter doctor
         run: flutter doctor -v
 
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
       - name: Pub get
         run: flutter pub get
 
-      # CocoaPods: pin to a stable version and reset Pods to avoid stale state
-      - name: Pin CocoaPods and clear Pods
-        run: |
-          sudo gem uninstall cocoapods -aIx || true
-          sudo gem install cocoapods -v 1.14.3 --no-document
-          pod --version
-          rm -rf ios/Pods ios/Podfile.lock
-
-      # Sanity check Podfile content (this prints first 80 lines)
-      - name: Verify Podfile
-        run: |
-          test -f ios/Podfile
-          ruby -c ios/Podfile
-          sed -n '1,80p' ios/Podfile
-
-      # Run pod install explicitly so we fail early with a clear CocoaPods error
-      - name: CocoaPods install
+      - name: Install CocoaPods
         working-directory: ios
         run: |
           pod repo update
-          pod install --verbose
+          pod install
 
-      # Build .ipa without signing, with unbuffered Xcode output
-      - name: Build IPA (unsigned)
-        env:
-          NSUnbufferedIO: "YES"
-          LC_ALL: en_US.UTF-8
-          LANG: en_US.UTF-8
+      # Import the distribution certificate to a temporary keychain
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
+          p12-file-base64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+
+      # Install provisioning profile
+      - name: Install provisioning profile
+        uses: apple-actions/import-provisioning-profile@v1
+        with:
+          profile-base64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+
+      # Build signed IPA using Flutter + Xcode export with your ExportOptions.plist
+      - name: Build IPA
         run: |
-          set -euo pipefail
-          flutter clean
-          flutter build ipa --release --no-codesign -v
+          # Ensure the correct Xcode is selected (usually already is)
+          xcode-select -p
+          # Flutter archive step generates Xcode archive under build/ios/archive
+          flutter build ipa \
+            --release \
+            --export-options-plist=ios/ExportOptions.plist
 
-      - name: Upload build artifact
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
           path: build/ios/ipa/*.ipa
 
-      # Optional: upload to App Store with API key (set secrets first)
-      - name: Install Fastlane
-        run: brew install fastlane
-      - name: Upload to App Store Connect (API key)
-        if: ${{ success() && vars.ASC_UPLOAD == '1' }}
-        env:
-          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
-          APP_STORE_CONNECT_APP_ID: ${{ secrets.APP_STORE_CONNECT_APP_ID }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_BASE64: ${{ secrets.ASC_KEY_BASE64 }}
+      # Install fastlane and upload to TestFlight via API key
+      - name: Set up Ruby and Fastlane
         run: |
-          cd ios
-          echo "$ASC_KEY_BASE64" | base64 --decode > AuthKey_${ASC_KEY_ID}.p8
-          fastlane deliver \
-            --api_key_path AuthKey_${ASC_KEY_ID}.p8 \
-            --api_key_id "$ASC_KEY_ID" \
-            --api_key_issuer_id "$ASC_ISSUER_ID" \
-            --app_identifier "$APP_BUNDLE_ID" \
-            --ipa "../build/ios/ipa/Runner.ipa" \
-            --skip_screenshots --skip_metadata --force \
-            --submit_for_review false
+          gem install fastlane --no-document
+
+      - name: Create App Store Connect API key file
+        run: |
+          echo "${{ secrets.APP_STORE_API_KEY_BASE64 }}" | base64 --decode > api_key.p8
+          cat > api_key.json <<'JSON'
+          {
+            "key_id": "${{ secrets.APP_STORE_KEY_ID }}",
+            "issuer_id": "${{ secrets.APP_STORE_ISSUER_ID }}",
+            "key": "<<INLINED_BY_STEP>>",
+            "in_house": false
+          }
+          JSON
+          # Inline the p8 content into the JSON
+          KEY=$(sed 's/$/\\n/' api_key.p8 | tr -d '\n' | sed 's/\\n$//')
+          ruby -e '
+            require "json";
+            j = JSON.parse(File.read("api_key.json"));
+            j["key"] = File.read("api_key.p8");
+            File.write("api_key.json", JSON.pretty_generate(j));
+          '
+
+      - name: Upload to TestFlight
+        run: |
+          IPA_PATH=$(ls build/ios/ipa/*.ipa | head -n1)
+          fastlane pilot upload \
+            --ipa "$IPA_PATH" \
+            --api_key_path api_key.json \
+            --skip_waiting_for_build_processing true
