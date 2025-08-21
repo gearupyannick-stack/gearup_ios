@@ -1,72 +1,53 @@
-name: Build & Upload iOS App
+# .github/workflows/ios_build.yml
+name: iOS build
+
 on:
+  push:
+    branches: [ main ]
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-ios:
     runs-on: macos-14
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: macOS / Xcode
-        run: |
-          sw_vers
-          xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.35.0'
           cache: true
 
-      - name: Flutter doctor
-        run: flutter doctor -v
-
-      - name: Pub get
+      - name: Flutter deps
         run: flutter pub get
 
-      # CocoaPods: pin to a stable version and reset Pods to avoid stale state
-      - name: Pin CocoaPods and clear Pods
-        run: |
-          sudo gem uninstall cocoapods -aIx || true
-          sudo gem install cocoapods -v 1.14.3 --no-document
-          pod --version
-          rm -rf ios/Pods ios/Podfile.lock
+      # Optionnel mais propre sur CI
+      - name: Clean
+        run: flutter clean
 
-      # Sanity check Podfile content (this prints first 80 lines)
-      - name: Verify Podfile
-        run: |
-          test -f ios/Podfile
-          ruby -c ios/Podfile
-          sed -n '1,80p' ios/Podfile
+      - name: Build unsigned IPA (no codesign)
+        run: flutter build ipa --release --no-codesign
 
-      # Run pod install explicitly so we fail early with a clear CocoaPods error
-      - name: CocoaPods install
-        working-directory: ios
-        run: |
-          pod repo update
-          pod install --verbose
-
-      # Build .ipa without signing, with unbuffered Xcode output
-      - name: Build IPA (unsigned)
-        env:
-          NSUnbufferedIO: "YES"
-          LC_ALL: en_US.UTF-8
-          LANG: en_US.UTF-8
-        run: |
-          set -euo pipefail
-          flutter clean
-          flutter build ipa --release --no-codesign -v
-
-      - name: Upload build artifact
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa
+          name: Runner-ipa
           path: build/ios/ipa/*.ipa
+
+      # Optionnel: binaire simulateur iOS pour tests locaux (pas installable sur device)
+      - name: Build iOS Simulator .app
+        run: |
+          flutter build ios --simulator --release
+          cd build/ios/iphonesimulator
+          zip -r Runner.app.zip Runner.app
+      - name: Upload Simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Runner-simulator
+          path: build/ios/iphonesimulator/Runner.app.zip
 
       # Optional: upload to App Store with API key (set secrets first)
       - name: Install Fastlane
