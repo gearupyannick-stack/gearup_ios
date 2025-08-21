@@ -19,16 +19,25 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.35.1'
           cache: true
 
-      - name: Flutter deps
+      # Assure la présence de ios/Flutter/podhelper.rb avant toute commande qui déclenche CocoaPods
+      - name: Ensure podhelper.rb exists
+        run: |
+          echo "FLUTTER_ROOT=$FLUTTER_ROOT"
+          mkdir -p ios/Flutter
+          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
+          ls -l ios/Flutter
+
+      - name: Flutter pub get
         run: flutter pub get
 
-      # Optionnel mais propre sur CI
       - name: Clean
         run: flutter clean
 
-      - name: Build unsigned IPA (no codesign)
+      # Build IPA non signé pour valider la chaîne iOS sur macOS runner
+      - name: Build unsigned IPA
         run: flutter build ipa --release --no-codesign
 
       - name: Upload IPA artifact
@@ -37,37 +46,45 @@ jobs:
           name: Runner-ipa
           path: build/ios/ipa/*.ipa
 
-      # Optionnel: binaire simulateur iOS pour tests locaux (pas installable sur device)
+      # Optionnel: build simulateur pour vérif rapide
       - name: Build iOS Simulator .app
         run: |
           flutter build ios --simulator --release
           cd build/ios/iphonesimulator
           zip -r Runner.app.zip Runner.app
+
       - name: Upload Simulator app
         uses: actions/upload-artifact@v4
         with:
           name: Runner-simulator
           path: build/ios/iphonesimulator/Runner.app.zip
 
-      # Optional: upload to App Store with API key (set secrets first)
+      # Optionnel: upload TestFlight via API key (définis les secrets et mets le var repo ASC_UPLOAD=1)
       - name: Install Fastlane
-        run: brew install fastlane
-      - name: Upload to App Store Connect (API key)
-        if: ${{ success() && vars.ASC_UPLOAD == '1' }}
+        if: ${{ vars.ASC_UPLOAD == '1' }}
+        run: gem install fastlane --no-document
+
+      - name: Upload to TestFlight
+        if: ${{ vars.ASC_UPLOAD == '1' }}
         env:
-          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
-          APP_STORE_CONNECT_APP_ID: ${{ secrets.APP_STORE_CONNECT_APP_ID }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_BASE64: ${{ secrets.ASC_KEY_BASE64 }}
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}             # ex: com.gearup.learn
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}       # ex: ABCDE12345
+          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }} # GUID issu App Store Connect
+          APP_STORE_API_KEY_BASE64: ${{ secrets.APP_STORE_API_KEY_BASE64 }} # contenu .p8 encodé base64
         run: |
-          cd ios
-          echo "$ASC_KEY_BASE64" | base64 --decode > AuthKey_${ASC_KEY_ID}.p8
-          fastlane deliver \
-            --api_key_path AuthKey_${ASC_KEY_ID}.p8 \
-            --api_key_id "$ASC_KEY_ID" \
-            --api_key_issuer_id "$ASC_ISSUER_ID" \
-            --app_identifier "$APP_BUNDLE_ID" \
-            --ipa "../build/ios/ipa/Runner.ipa" \
-            --skip_screenshots --skip_metadata --force \
-            --submit_for_review false
+          IPA_PATH=$(ls build/ios/ipa/*.ipa | head -n1)
+
+          # Recrée la clé .p8 et génère un JSON d'API key pour Fastlane
+          echo "$APP_STORE_API_KEY_BASE64" | base64 --decode > api_key.p8
+          ruby -e '
+            require "json";
+            key = File.read("api_key.p8");
+            j = {"key_id"=>ENV["APP_STORE_KEY_ID"], "issuer_id"=>ENV["APP_STORE_ISSUER_ID"], "key"=>key, "in_house"=>false};
+            File.write("api_key.json", JSON.pretty_generate(j));
+          '
+
+          # Upload TestFlight (évite l’attente du traitement)
+          fastlane pilot upload \
+            --ipa "$IPA_PATH" \
+            --api_key_path api_key.json \
+            --skip_waiting_for_build_processing true
