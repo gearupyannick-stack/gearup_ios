@@ -1,98 +1,58 @@
-name: iOS build
+name: iOS Build & Publish
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-  build-ios:
-    runs-on: macos-14
+  build:
+    runs-on: macos-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.24.3'
           channel: stable
-          flutter-version: '3.35.1'
           cache: true
 
-      # Ensure the presence of ios/Flutter/podhelper.rb before any command that triggers CocoaPods
-      - name: Ensure podhelper.rb exists
-        run: |
-          echo "FLUTTER_ROOT=$FLUTTER_ROOT"
-          mkdir -p ios/Flutter
-          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
-          ls -l ios/Flutter
-
-      - name: Flutter pub get
+      - name: Flutter dependencies
         run: flutter pub get
 
-      - name: Generate Podfile.lock
-        run: cd ios && pod install --repo-update
-
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: ios/Pods
-          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pods-
-
-      - name: Clean
-        run: flutter clean
-
-      # Build unsigned IPA to validate the iOS toolchain on macOS runner
-      - name: Build unsigned IPA
-        run: flutter build ipa --release --no-codesign
+      - name: Flutter build IPA
+        run: flutter build ipa --release --export-options-plist=ios/Runner/ExportOptions.plist
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Runner-ipa
+          name: iOS-IPA
           path: build/ios/ipa/*.ipa
 
-      # Optional: build simulator for quick verification
-      - name: Build iOS Simulator .app
-        run: |
-          flutter build ios --simulator --release
-          cd build/ios/iphonesimulator
-          zip -r Runner.app.zip Runner.app
+  upload:
+    needs: build
+    runs-on: macos-latest
 
-      - name: Upload Simulator app
-        uses: actions/upload-artifact@v4
+    steps:
+      - name: Download IPA
+        uses: actions/download-artifact@v4
         with:
-          name: Runner-simulator
-          path: build/ios/iphonesimulator/Runner.app.zip
+          name: iOS-IPA
 
-      # Optional: upload to TestFlight via API key (set secrets and repo var ASC_UPLOAD=1)
-      - name: Install Fastlane
-        if: ${{ vars.ASC_UPLOAD == '1' }}
-        run: gem install fastlane --no-document
+      - name: Install fastlane
+        run: brew install fastlane
 
       - name: Upload to TestFlight
-        if: ${{ vars.ASC_UPLOAD == '1' }}
         env:
-          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}             # e.g. com.gearup.learn
-          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}       # e.g. ABCDE12345
-          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }} # GUID from App Store Connect
-          APP_STORE_API_KEY_BASE64: ${{ secrets.APP_STORE_API_KEY_BASE64 }} # base64-encoded .p8 content
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
         run: |
-          IPA_PATH=$(ls build/ios/ipa/*.ipa | head -n1)
-          # Recreate the .p8 key and generate an API key JSON for Fastlane
-          echo "$APP_STORE_API_KEY_BASE64" | base64 --decode > api_key.p8
-          ruby -e '
-            require "json";
-            key = File.read("api_key.p8");
-            j = {"key_id"=>ENV["APP_STORE_KEY_ID"], "issuer_id"=>ENV["APP_STORE_ISSUER_ID"], "key"=>key, "in_house"=>false};
-            File.write("api_key.json", JSON.pretty_generate(j));
-          '
-          # Upload to TestFlight (skip waiting for build processing)
           fastlane pilot upload \
-            --ipa "$IPA_PATH" \
-            --api_key_path api_key.json \
+            --api_key_path ./AuthKey.json \
+            --ipa *.ipa \
             --skip_waiting_for_build_processing true
