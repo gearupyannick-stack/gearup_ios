@@ -14,25 +14,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Flutter dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            /opt/hostedtoolcache/flutter
-          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: '3.35.1'
-          cache: false  # Disable internal cache to use our own
+          cache: true
 
       - name: Flutter pub get
         run: flutter pub get
+
+      - name: Generate Podfile.lock
+        run: cd ios && pod install --repo-update
 
       - name: Cache CocoaPods
         uses: actions/cache@v4
