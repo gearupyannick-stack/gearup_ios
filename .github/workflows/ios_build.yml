@@ -14,12 +14,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            /opt/hostedtoolcache/flutter
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: '3.35.1'
-          cache: true
+          cache: false  # Disable internal cache to use our own
+
+      - name: Flutter pub get
+        run: flutter pub get
 
       - name: Cache CocoaPods
         uses: actions/cache@v4
@@ -36,9 +49,6 @@ jobs:
           mkdir -p ios/Flutter
           cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
           ls -l ios/Flutter
-
-      - name: Flutter pub get
-        run: flutter pub get
 
       - name: Clean
         run: flutter clean
