@@ -12,7 +12,7 @@ jobs:
 
     env:
       # Required Flutter config
-      FLUTTER_VERSION: '3.24.3'
+      FLUTTER_VERSION: '3.35.1'
       FLUTTER_CHANNEL: stable
 
       # App identifiers
