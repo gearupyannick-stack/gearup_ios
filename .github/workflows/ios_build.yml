@@ -1,4 +1,5 @@
-name: iOS Build & Publish
+# .github/workflows/ios_build_publish.yml
+name: iOS Build & Publish (Flutter → TestFlight)
 
 on:
   workflow_dispatch:
@@ -7,13 +8,20 @@ on:
 
 jobs:
   build-and-upload:
-    runs-on: macos-latest
+    runs-on: macos-14   # Xcode 15 on Sonoma
 
     env:
-      FLUTTER_VERSION: 3.35.1                          # matches Dart ≥3.6 for ads 6.x; you’re using ads 5.3.1 so 3.35.1 is OK
-      BUNDLE_ID: com.yourcompany.yourapp               # <-- set
-      TEAM_ID: YOURTEAMID                              # <-- set (Apple Developer Team ID)
-      PROFILE_NAME: Your_Ad_Hoc_or_AppStore_Profile    # <-- set (exact profile name)
+      # ---- App metadata ----
+      BUNDLE_ID: com.gearup.learn            # your bundle id
+      TEAM_ID: YOURTEAMID                    # <-- set your Apple Developer Team ID
+      PROFILE_NAME: GearUp_AppStore_Profile  # <-- exact App Store profile name in Apple Dev portal
+
+      # ---- Flutter/Dart toolchain ----
+      FLUTTER_VERSION: '3.35.1'              # Dart >= 3.6
+      FLUTTER_CHANNEL: stable
+
+      # ---- CI keychain ----
+      KEYCHAIN_NAME: build.keychain
 
     steps:
       - name: Checkout
@@ -23,53 +31,83 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
+          channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
       - name: Flutter pub get
         run: flutter pub get
 
-      # ---------- Code signing material from secrets ----------
-      # Required secrets:
-      #  - P12_B64                : base64 of your signing certificate .p12
-      #  - P12_PASSWORD           : password for the .p12
-      #  - KEYCHAIN_PASSWORD      : any random string to protect the temp keychain
-      #  - MOBILEPROVISION_B64    : base64 of your .mobileprovision (App Store or Ad Hoc)
-      #  - APP_STORE_CONNECT_API_KEY_ID
-      #  - APP_STORE_CONNECT_API_ISSUER_ID
-      #  - APP_STORE_CONNECT_API_KEY (contents of the .p8 private key)
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      # ---------- Validate required secrets early ----------
+      - name: Validate required secrets
+        run: |
+          required=(P12_B64 P12_PASSWORD KEYCHAIN_PASSWORD MOBILEPROVISION_B64 APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_API_ISSUER_ID APP_STORE_CONNECT_API_KEY)
+          missing=0
+          for v in "${required[@]}"; do
+            if [ -z "${!v}" ]; then
+              echo "Missing secret: $v"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+        env:
+          P12_B64: ${{ secrets.P12_B64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          MOBILEPROVISION_B64: ${{ secrets.MOBILEPROVISION_B64 }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+
+      # ---------- Create and unlock a temporary keychain ----------
       - name: Create keychain
         run: |
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security set-keychain-settings -lut 21600 build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_NAME}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
+          # Make sure our keychain is used first
+          security list-keychains -d user -s "${KEYCHAIN_NAME}" $(security list-keychains -d user | sed 's/[" ]//g')
         env:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
-      - name: Import .p12 certificate
+      # ---------- Import Apple Distribution certificate (.p12) ----------
+      - name: Import distribution certificate
         run: |
           echo "${P12_B64}" | base64 --decode > dist.p12
-          security import dist.p12 -k build.keychain -P "$P12_PASSWORD" -A
-          security list-keychains -d user -s build.keychain
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          security import dist.p12 -k "${KEYCHAIN_NAME}" -P "${P12_PASSWORD}" -A
+          # Allow codesign to access the key
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
         env:
           P12_B64: ${{ secrets.P12_B64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
+      # ---------- Install provisioning profile ----------
       - name: Install provisioning profile
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "${MOBILEPROVISION_B64}" | base64 --decode > profile.mobileprovision
-          # Extract UUID so Xcode finds it
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i profile.mobileprovision)")
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          echo "Installed profile UUID: $UUID"
         env:
           MOBILEPROVISION_B64: ${{ secrets.MOBILEPROVISION_B64 }}
 
+      # ---------- Ensure project uses your Team ID (harmless if already set) ----------
+      - name: Set DEVELOPMENT_TEAM in Xcode project
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :objects:$(/usr/libexec/PlistBuddy -c 'Print :rootObject' ios/Runner.xcodeproj/project.pbxproj):attributes:TargetAttributes:$(/usr/libexec/PlistBuddy -c 'Print :objects | grep -B1 -n \"isa = PBXNativeTarget;\" | head -n1 | cut -d: -f1' ios/Runner.xcodeproj/project.pbxproj):DevelopmentTeam ${TEAM_ID}" ios/Runner.xcodeproj/project.pbxproj || true
+          # Fallback simple replace for common cases
+          sed -i '' "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = ${TEAM_ID};/g" ios/Runner.xcodeproj/project.pbxproj || true
+
+      # ---------- Export options for App Store signed IPA ----------
       - name: Write ExportOptions.plist
         run: |
-          cat > ExportOptions.plist <<'PLIST'
+          cat > ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -81,19 +119,20 @@ jobs:
             <dict>
               <key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string>
             </dict>
-            <key>compileBitcode</key><false/>
             <key>destination</key><string>export</string>
             <key>stripSwiftSymbols</key><true/>
+            <key>compileBitcode</key><false/>
+            <key>manageAppVersionAndBuildNumber</key><true/>
           </dict>
           </plist>
           PLIST
 
-      - name: Set Xcode signing (project env)
-        run: |
-          /usr/libexec/PlistBuddy -c "Set :DEVELOPMENT_TEAM ${TEAM_ID}" ios/Runner.xcodeproj/project.pbxproj || true
-
+      # ---------- Build signed IPA via Flutter ----------
       - name: Build IPA
-        run: flutter build ipa --release --export-options-plist=ExportOptions.plist
+        run: |
+          flutter build ipa \
+            --release \
+            --export-options-plist=ExportOptions.plist
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -101,7 +140,7 @@ jobs:
           name: iOS-IPA
           path: build/ios/ipa/*.ipa
 
-      # ---------- TestFlight upload ----------
+      # ---------- Fastlane upload to TestFlight ----------
       - name: Install fastlane
         run: brew install fastlane
 
@@ -118,8 +157,14 @@ jobs:
 
       - name: Upload to TestFlight
         run: |
-          IPA_PATH=$(ls -1 build/ios/ipa/*.ipa | head -n 1)
+          IPA_PATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
           fastlane pilot upload \
-            --api_key_path AuthKey.json \
             --ipa "$IPA_PATH" \
+            --api_key_path AuthKey.json \
             --skip_waiting_for_build_processing true
+
+      # ---------- Cleanup keychain ----------
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain "${KEYCHAIN_NAME}" || true
