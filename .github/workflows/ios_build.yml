@@ -21,6 +21,14 @@ jobs:
           flutter-version: '3.35.1'
           cache: true
 
+      # Ensure the presence of ios/Flutter/podhelper.rb before any command that triggers CocoaPods
+      - name: Ensure podhelper.rb exists
+        run: |
+          echo "FLUTTER_ROOT=$FLUTTER_ROOT"
+          mkdir -p ios/Flutter
+          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
+          ls -l ios/Flutter
+
       - name: Flutter pub get
         run: flutter pub get
 
@@ -34,14 +42,6 @@ jobs:
           key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
           restore-keys: |
             ${{ runner.os }}-pods-
-
-      # Ensure the presence of ios/Flutter/podhelper.rb before any command that triggers CocoaPods
-      - name: Ensure podhelper.rb exists
-        run: |
-          echo "FLUTTER_ROOT=$FLUTTER_ROOT"
-          mkdir -p ios/Flutter
-          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
-          ls -l ios/Flutter
 
       - name: Clean
         run: flutter clean
