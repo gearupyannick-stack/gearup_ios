@@ -1,31 +1,105 @@
-name: iOS Build & Publish
+# .github/workflows/ios_build_publish.yml
+name: iOS Build & Publish (Flutter → TestFlight)
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  build:
-    runs-on: macos-latest
+  build-and-upload:
+    runs-on: macos-14  # Xcode 15 on macOS Sonoma
+
+    env:
+      # Required Flutter config
+      FLUTTER_VERSION: '3.24.3'
+      FLUTTER_CHANNEL: stable
+
+      # App identifiers
+      IOS_SCHEME: Runner
+      IOS_WORKSPACE: ios/Runner.xcworkspace
+      IOS_PROJECT: ios/Runner.xcodeproj
+      BUNDLE_ID: com.gearup.learn  # <- your package name
+
+      # Keychain name for CI
+      KEYCHAIN_NAME: build.keychain
+      KEYCHAIN_PASSWORD: temp_pass_123
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'
-          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
-      - name: Flutter dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      - name: Flutter build IPA
-        run: flutter build ipa --release --export-options-plist=ios/Runner/ExportOptions.plist
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      # ---------- Install signing assets (cert + provisioning) ----------
+      # You must provide these base64 secrets:
+      #  - IOS_CERT_P12_BASE64           → base64 of your Apple Distribution .p12
+      #  - IOS_CERT_P12_PASSWORD         → password of the .p12
+      #  - IOS_PROVISION_BASE64          → base64 of an App Store provisioning profile (.mobileprovision) for com.gearup.learn
+      - name: Create temporary keychain
+        run: |
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_NAME}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
+          security list-keychains -d user -s "${KEYCHAIN_NAME}" $(security list-keychains -d user | sed 's/[" ]//g')
+
+      - name: Import distribution certificate
+        env:
+          P12_B64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          P12_PWD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
+        run: |
+          echo "$P12_B64" | base64 --decode > dist.p12
+          security import dist.p12 -k "${KEYCHAIN_NAME}" -P "${P12_PWD}" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
+
+      - name: Install provisioning profile
+        env:
+          MOBILEPROVISION_B64: ${{ secrets.IOS_PROVISION_BASE64 }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$MOBILEPROVISION_B64" | base64 --decode > app.mobileprovision
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i app.mobileprovision)")
+          mv app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          echo "Installed profile UUID: $UUID"
+
+      # ---------- Build archive + export signed IPA ----------
+      # We generate ExportOptions.plist for App Store distribution with automatic signing.
+      - name: Generate ExportOptions.plist
+        run: |
+          cat > ExportOptions.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>destination</key><string>export</string>
+            <key>stripSwiftSymbols</key><true/>
+            <key>uploadSymbols</key><true/>
+            <key>compileBitcode</key><false/>
+            <key>manageAppVersionAndBuildNumber</key><true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Build iOS IPA (codesigned)
+        # flutter build ipa uses xcodebuild under the hood and respects the installed
+        # distribution certificate + provisioning profile we added above.
+        run: |
+          flutter build ipa \
+            --release \
+            --export-options-plist=ExportOptions.plist
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -33,26 +107,34 @@ jobs:
           name: iOS-IPA
           path: build/ios/ipa/*.ipa
 
-  upload:
-    needs: build
-    runs-on: macos-latest
-
-    steps:
-      - name: Download IPA
-        uses: actions/download-artifact@v4
-        with:
-          name: iOS-IPA
-
+      # ---------- Fastlane upload to TestFlight ----------
       - name: Install fastlane
         run: brew install fastlane
 
-      - name: Upload to TestFlight
+      # Create the App Store Connect API key file from secrets
+      # Provide these secrets:
+      #  - APP_STORE_CONNECT_API_KEY_ID
+      #  - APP_STORE_CONNECT_API_ISSUER_ID
+      #  - APP_STORE_CONNECT_API_KEY       (the contents of the .p8 file)
+      - name: Write App Store Connect API key
         env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
         run: |
+          cat > AuthKey.json <<EOF
+          {
+            "key_id": "${KEY_ID}",
+            "issuer_id": "${ISSUER_ID}",
+            "key": "${API_KEY}",
+            "in_house": false
+          }
+          EOF
+
+      - name: Upload to TestFlight
+        run: |
+          IPA_PATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
           fastlane pilot upload \
+            --ipa "$IPA_PATH" \
             --api_key_path ./AuthKey.json \
-            --ipa *.ipa \
             --skip_waiting_for_build_processing true
