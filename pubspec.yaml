@@ -1,5 +1,6 @@
 name: car_learning_app
 description: A Flutter app to help users learn about cars and their specifications.
+publish_to: "none"
 
 version: 1.0.1+1    # change version in android/app/build.gradle.kts
 
@@ -25,31 +26,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: "^0.14.3"
+  flutter_native_splash: ^2.4.1
 
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icons/logo/playstore.png"
-  background_color: "#3D0000"
-  theme_color: "#3D0000"
-  android_adaptive_icon_background: "#3D0000"
-  android_adaptive_icon_foreground: "assets/icons/logo.png"
-  web:
-    generate: true
-    image_path: "assets/icons/logo.png"
-    background_color: "#3D0000"
-    theme_color: "#3D0000"
-  windows:
-    generate: true
-    image_path: "assets/icons/logo.png"
-    background_color: "#3D0000"
-    theme_color: "#3D0000"
-    icon_size: 48
-  macos:
-    generate: true
-    image_path: "assets/icons/logo/appstore.png"
-    background_color: "#3D0000"
-    theme_color: "#3D0000"
 
 flutter:
   uses-material-design: true
