@@ -7,6 +7,10 @@ jobs:
   build-and-upload:
     runs-on: macos-14
 
+    env:
+      APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}   # ex: com.gearup.app
+      TEAM_ID: ${{ secrets.TEAM_ID }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,60 +24,84 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.35.1'
           cache: true
 
-      - name: Flutter deps
+      - name: Flutter pub get
         run: flutter pub get
 
-      - name: Decode signing assets
-        shell: bash
-        run: |
-          echo "$IOS_CERT_P12_BASE64" | base64 --decode > signing.p12
-          echo "$IOS_PROVISION_BASE64" | base64 --decode > app.mobileprovision
-          printf "%s" "$APP_STORE_CONNECT_API_KEY" > AuthKey.p8
-
-      - name: Create and unlock keychain
+      - name: Create & unlock keychain
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security list-keychains -s build.keychain
+          security list-keychains -s build.keychain login.keychain
+          security default-keychain -s build.keychain
 
-      - name: Import certificate
+      - name: Decode signing assets
+        env:
+          IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          IOS_PROVISION_BASE64: ${{ secrets.IOS_PROVISION_BASE64 }}
         run: |
-          security import signing.p12 -k build.keychain -P "$IOS_CERT_P12_PASSWORD" -A
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          echo "$IOS_CERT_P12_BASE64" | base64 --decode > dist.p12
+          echo "$IOS_PROVISION_BASE64" | base64 --decode > app.mobileprovision
+
+      - name: Import distribution certificate
+        env:
+          IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          security import dist.p12 -k build.keychain -P "$IOS_CERT_P12_PASSWORD" -A
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
       - name: Install provisioning profile
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          UUID=$(uuidgen)
-          cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i app.mobileprovision)")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i app.mobileprovision)")
+          cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
+          echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
 
-      # Optional: ensure the project uses manual signing and matches your profile/cert.
-      # If your Xcode project is already configured for the Distribution cert/profile, this will just work.
+      - name: Generate ExportOptions.plist
+        run: |
+          cat > ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${APP_BUNDLE_ID}</key>
+              <string>${PROFILE_NAME}</string>
+            </dict>
+            <key>stripSwiftSymbols</key><true/>
+            <key>uploadSymbols</key><true/>
+            <key>compileBitcode</key><false/>
+          </dict>
+          </plist>
+          EOF
 
       - name: Build signed IPA
-        env:
-          # Ensure Xcode uses our keychain
-          KEYCHAIN_PATH: build.keychain
         run: |
-          # Build archive + export via Flutter wrapper
-          # If you get export errors, switch to xcodebuild gym or provide an ExportOptions.plist
-          flutter build ipa --release
+          flutter build ipa --release --export-options-plist=ExportOptions.plist
+          ls -lh build/ios/ipa
 
-      - name: Upload IPA to TestFlight via App Store Connect API
+      - name: Upload to TestFlight
         env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
           IPAPATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
           xcrun altool --upload-app \
             --type ios \
             --file "$IPAPATH" \
-            --apiKey "$ASC_KEY_ID" \
-            --apiIssuer "$ASC_ISSUER_ID"
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
 
       - name: Keep artifact
         if: always()
