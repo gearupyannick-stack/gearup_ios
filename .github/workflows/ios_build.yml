@@ -1,140 +1,83 @@
-# .github/workflows/ios_build_publish.yml
-name: iOS Build & Publish (Flutter → TestFlight)
+name: iOS Signed Build & Upload
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   build-and-upload:
-    runs-on: macos-14  # Xcode 15 on macOS Sonoma
-
-    env:
-      # Required Flutter config
-      FLUTTER_VERSION: '3.35.1'
-      FLUTTER_CHANNEL: stable
-
-      # App identifiers
-      IOS_SCHEME: Runner
-      IOS_WORKSPACE: ios/Runner.xcworkspace
-      IOS_PROJECT: ios/Runner.xcodeproj
-      BUNDLE_ID: com.gearup.learn  # <- your package name
-
-      # Keychain name for CI
-      KEYCHAIN_NAME: build.keychain
-      KEYCHAIN_PASSWORD: temp_pass_123
+    runs-on: macos-14
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Show macOS/Xcode
+        run: |
+          sw_vers
+          xcodebuild -version
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          channel: stable
           cache: true
 
-      - name: Flutter pub get
+      - name: Flutter deps
         run: flutter pub get
 
-      - name: Show Xcode version
-        run: xcodebuild -version
-
-      # ---------- Install signing assets (cert + provisioning) ----------
-      # You must provide these base64 secrets:
-      #  - IOS_CERT_P12_BASE64           → base64 of your Apple Distribution .p12
-      #  - IOS_CERT_P12_PASSWORD         → password of the .p12
-      #  - IOS_PROVISION_BASE64          → base64 of an App Store provisioning profile (.mobileprovision) for com.gearup.learn
-      - name: Create temporary keychain
+      - name: Decode signing assets
+        shell: bash
         run: |
-          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
-          security set-keychain-settings -lut 21600 "${KEYCHAIN_NAME}"
-          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
-          security list-keychains -d user -s "${KEYCHAIN_NAME}" $(security list-keychains -d user | sed 's/[" ]//g')
+          echo "$IOS_CERT_P12_BASE64" | base64 --decode > signing.p12
+          echo "$IOS_PROVISION_BASE64" | base64 --decode > app.mobileprovision
+          printf "%s" "$APP_STORE_CONNECT_API_KEY" > AuthKey.p8
 
-      - name: Import distribution certificate
-        env:
-          P12_B64: ${{ secrets.IOS_CERT_P12_BASE64 }}
-          P12_PWD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
+      - name: Create and unlock keychain
         run: |
-          echo "$P12_B64" | base64 --decode > dist.p12
-          security import dist.p12 -k "${KEYCHAIN_NAME}" -P "${P12_PWD}" -T /usr/bin/codesign -T /usr/bin/security
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_NAME}"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security list-keychains -s build.keychain
+
+      - name: Import certificate
+        run: |
+          security import signing.p12 -k build.keychain -P "$IOS_CERT_P12_PASSWORD" -A
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          security find-identity -v -p codesigning build.keychain
 
       - name: Install provisioning profile
-        env:
-          MOBILEPROVISION_B64: ${{ secrets.IOS_PROVISION_BASE64 }}
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$MOBILEPROVISION_B64" | base64 --decode > app.mobileprovision
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i app.mobileprovision)")
-          mv app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
-          echo "Installed profile UUID: $UUID"
+          UUID=$(uuidgen)
+          cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
 
-      # ---------- Build archive + export signed IPA ----------
-      # We generate ExportOptions.plist for App Store distribution with automatic signing.
-      - name: Generate ExportOptions.plist
+      # Optional: ensure the project uses manual signing and matches your profile/cert.
+      # If your Xcode project is already configured for the Distribution cert/profile, this will just work.
+
+      - name: Build signed IPA
+        env:
+          # Ensure Xcode uses our keychain
+          KEYCHAIN_PATH: build.keychain
         run: |
-          cat > ExportOptions.plist <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key><string>app-store</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>destination</key><string>export</string>
-            <key>stripSwiftSymbols</key><true/>
-            <key>uploadSymbols</key><true/>
-            <key>compileBitcode</key><false/>
-            <key>manageAppVersionAndBuildNumber</key><true/>
-          </dict>
-          </plist>
-          EOF
+          # Build archive + export via Flutter wrapper
+          # If you get export errors, switch to xcodebuild gym or provide an ExportOptions.plist
+          flutter build ipa --release
 
-      - name: Build iOS IPA (codesigned)
-        # flutter build ipa uses xcodebuild under the hood and respects the installed
-        # distribution certificate + provisioning profile we added above.
+      - name: Upload IPA to TestFlight via App Store Connect API
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
-          flutter build ipa \
-            --release \
-            --export-options-plist=ExportOptions.plist
+          IPAPATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPAPATH" \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
 
-      - name: Upload IPA artifact
+      - name: Keep artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: iOS-IPA
+          name: Signed-IPA
           path: build/ios/ipa/*.ipa
-
-      # ---------- Fastlane upload to TestFlight ----------
-      - name: Install fastlane
-        run: brew install fastlane
-
-      # Create the App Store Connect API key file from secrets
-      # Provide these secrets:
-      #  - APP_STORE_CONNECT_API_KEY_ID
-      #  - APP_STORE_CONNECT_API_ISSUER_ID
-      #  - APP_STORE_CONNECT_API_KEY       (the contents of the .p8 file)
-      - name: Write App Store Connect API key
-        env:
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-          API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-        run: |
-          cat > AuthKey.json <<EOF
-          {
-            "key_id": "${KEY_ID}",
-            "issuer_id": "${ISSUER_ID}",
-            "key": "${API_KEY}",
-            "in_house": false
-          }
-          EOF
-
-      - name: Upload to TestFlight
-        run: |
-          IPA_PATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
-          fastlane pilot upload \
-            --ipa "$IPA_PATH" \
-            --api_key_path ./AuthKey.json \
-            --skip_waiting_for_build_processing true
