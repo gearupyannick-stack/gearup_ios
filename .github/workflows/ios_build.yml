@@ -75,9 +75,16 @@ jobs:
             <<< "$(security cms -D -i app.mobileprovision)")
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp app.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+
           NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin \
             <<< "$(security cms -D -i app.mobileprovision)")
-          echo "Installed profile name: $NAME"
+          APPID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /dev/stdin \
+            <<< "$(security cms -D -i app.mobileprovision)")
+          BUNDLE_ID="${APPID#*.}"
+
+          echo "Installed profile: $NAME for $BUNDLE_ID"
+          echo "PROFILE_NAME=$NAME" >> $GITHUB_ENV
+          echo "PROFILE_BUNDLE_ID=$BUNDLE_ID" >> $GITHUB_ENV
 
       - name: Generate ExportOptions.plist
         run: |
@@ -88,11 +95,11 @@ jobs:
           <dict>
             <key>method</key><string>app-store</string>
             <key>signingStyle</key><string>manual</string>
-            <key>teamID</key><string>363VMQ6674</string>
+            <key>teamID</key><string>${{ env.TEAM_ID }}</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>com.gearup.app</key>
-              <string>Gearup-AppStore</string>
+              <key>${{ env.PROFILE_BUNDLE_ID }}</key>
+              <string>${{ env.PROFILE_NAME }}</string>
             </dict>
             <key>signingCertificate</key><string>Apple Distribution</string>
             <key>stripSwiftSymbols</key><true/>
