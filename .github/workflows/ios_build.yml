@@ -8,7 +8,7 @@ jobs:
     runs-on: macos-14
 
     env:
-      APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}   # e.g. com.gearup.app
+      APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
 
     steps:
@@ -53,11 +53,10 @@ jobs:
         env:
           IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
         run: |
-          # Must print 'MAC verified OK'. Using env avoids exposing the password.
           if openssl pkcs12 -in dist.p12 -noout -info -passin env:IOS_CERT_P12_PASSWORD >/dev/null 2>&1; then
             echo "P12 password OK"
           else
-            echo "ERROR: P12 password invalid or p12 corrupted. Recreate .p12 and update IOS_CERT_P12_* secrets." >&2
+            echo "ERROR: P12 password invalid or p12 corrupted." >&2
             exit 1
           fi
 
@@ -72,12 +71,13 @@ jobs:
 
       - name: Install provisioning profile
         run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i app.mobileprovision)")
-          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i app.mobileprovision)")
-          cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
-          echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
-          echo "Using provisioning profile: $PROFILE_NAME"
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin \
+            <<< "$(security cms -D -i app.mobileprovision)")
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp app.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin \
+            <<< "$(security cms -D -i app.mobileprovision)")
+          echo "Installed profile name: $NAME"
 
       - name: Generate ExportOptions.plist
         run: |
@@ -88,14 +88,15 @@ jobs:
           <dict>
             <key>method</key><string>app-store</string>
             <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>363VMQ6674</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>${APP_BUNDLE_ID}</key>
-              <string>${PROFILE_NAME}</string>
+              <key>com.gearup.app</key>
+              <string>Gearup-AppStore</string>
             </dict>
+            <key>signingCertificate</key><string>Apple Distribution</string>
             <key>stripSwiftSymbols</key><true/>
             <key>uploadSymbols</key><true/>
-            <key>compileBitcode</key><false/>
           </dict>
           </plist>
           EOF
