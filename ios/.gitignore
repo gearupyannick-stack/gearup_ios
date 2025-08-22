@@ -32,3 +32,15 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+# Android/iOS signing
+*.keystore
+*.jks
+*.p12
+*.cer
+*.csr
+*.pem
+*.der
+*.mobileprovision
+*.b64
+dist.key
