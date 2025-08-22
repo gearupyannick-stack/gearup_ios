@@ -1,4 +1,4 @@
-package com.gearup.car_learning_app
+package com.gearup.app
 
 import io.flutter.embedding.android.FlutterActivity
 
