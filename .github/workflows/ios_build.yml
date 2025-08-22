@@ -1,4 +1,4 @@
-name: Adding secrets
+name: iOS Signed Build & Upload
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     runs-on: macos-14
 
     env:
-      APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}   # ex: com.gearup.app
+      APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}   # e.g. com.gearup.app
       TEAM_ID: ${{ secrets.TEAM_ID }}
 
     steps:
@@ -47,6 +47,19 @@ jobs:
         run: |
           echo "$IOS_CERT_P12_BASE64" | base64 --decode > dist.p12
           echo "$IOS_PROVISION_BASE64" | base64 --decode > app.mobileprovision
+          file dist.p12 || true
+
+      - name: Validate PKCS#12 password (fails early if wrong)
+        env:
+          IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
+        run: |
+          # Must print 'MAC verified OK'. Using env avoids exposing the password.
+          if openssl pkcs12 -in dist.p12 -noout -info -passin env:IOS_CERT_P12_PASSWORD >/dev/null 2>&1; then
+            echo "P12 password OK"
+          else
+            echo "ERROR: P12 password invalid or p12 corrupted. Recreate .p12 and update IOS_CERT_P12_* secrets." >&2
+            exit 1
+          fi
 
       - name: Import distribution certificate
         env:
@@ -64,6 +77,7 @@ jobs:
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i app.mobileprovision)")
           cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
           echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
+          echo "Using provisioning profile: $PROFILE_NAME"
 
       - name: Generate ExportOptions.plist
         run: |
