@@ -1,4 +1,4 @@
-name: iOS Signed Build & Upload
+name: Adding secrets
 
 on:
   workflow_dispatch:
