@@ -71,12 +71,10 @@ jobs:
 
       - name: Install & inspect provisioning profile
         run: |
-          # Install
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i app.mobileprovision)")
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp app.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
 
-          # Inspect
           security cms -D -i app.mobileprovision > profile.plist
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
@@ -88,29 +86,16 @@ jobs:
           echo "Team:    $PROFILE_TEAM"
           echo "Bundle:  $PROFILE_BUNDLE_ID"
 
-          # Export to env for later
           echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
           echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
           echo "PROFILE_BUNDLE_ID=$PROFILE_BUNDLE_ID" >> $GITHUB_ENV
 
-          # Hard-fail if team mismatch
           [ "$PROFILE_TEAM" = "${TEAM_ID}" ] || { echo "TEAM_ID mismatch"; exit 1; }
 
-      - name: Pin signing in Xcode project (UUID, team, bundle id, iOS 15)
+      - name: Show effective Xcode settings (no editing)
         run: |
-          # Ensure iOS 15+ everywhere
-          perl -0777 -pe 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' -i ios/Runner.xcodeproj/project.pbxproj
-          # Set team
-          perl -0777 -pe "s/DEVELOPMENT_TEAM = [A-Z0-9]+;/DEVELOPMENT_TEAM = $ENV{TEAM_ID};/g" -i ios/Runner.xcodeproj/project.pbxproj
-          # Force manual signing + identity
-          perl -0777 -pe 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' -i ios/Runner.xcodeproj/project.pbxproj
-          perl -0777 -pe 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = [^;]+;/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = Apple Distribution;/g' -i ios/Runner.xcodeproj/project.pbxproj
-          # Ensure specifier = name, also inject UUID right after
-          perl -0777 -pe "s/PROVISIONING_PROFILE_SPECIFIER\\s*=\\s*[^;]+;/PROVISIONING_PROFILE_SPECIFIER = $ENV{PROFILE_NAME};\\n\\t\\t\\t\\tPROVISIONING_PROFILE = $ENV{PROFILE_UUID};/g" -i ios/Runner.xcodeproj/project.pbxproj
-          # Make bundle id match the profile
-          perl -0777 -pe "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/PRODUCT_BUNDLE_IDENTIFIER = $ENV{PROFILE_BUNDLE_ID};/g" -i ios/Runner.xcodeproj/project.pbxproj
-          # Show effective settings (for debugging)
-          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -showBuildSettings | egrep 'PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|PROVISIONING_PROFILE|PROVISIONING_PROFILE_SPECIFIER|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY' || true
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -showBuildSettings | \
+          egrep 'PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|PROVISIONING_PROFILE_SPECIFIER|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY' || true
 
       - name: Generate ExportOptions.plist
         run: |
