@@ -14,6 +14,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true                
+
+      - name: Ensure LFS files are fetched
+        run: |
+          git lfs install
+          git lfs pull
+
+      - name: Sanity check pbxproj
+        run: |
+          echo "First 5 lines:"
+          head -n 5 ios/Runner.xcodeproj/project.pbxproj || true
+          echo "Detect LFS pointer:"
+          if head -n 1 ios/Runner.xcodeproj/project.pbxproj | grep -q 'version https://git-lfs.github.com/spec'; then
+            echo "ERROR: pbxproj is a Git LFS pointer. Enable LFS checkout."; exit 1
+          fi
+          # Non‑ASCII or null bytes check
+          LC_ALL=C grep -nP '[^\x09\x0A\x0D\x20-\x7E]' ios/Runner.xcodeproj/project.pbxproj && { echo "Invalid bytes in pbxproj"; exit 1; } || true
 
       - name: Show macOS/Xcode
         run: |
