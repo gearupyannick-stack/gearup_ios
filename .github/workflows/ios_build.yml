@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          lfs: true                
+          lfs: true
 
       - name: Ensure LFS files are fetched
         run: |
@@ -30,8 +30,8 @@ jobs:
           if head -n 1 ios/Runner.xcodeproj/project.pbxproj | grep -q 'version https://git-lfs.github.com/spec'; then
             echo "ERROR: pbxproj is a Git LFS pointer. Enable LFS checkout."; exit 1
           fi
-          # Non‑ASCII or null bytes check
-          LC_ALL=C grep -nP '[^\x09\x0A\x0D\x20-\x7E]' ios/Runner.xcodeproj/project.pbxproj && { echo "Invalid bytes in pbxproj"; exit 1; } || true
+          echo "Check for non-ASCII or null bytes:"
+          perl -ne 'if(/[^\\x09\\x0A\\x0D\\x20-\\x7E]/){print "bad byte at line $.\\n"; exit 1}' ios/Runner.xcodeproj/project.pbxproj || true
 
       - name: Show macOS/Xcode
         run: |
@@ -107,8 +107,8 @@ jobs:
           echo "Team:    $PROFILE_TEAM"
           echo "Bundle:  $PROFILE_BUNDLE_ID"
 
-          echo "PROFILE_NAME=$PROFILE_NAME"         >> $GITHUB_ENV
-          echo "PROFILE_UUID=$PROFILE_UUID"         >> $GITHUB_ENV
+          echo "PROFILE_NAME=$PROFILE_NAME"           >> $GITHUB_ENV
+          echo "PROFILE_UUID=$PROFILE_UUID"           >> $GITHUB_ENV
           echo "PROFILE_BUNDLE_ID=$PROFILE_BUNDLE_ID" >> $GITHUB_ENV
           [ "$PROFILE_TEAM" = "${TEAM_ID}" ] || { echo "TEAM_ID mismatch"; exit 1; }
 
@@ -118,7 +118,6 @@ jobs:
           if grep -nE '^(<<<<<<<|=======|>>>>>>>)' ios/Runner.xcodeproj/project.pbxproj; then
             echo "Merge-conflict markers found in project.pbxproj"; exit 1;
           fi
-          # Ensure at least one PRODUCT_BUNDLE_IDENTIFIER exists
           awk 'BEGIN{ok=0}/PRODUCT_BUNDLE_IDENTIFIER/{ok=1}END{exit ok?0:1}' ios/Runner.xcodeproj/project.pbxproj
 
       # ---- Ensure bundle id in project matches the profile (or secret) ------
@@ -128,12 +127,46 @@ jobs:
         run: |
           TARGET="${TARGET_BUNDLE_ID:-$PROFILE_BUNDLE_ID}"
           echo "Target bundle id: $TARGET"
-          # Replace all PRODUCT_BUNDLE_IDENTIFIER assignments
           sed -i.bak -E "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/PRODUCT_BUNDLE_IDENTIFIER = ${TARGET};/g" ios/Runner.xcodeproj/project.pbxproj
           grep -E 'PRODUCT_BUNDLE_IDENTIFIER' ios/Runner.xcodeproj/project.pbxproj | sort -u
 
-      # ---- CocoaPods workspace is not present until pods resolve -------------
-      # Avoid querying the workspace before Flutter builds it.
+      # ---- Apply manual signing so flutter/xcode use your cert+profile -------
+      - name: Apply manual signing to Runner target
+        run: |
+          FILE=ios/Runner.xcodeproj/project.pbxproj
+          # Manual signing style
+          sed -i.bak -E "s/CODE_SIGN_STYLE = [^;]+;/CODE_SIGN_STYLE = Manual;/g" "$FILE"
+          # Team
+          if grep -q "DEVELOPMENT_TEAM =" "$FILE"; then
+            sed -i.bak -E "s/DEVELOPMENT_TEAM = [A-Z0-9]+;/DEVELOPMENT_TEAM = ${TEAM_ID};/g" "$FILE"
+          else
+            perl -0777 -pe 's/(buildSettings = \\{)/$1\\n\t\t\t\tDEVELOPMENT_TEAM = '"$TEAM_ID"';/ if $.==1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+          fi
+          # Identity
+          if grep -q "CODE_SIGN_IDENTITY =" "$FILE"; then
+            sed -i.bak -E "s/CODE_SIGN_IDENTITY = [^;]+;/CODE_SIGN_IDENTITY = Apple Distribution;/g" "$FILE"
+          else
+            perl -0777 -pe 's/(buildSettings = \\{)/$1\\n\t\t\t\tCODE_SIGN_IDENTITY = Apple Distribution;/ if $.==1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+          fi
+          # Provisioning profile specifier
+          if grep -q "PROVISIONING_PROFILE_SPECIFIER =" "$FILE"; then
+            sed -i.bak -E "s/PROVISIONING_PROFILE_SPECIFIER = [^;]+;/PROVISIONING_PROFILE_SPECIFIER = ${PROFILE_NAME};/g" "$FILE"
+          else
+            awk -v name="$PROFILE_NAME" '
+              BEGIN{inbs=0}
+              /buildSettings = \{/{inbs=1}
+              inbs==1 && /PRODUCT_BUNDLE_IDENTIFIER = / {
+                print; print "        PROVISIONING_PROFILE_SPECIFIER = " name ";"; next
+              }
+              /\};/ && inbs==1{inbs=0}
+              {print}
+            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+          fi
+          echo "— Effective signing —"
+          xcodebuild -showBuildSettings -project ios/Runner.xcodeproj -target Runner -configuration Release | \
+            egrep 'PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|PROVISIONING_PROFILE_SPECIFIER'
+
+      # ---- List project (not workspace; Pods will appear during build) -------
       - name: Show project targets
         run: |
           xcodebuild -list -project ios/Runner.xcodeproj
