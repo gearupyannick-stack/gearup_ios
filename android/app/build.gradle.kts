@@ -1,7 +1,7 @@
 // android/app/build.gradle.kts
 
-val flutterVersionCode: String = "43"      // must be > 42 to avoid downgrade
-val flutterVersionName: String = "1.0.2"
+val flutterVersionCode: String = "3"
+val flutterVersionName: String = "1.0.3"
 
 plugins {
     id("com.android.application")
