@@ -1,12 +1,13 @@
-// ignore_for_file: unused_element, deprecated_member_use
+// lib/pages/profile_page.dart
+// ignore_for_file: unused_element, deprecated_member_use, unused_field
 
 import 'dart:math';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/image_service_cache.dart';
 
+import '../services/image_service_cache.dart';
+import 'preload_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -34,7 +35,6 @@ class _ProfilePageState extends State<ProfilePage> {
   int questionAttemptCount = 0;
 
   // Progress (gears) data
-  // ignore: unused_field
   int _gearCount = 0;
   int _currentTrack = 1;
   int _sessionsCompleted = 0;
@@ -60,12 +60,12 @@ class _ProfilePageState extends State<ProfilePage> {
     '🔸 Track Progression': [
       'First Flag – Tap your very first flag on any Track.',
       'Level Complete – Finish Level 1 on Track 1.',
-      'Mid‑Track Milestone – Finish Level 5 on Track 1.',
+      'Mid-Track Milestone – Finish Level 5 on Track 1.',
       'Track Conqueror – Complete all levels on Track 1 (10/10), Track 2 (20/20) or Track 3 (30/30).',
     ],
     '🔸 Perfect Runs': [
       'Clean Slate – Answer every question in a single level correctly (all green flags).',
-      'Zero‑Life Loss – Complete a level without ever losing a life.',
+      'Zero-Life Loss – Complete a level without ever losing a life.',
       'Swift Racer – Finish any one level in under 60 seconds (time your elapsedSeconds).',
     ],
     '🔸 Gear Mastery': [
@@ -88,8 +88,8 @@ class _ProfilePageState extends State<ProfilePage> {
       'Training Veteran – Hit 50 sessions.',
       'Quiz Streak – Score ≥ 10/20 in 5 sessions in a row.',
       'Sharpshooter – Maintain ≥ 90% accuracy over 200 total question attempts.',
-      'All‑Rounder – On one day, score ≥ 10/20 in all 8 modules.',
-      'Training All‑Star – Earn 20/20 in all 8 modules (at least once each).',
+      'All-Rounder – On one day, score ≥ 10/20 in all 8 modules.',
+      'Training All-Star – Earn 20/20 in all 8 modules (at least once each).',
     ],
   };
 
@@ -123,7 +123,7 @@ class _ProfilePageState extends State<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text("🏆 Achievement Unlocked: $title"),
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         backgroundColor: Colors.black87,
       ),
@@ -136,9 +136,8 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!unlocked.contains(id)) {
       unlocked.add(id);
       await prefs.setStringList('unlockedAchievements', unlocked);
-      // ✅ Show global snackbar (defined in main.dart)
       final title = _getDisplayNameFromId(id);
-      showAchievementSnackBar(title); // 👈 make sure you import main.dart if needed
+      showAchievementSnackBar(title);
     }
   }
 
@@ -159,10 +158,9 @@ class _ProfilePageState extends State<ProfilePage> {
     final old = prefs.getStringList('shownAchievements') ?? [];
     for (final id in all) {
       if (!old.contains(id)) {
-        // Mark as shown so it doesn't appear again
         old.add(id);
         await prefs.setStringList('shownAchievements', old);
-        break; // only show one at a time
+        break;
       }
     }
   }
@@ -257,8 +255,8 @@ class _ProfilePageState extends State<ProfilePage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.emoji_events, size: 40, color: isUnlocked ? Colors.amber : Colors.grey),
-          SizedBox(height: 4),
-          Text(title, style: TextStyle(fontSize: 12), textAlign: TextAlign.center),
+          const SizedBox(height: 4),
+          Text(title, style: const TextStyle(fontSize: 12), textAlign: TextAlign.center),
         ],
       ),
     );
@@ -270,22 +268,17 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (ctx) {
         final allNames = achievementMap.entries.expand((e) => e.value).toList();
         return AlertDialog(
-          title: Text('All Achievements'),
+          title: const Text('All Achievements'),
           content: SizedBox(
             width: double.maxFinite,
             child: GridView.count(
               crossAxisCount: 3,
               shrinkWrap: true,
-              children: allNames
-                  .map((name) => _buildMiniAchievement(name))
-                  .toList(),
+              children: allNames.map((name) => _buildMiniAchievement(name)).toList(),
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text("Close"),
-            )
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close"))
           ],
         );
       },
@@ -316,18 +309,12 @@ class _ProfilePageState extends State<ProfilePage> {
       currentTrack = 3;
       baseGears = 3250;
     }
-    int maxLevels = currentTrack == 1
-        ? 10
-        : currentTrack == 2
-            ? 20
-            : 30;
+    int maxLevels = currentTrack == 1 ? 10 : currentTrack == 2 ? 20 : 30;
     int extraGears = gearCount - baseGears;
     int sessions = 0;
     int levelGears = extraGears;
     for (int lvl = 1; lvl <= maxLevels; lvl++) {
-      int req = (currentTrack == 3 && lvl >= 20)
-          ? 220
-          : (30 + (lvl - 1) * 10);
+      int req = (currentTrack == 3 && lvl >= 20) ? 220 : (30 + (lvl - 1) * 10);
       if (levelGears >= req) {
         levelGears -= req;
         sessions = lvl;
@@ -335,12 +322,8 @@ class _ProfilePageState extends State<ProfilePage> {
         break;
       }
     }
-    int reqForCurrent = (currentTrack == 3 && sessions + 1 >= 20)
-        ? 220
-        : (30 + sessions * 10);
-    double prog = reqForCurrent > 0
-        ? levelGears / reqForCurrent
-        : 0.0;
+    int reqForCurrent = (currentTrack == 3 && sessions + 1 >= 20) ? 220 : (30 + sessions * 10);
+    double prog = reqForCurrent > 0 ? levelGears / reqForCurrent : 0.0;
     setState(() {
       _gearCount = gearCount;
       _currentTrack = currentTrack;
@@ -357,19 +340,19 @@ class _ProfilePageState extends State<ProfilePage> {
       final lines = raw.split('\n');
       final brands = <String>{};
       final map = <String, Set<String>>{};
-      for (var line in lines) {
+      for (var i = 0; i < lines.length; i++) {
+        final line = lines[i].trim();
+        if (line.isEmpty) continue;
         final parts = line.split(',');
-        if (parts.length >= 2) {
-          final b = parts[0], m = parts[1];
-          brands.add(b);
-          map.putIfAbsent(b, () => {}).add(m);
-        }
+        if (parts.length < 2) continue;
+        if (i == 0 && parts[0].toLowerCase().contains('brand')) continue;
+        final b = parts[0].trim(), m = parts[1].trim();
+        brands.add(b);
+        map.putIfAbsent(b, () => {}).add(m);
       }
       setState(() {
         _brandOptions = brands.toList()..sort();
-        _brandToModels = {
-          for (var b in _brandOptions) b: map[b]!.toList()..sort()
-        };
+        _brandToModels = {for (var b in _brandOptions) b: (map[b] ?? {}).toList()..sort()};
         _isCarDataLoaded = true;
       });
     } catch (_) {
@@ -386,12 +369,7 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (ctx) => AlertDialog(
         title: Text(title),
         content: Text(description),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text("OK"),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text("OK"))],
       ),
     );
   }
@@ -399,8 +377,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String _capitalizeEachWord(String input) {
     return input
         .split(RegExp(r'\s+'))
-        .map((word) =>
-            word.isNotEmpty ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}' : '')
+        .map((word) => word.isNotEmpty ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}' : '')
         .join();
   }
 
@@ -408,9 +385,7 @@ class _ProfilePageState extends State<ProfilePage> {
     String input = (brand + model).replaceAll(RegExp(r'[ ./]'), '');
     return input
         .split(RegExp(r'(?=[A-Z])|(?<=[a-z])(?=[A-Z])|(?<=[a-z])(?=[0-9])'))
-        .map((word) => word.isNotEmpty
-            ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
-            : '')
+        .map((word) => word.isNotEmpty ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}' : '')
         .join();
   }
 
@@ -422,7 +397,7 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text("Unlocked Achievements"),
+        title: const Text("Unlocked Achievements"),
         content: SizedBox(
           width: double.maxFinite,
           child: GridView.count(
@@ -431,9 +406,7 @@ class _ProfilePageState extends State<ProfilePage> {
             children: unlocked.map((name) => _buildMiniAchievement(name)).toList(),
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text("Close")),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))],
       ),
     );
   }
@@ -446,7 +419,7 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text("Locked Achievements"),
+        title: const Text("Locked Achievements"),
         content: SizedBox(
           width: double.maxFinite,
           child: GridView.count(
@@ -455,9 +428,7 @@ class _ProfilePageState extends State<ProfilePage> {
             children: locked.map((name) => _buildMiniAchievement(name)).toList(),
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text("Close")),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))],
       ),
     );
   }
@@ -465,31 +436,25 @@ class _ProfilePageState extends State<ProfilePage> {
   void _showEditProfileDialog() {
     String u = username;
     if (!_isCarDataLoaded) return;
-    String fb = favoriteBrand != 'N/A' && favoriteBrand.isNotEmpty
-        ? favoriteBrand
-        : _brandOptions.first;
-    String fm = favoriteModel != 'N/A' && favoriteModel.isNotEmpty
-        ? favoriteModel
-        : _brandToModels[fb]!.first;
+    String fb = favoriteBrand != 'N/A' && favoriteBrand.isNotEmpty ? favoriteBrand : _brandOptions.first;
+    String fm = favoriteModel != 'N/A' && favoriteModel.isNotEmpty ? favoriteModel : _brandToModels[fb]!.first;
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
-          title: Text('Edit Profile'),
+          title: const Text('Edit Profile'),
           content: SingleChildScrollView(
             child: Column(
               children: [
                 TextField(
                   controller: TextEditingController(text: u),
-                  decoration: InputDecoration(labelText: 'Username'),
+                  decoration: const InputDecoration(labelText: 'Username'),
                   onChanged: (v) => u = v,
                 ),
                 DropdownButtonFormField<String>(
                   value: fb,
-                  decoration: InputDecoration(labelText: 'Favorite Brand'),
-                  items: _brandOptions
-                      .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                      .toList(),
+                  decoration: const InputDecoration(labelText: 'Favorite Brand'),
+                  items: _brandOptions.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                   onChanged: (v) {
                     setSt(() {
                       fb = v!;
@@ -499,17 +464,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 DropdownButtonFormField<String>(
                   value: fm,
-                  decoration: InputDecoration(labelText: 'Favorite Model'),
-                  items: _brandToModels[fb]!
-                      .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                      .toList(),
+                  decoration: const InputDecoration(labelText: 'Favorite Model'),
+                  items: _brandToModels[fb]!.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                   onChanged: (v) => setSt(() => fm = v!),
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () async {
                 final prefs = await SharedPreferences.getInstance();
@@ -523,7 +486,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 });
                 Navigator.pop(ctx);
               },
-              child: Text('Save'),
+              child: const Text('Save'),
             ),
           ],
         ),
@@ -531,70 +494,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Future<void> _checkAndLoadImages() async {
-    final rawCsv = await rootBundle.loadString('assets/cars.csv');
-    final lines = const LineSplitter().convert(rawCsv);
-    final files = <String>[];
-
-    for (var line in lines) {
-      final parts = line.split(',');
-      if (parts.length >= 2) {
-        final brand = parts[0].trim();
-        final model = parts[1].trim();
-        final raw = (brand + model).replaceAll(RegExp(r'[ ./]'), '');
-        final fileBase = raw
-            .split(RegExp(r'(?=[A-Z])|(?<=[a-z])(?=[A-Z])|(?<=[a-z])(?=[0-9])'))
-            .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '')
-            .join();
-
-        for (int i = 0; i <= 5; i++) {
-          files.add('$fileBase$i.webp');
-        }
-      }
-    }
-
-    final missingFiles = <String>[];
-    for (var file in files) {
-      final isCached = await ImageCacheService.instance.isImageCached(file);
-      if (!isCached) {
-        missingFiles.add(file);
-      }
-    }
-
-    if (missingFiles.isEmpty) {
-      // All images are already cached
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("All images are already cached."),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } else {
-      // Load missing images
-      for (var file in missingFiles) {
-        try {
-          await ImageCacheService.instance
-              .imageProvider(file)
-              .resolve(const ImageConfiguration());
-        } catch (_) {
-          // ignore failures
-        }
-      }
-
-      // Show a message indicating that images have been loaded
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("All images have been successfully loaded."),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (!_isDataLoaded) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Member since formatting
@@ -612,7 +515,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ? ((correctAnswerCount / questionAttemptCount) * 100).round()
         : 0;
 
-    // Achievement rows (3 per row)
     final allAchievements = achievementMap.entries.expand((e) => e.value).toList();
     final unlocked = allAchievements.where((name) => isUnlocked(name)).toList();
     final locked = allAchievements.where((name) => !isUnlocked(name)).toList();
@@ -626,7 +528,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("🏆 Achievement Unlocked: $_justUnlockedAchievement"),
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.black87,
           ),
@@ -634,10 +536,8 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     }
 
-    // Compute the sanitized file-base for your car image
     final fileBase = _formatImageName(favoriteBrand, favoriteModel);
 
-    // Build a CircleAvatar that pulls from Firebase (with spinner & fallback)
     Widget avatarWidget = CircleAvatar(
       radius: 50,
       backgroundColor: Colors.transparent,
@@ -664,92 +564,71 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: 32),
+                  const SizedBox(height: 32),
                   Center(
                     child: Column(
                       children: [
                         avatarWidget,
-                        SizedBox(height: 10),
-                        Text(
-                          username,
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Member since: $memSince',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 10),
+                        Text(username, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text('Member since: $memSince', style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                          children: const [
                             Icon(Icons.local_fire_department, color: Colors.orange),
                             SizedBox(width: 5),
-                            Text(
-                              'Streak: $dailyStreak Days',
-                              style: TextStyle(fontSize: 16),
-                            ),
                           ],
                         ),
+                        Text('Streak: $dailyStreak Days', style: const TextStyle(fontSize: 16)),
                       ],
                     ),
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Text(
                     'Track $_currentTrack, Level ${_sessionsCompleted + 1}, '
                     '${_currentLevelGears}/$_requiredGearsForCurrentLevel gear',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: _progressValue,
                     backgroundColor: Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
                   ),
-                  SizedBox(height: 24),
-                  Text(
-                    'Your Stats',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 24),
+                  const Text('Your Stats', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _buildStatCard('Training Completed',
-                            trainingCompletedCount.toString(), Icons.fitness_center),
-                        _buildStatCard('Correct Answers',
-                            correctAnswerCount.toString(), Icons.check_circle),
-                        _buildStatCard('Categories Mastered',
-                            '$categoriesMastered/8', Icons.category),
-                        _buildStatCard('Challenges Attempted',
-                            challengesAttemptedCount.toString(), Icons.flag),
-                        _buildStatCard('Accuracy Rate',
-                            '$accuracy%', Icons.bar_chart),
+                        _buildStatCard('Training Completed', trainingCompletedCount.toString(), Icons.fitness_center),
+                        _buildStatCard('Correct Answers', correctAnswerCount.toString(), Icons.check_circle),
+                        _buildStatCard('Categories Mastered', '$categoriesMastered/8', Icons.category),
+                        _buildStatCard('Challenges Attempted', challengesAttemptedCount.toString(), Icons.flag),
+                        _buildStatCard('Accuracy Rate', '$accuracy%', Icons.bar_chart),
                       ],
                     ),
                   ),
-                  SizedBox(height: 24),
-                  Text(
-                    'Achievements',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  // Top Row: Unlocked Achievements
+                  const SizedBox(height: 24),
+                  const Text('Achievements', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
                   if (unlocked.isNotEmpty)
                     GridView.count(
                       crossAxisCount: 3,
                       shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
+                      physics: const NeverScrollableScrollPhysics(),
                       childAspectRatio: 1,
                       children: List.generate(3, (i) {
                         final name = topRow[i];
-                        if (name.isEmpty) return SizedBox(); // blank tile
+                        if (name.isEmpty) return const SizedBox();
                         final isLast = i == 2;
                         return GestureDetector(
                           onTap: () {
@@ -765,13 +644,13 @@ class _ProfilePageState extends State<ProfilePage> {
                               Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.emoji_events, size: 60, color: Colors.amber),
-                                  SizedBox(height: 6),
+                                  const Icon(Icons.emoji_events, size: 60, color: Colors.amber),
+                                  const SizedBox(height: 6),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 6),
                                     child: Text(
                                       name.split("–")[0].trim(),
-                                      style: TextStyle(fontSize: 12),
+                                      style: const TextStyle(fontSize: 12),
                                       textAlign: TextAlign.center,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
@@ -780,25 +659,20 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ],
                               ),
                               if (isLast)
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
-                                ),
+                                const Positioned(top: 4, right: 4, child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey)),
                             ],
                           ),
                         );
                       }),
                     ),
-                  // Bottom Row: Locked Achievements
                   GridView.count(
                     crossAxisCount: 3,
                     shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
+                    physics: const NeverScrollableScrollPhysics(),
                     childAspectRatio: 1,
                     children: List.generate(3, (i) {
-                      final name = bottomRow[i];
-                      if (name.isEmpty) return SizedBox();
+                      final name = (i < locked.length) ? locked[i] : '';
+                      if (name.isEmpty) return const SizedBox();
                       final isLast = i == 2;
                       return GestureDetector(
                         onTap: () {
@@ -814,14 +688,13 @@ class _ProfilePageState extends State<ProfilePage> {
                             Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.emoji_events,
-                                    size: 60, color: Colors.grey),
-                                SizedBox(height: 6),
+                                const Icon(Icons.emoji_events, size: 60, color: Colors.grey),
+                                const SizedBox(height: 6),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 6),
                                   child: Text(
                                     name.split("–")[0].trim(),
-                                    style: TextStyle(fontSize: 12),
+                                    style: const TextStyle(fontSize: 12),
                                     textAlign: TextAlign.center,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -830,12 +703,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               ],
                             ),
                             if (isLast)
-                              Positioned(
-                                top: 4,
-                                right: 4,
-                                child: Icon(Icons.arrow_forward_ios,
-                                    size: 12, color: Colors.grey),
-                              ),
+                              const Positioned(top: 4, right: 4, child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey)),
                           ],
                         ),
                       );
@@ -845,15 +713,29 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ),
-          // Add the button to ensure all images are loaded at the very bottom
+          // Open PreloadPage with no arguments
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
-              onPressed: _checkAndLoadImages,
-              style: ElevatedButton.styleFrom(
-                minimumSize: Size(double.infinity, 40), // Full width button
-              ),
-              child: Text('Ensure All Images Are Loaded'),
+              onPressed: () async {
+                final result = await Navigator.of(context).push<Map<String, int>>(
+                  MaterialPageRoute(builder: (_) => const PreloadPage()),
+                );
+                if (!mounted) return;
+                if (result != null) {
+                  final downloaded = result['downloaded'] ?? 0;
+                  final cached = result['cached'] ?? 0;
+                  final failed = result['failed'] ?? 0;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Downloaded $downloaded • Already $cached • Failed $failed'),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 40)),
+              child: const Text('Ensure All Images Are Loaded'),
             ),
           ),
         ],
@@ -863,15 +745,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildStatCard(String title, String value, IconData icon) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 36, color: Colors.blue),
-          SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          SizedBox(height: 2),
-          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 2),
+          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ),
     );

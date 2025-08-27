@@ -1,176 +1,234 @@
+// lib/pages/preload_page.dart
+// ignore_for_file: deprecated_member_use
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../main.dart';
 import '../storage/lives_storage.dart';
 import '../services/image_service_cache.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class PreloadPage extends StatefulWidget {
-  final int initialLives;
-  final LivesStorage livesStorage;
+  /// Make args optional to be compatible with both push(const PreloadPage())
+  /// and push(PreloadPage(initialLives: ..., livesStorage: ...)).
+  final int? initialLives;
+  final LivesStorage? livesStorage;
 
   const PreloadPage({
     Key? key,
-    required this.initialLives,
-    required this.livesStorage,
+    this.initialLives,
+    this.livesStorage,
   }) : super(key: key);
 
   @override
-  _PreloadPageState createState() => _PreloadPageState();
+  State<PreloadPage> createState() => _PreloadPageState();
 }
 
 class _PreloadPageState extends State<PreloadPage> {
-  List<String> _allFiles = [];
+  final List<String> _allFiles = [];
   final Set<String> _cachedFiles = {};
-  int _loadedCount = 0;
-  bool _isLoading = true;
+
+  int _total = 0;
+  int _already = 0;
+  int _downloaded = 0;
+  int _failed = 0;
+  bool _running = true;
+
+  Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
-    _prepareFileList().then((_) => _startCaching());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _prepareList();
+      if (!mounted) return;
+      await _startCaching();
+      if (!mounted) return;
+      await _finish();
+    });
   }
 
-  Future<void> _prepareFileList() async {
+  Future<void> _prepareList() async {
     final rawCsv = await rootBundle.loadString('assets/cars.csv');
     final lines = const LineSplitter().convert(rawCsv);
-    final files = <String>[];
 
-    for (var line in lines) {
+    final set = <String>{};
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+
       final parts = line.split(',');
-      if (parts.length >= 2) {
-        final brand = parts[0].trim();
-        final model = parts[1].trim();
-        final raw = (brand + model).replaceAll(RegExp(r'[ ./]'), '');
-        final fileBase = raw
-            .split(RegExp(r'(?=[A-Z])|(?<=[a-z])(?=[A-Z])|(?<=[a-z])(?=[0-9])'))
-            .map((w) =>
-                w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '')
-            .join();
+      if (parts.length < 2) continue;
 
-        for (int i = 0; i <= 5; i++) {
-          files.add('$fileBase$i.webp');
-        }
+      // Skip header
+      if (i == 0 && parts[0].toLowerCase().contains('brand')) continue;
+
+      final brand = parts[0].trim();
+      final model = parts[1].trim();
+      final raw = (brand + model).replaceAll(RegExp(r'[ ./]'), '');
+      final fileBase = raw
+          .split(RegExp(r'(?=[A-Z])|(?<=[a-z])(?=[A-Z])|(?<=[a-z])(?=[0-9])'))
+          .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '')
+          .join();
+
+      for (int j = 0; j <= 5; j++) {
+        set.add('$fileBase$j.webp');
       }
     }
-    setState(() => _allFiles = files);
+
+    _allFiles.addAll(set);
+    _total = _allFiles.length;
+    setState(() {});
   }
 
   Future<void> _startCaching() async {
-    final missingFiles = <String>[];
-    for (var file in _allFiles) {
-      final isCached = await ImageCacheService.instance.isImageCached(file);
-      if (!isCached) {
-        missingFiles.add(file);
+    // Count already-cached and build queue
+    final queue = <String>[];
+    for (final f in _allFiles) {
+      final isCached = await ImageCacheService.instance.isImageCached(f);
+      if (isCached) {
+        _already++;
+        _cachedFiles.add(f);
+      } else {
+        queue.add(f);
       }
     }
+    setState(() {});
 
-    if (missingFiles.isEmpty) {
-      // All images are already cached, navigate to home page immediately
-      _navigateToHomePage();
-      return;
-    }
+    if (queue.isEmpty) return;
 
-    for (var file in missingFiles) {
-      try {
-        await ImageCacheService.instance
-            .imageProvider(file)
-            .resolve(const ImageConfiguration());
-        setState(() {
-          if (_cachedFiles.add(file)) _loadedCount++;
-        });
-      } catch (_) {
-        // ignore failures
-      }
-      await Future.delayed(const Duration(milliseconds: 30));
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
+    // throttle UI refresh
+    _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (mounted) setState(() {});
     });
 
-    // Set the persistent variable to indicate that images are loaded
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('areImagesLoaded', true);
+    // limited parallelism
+    const workers = 10;
+    final futures = <Future<void>>[];
+    for (int i = 0; i < workers; i++) {
+      futures.add(_worker(queue));
+    }
+    await Future.wait(futures);
 
-    _navigateToHomePage();
+    _ticker?.cancel();
+    if (mounted) setState(() {});
   }
 
-  void _navigateToHomePage() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  Future<void> _worker(List<String> queue) async {
+    while (_running) {
+      if (queue.isEmpty) return;
+      final file = queue.removeLast();
+      try {
+        await precacheImage(
+          ImageCacheService.instance.imageProvider(file),
+          context,
+        );
+        _downloaded++;
+        _cachedFiles.add(file);
+      } catch (_) {
+        _failed++;
+      }
+    }
+  }
+
+  Future<void> _finish() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('areImagesLoaded', true);
+
+    // If caller provided lives params, route to MainPage like your original.
+    // Otherwise, return a summary to the caller (ProfilePage button).
+    if (widget.initialLives != null && widget.livesStorage != null) {
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => MainPage(
-            initialLives: widget.initialLives,
-            livesStorage: widget.livesStorage,
+            initialLives: widget.initialLives!,
+            livesStorage: widget.livesStorage!,
           ),
         ),
       );
-    });
+    } else {
+      if (!mounted) return;
+      Navigator.of(context).pop(<String, int>{
+        'downloaded': _downloaded,
+        'cached': _already,
+        'failed': _failed,
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _running = false;
+    _ticker?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final total = _allFiles.length;
-    final loaded = _loadedCount;
+    final done = _already + _downloaded + _failed;
+    final total = _total == 0 ? 1 : _total;
+    final progress = done / total;
 
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Warming Up Your Garage...'),
-        backgroundColor: const Color(0xFF3D0000),
-      ),
-      backgroundColor: const Color(0xFF121212),
-      body: Column(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: GridView.builder(
-                itemCount: total,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 5,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
-                ),
-                itemBuilder: (context, idx) {
-                  final file = _allFiles[idx];
-                  if (_cachedFiles.contains(file)) {
-                    return Image(
-                      image: ImageCacheService.instance.imageProvider(file),
-                      fit: BoxFit.cover,
-                    );
-                  } else {
-                    return Container(color: Colors.grey[800]);
-                  }
-                },
+    return WillPopScope(
+      onWillPop: () async => !_running,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Preparing assets'),
+          automaticallyImplyLeading: !_running,
+          actions: [
+            if (_running)
+              TextButton(
+                onPressed: () => setState(() => _running = false),
+                child: const Text('Stop', style: TextStyle(color: Colors.white)),
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              children: [
-                LinearProgressIndicator(
-                  value: loaded / total,
-                  backgroundColor: Colors.grey[700],
+          ],
+        ),
+        backgroundColor: const Color(0xFF121212),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              LinearProgressIndicator(value: progress),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Total: $_total', style: const TextStyle(color: Colors.white70)),
+                  Text('Done: $done', style: const TextStyle(color: Colors.white70)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _stat('Already cached', _already),
+              _stat('Downloaded', _downloaded),
+              _stat('Failed', _failed),
+              const Spacer(),
+              if (!_running)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    child: const Text('Close'),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _isLoading
-                      ? 'Loading in progress...'
-                      : 'Cached $loaded of $total cars',
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ],
-            ),
+            ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _stat(String label, int value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white70)),
+        Text(value.toString(), style: const TextStyle(color: Colors.white70)),
+      ],
     );
   }
 }
