@@ -6,10 +6,11 @@ on:
 jobs:
   build-and-upload:
     runs-on: macos-14
-
     env:
-      APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}   # optional source of truth
-      TEAM_ID:        ${{ secrets.TEAM_ID }}
+      APP_BUNDLE_ID: com.gearup.app
+      TEAM_ID: ${{ secrets.TEAM_ID }}
+      IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -17,203 +18,103 @@ jobs:
         with:
           lfs: true
 
-      - name: Ensure LFS files are fetched
+      - name: Ensure LFS fetch
         run: |
           git lfs install
           git lfs pull
 
-      - name: Sanity check pbxproj
+      - name: Sanity checks
         run: |
-          echo "First 5 lines:"
-          head -n 5 ios/Runner.xcodeproj/project.pbxproj || true
-          echo "Detect LFS pointer:"
-          if head -n 1 ios/Runner.xcodeproj/project.pbxproj | grep -q 'version https://git-lfs.github.com/spec'; then
-            echo "ERROR: pbxproj is a Git LFS pointer. Enable LFS checkout."; exit 1
-          fi
-          echo "Check for non-ASCII or null bytes:"
-          perl -ne 'if(/[^\\x09\\x0A\\x0D\\x20-\\x7E]/){print "bad byte at line $.\\n"; exit 1}' ios/Runner.xcodeproj/project.pbxproj || true
-
-      - name: Show macOS/Xcode
-        run: |
+          set -e
           sw_vers
           xcodebuild -version
+          test -f ios/Runner.xcodeproj/project.pbxproj
+          if head -n1 ios/Runner.xcodeproj/project.pbxproj | grep -q 'version https://git-lfs.github.com/spec'; then
+            echo "ERROR: pbxproj is a Git LFS pointer. Commit the real file."
+            exit 1
+          fi
 
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.35.1'
           cache: true
 
-      - name: Flutter pub get
+      - name: flutter pub get
         run: flutter pub get
 
-      # ---- Signing assets ----------------------------------------------------
-      - name: Create & unlock keychain
-        env:
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      - name: Locate p12 from repo
+        id: p12
+        run: |
+          set -e
+          CANDIDATES="dist.p12 ios/dist.p12 ios/gearup/dist.p12"
+          FOUND=""
+          for p in $CANDIDATES; do
+            if [ -s "$p" ]; then FOUND="$p"; break; fi
+          done
+          if [ -z "$FOUND" ]; then
+            echo "ERROR: No dist.p12 found in repo." >&2
+            exit 1
+          fi
+          echo "Using $FOUND"
+          cp "$FOUND" dist.p12
+          if ! openssl pkcs12 -in dist.p12 -noout -info -passin env:IOS_CERT_P12_PASSWORD >/dev/null 2>&1; then
+            echo "ERROR: P12 password invalid for repo p12." >&2
+            exit 1
+          fi
+
+      - name: Create signing keychain
         run: |
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security list-keychains -s build.keychain login.keychain
-          security default-keychain -s build.keychain
+          security list-keychains -d user -s build.keychain login.keychain
 
-      - name: Decode signing assets
-        env:
-          IOS_CERT_P12_BASE64:   ${{ secrets.IOS_CERT_P12_BASE64 }}
-          IOS_PROVISION_BASE64:  ${{ secrets.IOS_PROVISION_BASE64 }}
-        run: |
-          echo "$IOS_CERT_P12_BASE64"  | base64 --decode > dist.p12
-          echo "$IOS_PROVISION_BASE64" | base64 --decode > app.mobileprovision
-          file dist.p12 || true
-
-      - name: Validate PKCS#12 password
-        env:
-          IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
-        run: |
-          if openssl pkcs12 -in dist.p12 -noout -info -passin env:IOS_CERT_P12_PASSWORD >/dev/null 2>&1; then
-            echo "P12 password OK"
-          else
-            echo "ERROR: P12 password invalid or p12 corrupted." >&2
-            exit 1
-          fi
-
-      - name: Import distribution certificate
-        env:
-          IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD:     ${{ secrets.KEYCHAIN_PASSWORD }}
+      - name: Import p12
         run: |
           security import dist.p12 -k build.keychain -P "$IOS_CERT_P12_PASSWORD" -A
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
-      - name: Install & inspect provisioning profile
-        id: prof
+      - name: Provisioning profile from repo
         run: |
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i app.mobileprovision)")
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp app.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
-
-          security cms -D -i app.mobileprovision > profile.plist
-          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
-          PROFILE_TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' profile.plist)
-          APPID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' profile.plist)
-          PROFILE_BUNDLE_ID="${APPID#*.}"
-
-          echo "Profile: $PROFILE_NAME"
-          echo "UUID:    $PROFILE_UUID"
-          echo "Team:    $PROFILE_TEAM"
-          echo "Bundle:  $PROFILE_BUNDLE_ID"
-
-          echo "PROFILE_NAME=$PROFILE_NAME"           >> $GITHUB_ENV
-          echo "PROFILE_UUID=$PROFILE_UUID"           >> $GITHUB_ENV
-          echo "PROFILE_BUNDLE_ID=$PROFILE_BUNDLE_ID" >> $GITHUB_ENV
-          [ "$PROFILE_TEAM" = "${TEAM_ID}" ] || { echo "TEAM_ID mismatch"; exit 1; }
-
-      # ---- Guard: pbxproj must be parseable and free of conflicts -----------
-      - name: Validate Runner.xcodeproj
-        run: |
-          if grep -nE '^(<<<<<<<|=======|>>>>>>>)' ios/Runner.xcodeproj/project.pbxproj; then
-            echo "Merge-conflict markers found in project.pbxproj"; exit 1;
+          set -e
+          CAND="*.mobileprovision ios/*.mobileprovision ios/gearup/*.mobileprovision"
+          PROFILE=""
+          for p in $CAND; do
+            if ls $p >/dev/null 2>&1; then PROFILE=$(ls $p | head -n1); break; fi
+          done
+          if [ -z "$PROFILE" ]; then
+            echo "ERROR: No .mobileprovision found in repo." >&2
+            exit 1
           fi
-          awk 'BEGIN{ok=0}/PRODUCT_BUNDLE_IDENTIFIER/{ok=1}END{exit ok?0:1}' ios/Runner.xcodeproj/project.pbxproj
-
-      # ---- Ensure bundle id in project matches the profile (or secret) ------
-      - name: Sync bundle id in pbxproj
-        env:
-          TARGET_BUNDLE_ID: ${{ env.APP_BUNDLE_ID }}
-        run: |
-          TARGET="${TARGET_BUNDLE_ID:-$PROFILE_BUNDLE_ID}"
-          echo "Target bundle id: $TARGET"
-          sed -i.bak -E "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/PRODUCT_BUNDLE_IDENTIFIER = ${TARGET};/g" ios/Runner.xcodeproj/project.pbxproj
-          grep -E 'PRODUCT_BUNDLE_IDENTIFIER' ios/Runner.xcodeproj/project.pbxproj | sort -u
-
-      # ---- Apply manual signing so flutter/xcode use your cert+profile -------
-      - name: Apply manual signing to Runner target
-        run: |
-          FILE=ios/Runner.xcodeproj/project.pbxproj
-          # Manual signing style
-          sed -i.bak -E "s/CODE_SIGN_STYLE = [^;]+;/CODE_SIGN_STYLE = Manual;/g" "$FILE"
-          # Team
-          if grep -q "DEVELOPMENT_TEAM =" "$FILE"; then
-            sed -i.bak -E "s/DEVELOPMENT_TEAM = [A-Z0-9]+;/DEVELOPMENT_TEAM = ${TEAM_ID};/g" "$FILE"
-          else
-            perl -0777 -pe 's/(buildSettings = \\{)/$1\\n\t\t\t\tDEVELOPMENT_TEAM = '"$TEAM_ID"';/ if $.==1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-          fi
-          # Identity
-          if grep -q "CODE_SIGN_IDENTITY =" "$FILE"; then
-            sed -i.bak -E "s/CODE_SIGN_IDENTITY = [^;]+;/CODE_SIGN_IDENTITY = Apple Distribution;/g" "$FILE"
-          else
-            perl -0777 -pe 's/(buildSettings = \\{)/$1\\n\t\t\t\tCODE_SIGN_IDENTITY = Apple Distribution;/ if $.==1' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-          fi
-          # Provisioning profile specifier
-          if grep -q "PROVISIONING_PROFILE_SPECIFIER =" "$FILE"; then
-            sed -i.bak -E "s/PROVISIONING_PROFILE_SPECIFIER = [^;]+;/PROVISIONING_PROFILE_SPECIFIER = ${PROFILE_NAME};/g" "$FILE"
-          else
-            awk -v name="$PROFILE_NAME" '
-              BEGIN{inbs=0}
-              /buildSettings = \{/{inbs=1}
-              inbs==1 && /PRODUCT_BUNDLE_IDENTIFIER = / {
-                print; print "        PROVISIONING_PROFILE_SPECIFIER = " name ";"; next
-              }
-              /\};/ && inbs==1{inbs=0}
-              {print}
-            ' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-          fi
-          echo "— Effective signing —"
-          xcodebuild -showBuildSettings -project ios/Runner.xcodeproj -target Runner -configuration Release | \
-            egrep 'PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|PROVISIONING_PROFILE_SPECIFIER'
-
-      # ---- List project (not workspace; Pods will appear during build) -------
-      - name: Show project targets
-        run: |
-          xcodebuild -list -project ios/Runner.xcodeproj
-
-      - name: Generate ExportOptions.plist
-        run: |
-          cat > ExportOptions.plist <<EOF
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          PLIST=$(/usr/bin/security cms -D -i "$PROFILE")
+          NAME=$(echo "$PLIST" | /usr/bin/plutil -extract Name raw -)
+          UUID=$(echo "$PLIST" | /usr/bin/plutil -extract UUID raw -)
+          cp "$PROFILE" "$PROFILE_DIR/$UUID.mobileprovision"
+          cat > ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
+          <plist version="1.0"><dict>
             <key>method</key><string>app-store</string>
             <key>signingStyle</key><string>manual</string>
-            <key>teamID</key><string>${TEAM_ID}</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>${PROFILE_BUNDLE_ID}</key>
-              <string>${PROFILE_NAME}</string>
+            <key>provisioningProfiles</key><dict>
+              <key>${APP_BUNDLE_ID}</key><string>${NAME}</string>
             </dict>
-            <key>signingCertificate</key><string>Apple Distribution</string>
-            <key>stripSwiftSymbols</key><true/>
-            <key>uploadSymbols</key><true/>
-          </dict>
-          </plist>
-          EOF
+            <key>teamID</key><string>${TEAM_ID}</string>
+          </dict></plist>
+          PLIST
+          /usr/bin/plutil -p ExportOptions.plist
 
-      - name: Build signed IPA
+      - name: Build IPA
         run: |
-          flutter clean
-          flutter build ipa --release --export-options-plist=ExportOptions.plist
-          ls -lh build/ios/ipa
+          flutter build ipa --release --export-options-plist ExportOptions.plist
 
-      - name: Upload to TestFlight
-        env:
-          APP_STORE_CONNECT_API_KEY_ID:     ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID:  ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-        run: |
-          IPAPATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
-          xcrun altool --upload-app \
-            --type ios \
-            --file "$IPAPATH" \
-            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
-
-      - name: Keep artifact
-        if: always()
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: Signed-IPA
           path: build/ios/ipa/*.ipa
+          if-no-files-found: error
