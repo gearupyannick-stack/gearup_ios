@@ -43,7 +43,7 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
-      - name: Locate p12 from repo
+      - name: Locate p12 from repo (safe)
         id: p12
         run: |
           set -e
@@ -57,11 +57,18 @@ jobs:
             exit 1
           fi
           echo "Using $FOUND"
-          cp "$FOUND" dist.p12
+          # Copy only if different path to avoid macOS cp error "identical (not copied)"
+          if [ "$FOUND" != "dist.p12" ]; then
+            cp -f "$FOUND" dist.p12
+          else
+            echo "dist.p12 already in place"
+          fi
+          # Verify password matches the p12
           if ! openssl pkcs12 -in dist.p12 -noout -info -passin env:IOS_CERT_P12_PASSWORD >/dev/null 2>&1; then
             echo "ERROR: P12 password invalid for repo p12." >&2
             exit 1
           fi
+          ls -lh dist.p12
 
       - name: Create signing keychain
         run: |
@@ -93,7 +100,7 @@ jobs:
           PLIST=$(/usr/bin/security cms -D -i "$PROFILE")
           NAME=$(echo "$PLIST" | /usr/bin/plutil -extract Name raw -)
           UUID=$(echo "$PLIST" | /usr/bin/plutil -extract UUID raw -)
-          cp "$PROFILE" "$PROFILE_DIR/$UUID.mobileprovision"
+          cp -f "$PROFILE" "$PROFILE_DIR/$UUID.mobileprovision"
           cat > ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
