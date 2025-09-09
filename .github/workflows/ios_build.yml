@@ -11,10 +11,8 @@ jobs:
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          lfs: true
+      - uses: actions/checkout@v4
+        with: { lfs: true }
 
       - name: Ensure LFS
         run: |
@@ -31,16 +29,12 @@ jobs:
             echo "ERROR: pbxproj is a Git LFS pointer"; exit 1
           fi
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
 
-      - name: flutter pub get
-        run: flutter pub get
+      - run: flutter pub get
 
-      - name: Locate p12 from repo and verify
+      - name: Locate p12 and verify password
         run: |
           set -euo pipefail
           CANDIDATES="dist.p12 ios/dist.p12 ios/gearup/dist.p12"
@@ -49,15 +43,7 @@ jobs:
           [ -z "$FOUND" ] && { echo "ERROR: No dist.p12 found"; exit 1; }
           echo "Using $FOUND"
           [ "$FOUND" != "dist.p12" ] && cp -f "$FOUND" dist.p12 || echo "dist.p12 already in place"
-
-          # Build openssl pass option (supports empty password)
-          if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then
-            PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"
-          else
-            PASSOPT="-passin pass:"
-          fi
-
-          # Confirm OpenSSL can read it
+          if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"; else PASSOPT="-passin pass:"; fi
           openssl pkcs12 -in dist.p12 -noout -info $PASSOPT >/dev/null
 
       - name: Create signing keychain
@@ -67,36 +53,36 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security list-keychains -d user -s build.keychain login.keychain
 
-      - name: Extract cert and key with OpenSSL, then import
+      - name: Extract cert+key and import correctly
         run: |
           set -euo pipefail
-          if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then
-            PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"
-          else
-            PASSOPT="-passin pass:"
-          fi
+          if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"; else PASSOPT="-passin pass:"; fi
 
-          # Extract
+          # Extract leaf certificate and private key (PEM)
           openssl pkcs12 -in dist.p12 $PASSOPT -clcerts -nokeys -out cert.cer
           openssl pkcs12 -in dist.p12 $PASSOPT -nocerts -nodes -out key.pem
 
+          # Convert private key to PKCS#8 DER for deterministic import
+          openssl pkcs8 -topk8 -nocrypt -in key.pem -outform der -out key.p8
+
           # Import into CI keychain
           security import cert.cer -k build.keychain -A -t cert
-          security import key.pem  -k build.keychain -A -t priv -f pem -P ""
+          security import key.p8   -k build.keychain -A -t priv -f pkcs8
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
-      - name: Install provisioning profile from repo
+      - name: Install provisioning profile
         run: |
           set -euo pipefail
+          # Prefer repo file; if absent you can switch to a BASE64 secret flow.
           PROFILE=$(ls *.mobileprovision ios/*.mobileprovision ios/gearup/*.mobileprovision 2>/dev/null | head -n1 || true)
           [ -z "$PROFILE" ] && { echo "ERROR: No .mobileprovision found"; exit 1; }
           DIR="$HOME/Library/MobileDevice/Provisioning Profiles"; mkdir -p "$DIR"
           PLIST=$(/usr/bin/security cms -D -i "$PROFILE")
           NAME=$(echo "$PLIST" | /usr/bin/plutil -extract Name raw -)
           UUID=$(echo "$PLIST" | /usr/bin/plutil -extract UUID raw -)
+          echo "Using profile: $NAME ($UUID)"
           cp -f "$PROFILE" "$DIR/$UUID.mobileprovision"
-
           cat > ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>
             <key>method</key><string>app-store</string>
@@ -105,6 +91,8 @@ jobs:
               <key>${APP_BUNDLE_ID}</key><string>${NAME}</string>
             </dict>
             <key>teamID</key><string>${TEAM_ID}</string>
+            <key>compileBitcode</key><false/>
+            <key>uploadBitcode</key><false/>
           </dict></plist>
           PLIST
           /usr/bin/plutil -p ExportOptions.plist
@@ -112,8 +100,7 @@ jobs:
       - name: Build IPA
         run: flutter build ipa --release --export-options-plist ExportOptions.plist
 
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: Signed-IPA
           path: build/ios/ipa/*.ipa
