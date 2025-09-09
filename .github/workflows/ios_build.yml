@@ -150,9 +150,9 @@ jobs:
         run: |
           set -euo pipefail
           flutter clean
-          flutter pub get                 # <-- regenerate ios/Flutter/Generated.xcconfig
-          (cd ios && pod install --repo-update --verbose) | tee pod-verbose.log
-          flutter build ios --release --no-codesign -v | tee flutter-build.log
+          rm -rf ios/Pods ios/Podfile.lock
+          cd ios && pod repo update && pod install && cd ..
+          flutter build ios --release --no-codesign
 
       - name: If build failed, print last logs and fail
         run: |

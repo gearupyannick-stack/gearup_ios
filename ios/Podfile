@@ -38,12 +38,15 @@ end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
-    # Flutter’s helper for build flags, architectures, etc.
     flutter_additional_ios_build_settings(target)
 
-    # Enforce iOS 15.0 across all Pods to match the project setting
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      # Force Swift 5 for all pods (avoids Swift 6 parse error in Firebase)
+      config.build_settings['SWIFT_VERSION'] = '5.9'
+      # Optional: relax concurrency checks to avoid warnings on Xcode 16
+      config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
     end
   end
 end
+
