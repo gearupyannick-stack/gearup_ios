@@ -1,7 +1,5 @@
 name: iOS Signed Build & Upload
-
-on:
-  workflow_dispatch:
+on: { workflow_dispatch: {} }
 
 jobs:
   build-and-upload:
@@ -18,20 +16,19 @@ jobs:
         with:
           lfs: true
 
-      - name: Ensure LFS fetch
+      - name: Ensure LFS
         run: |
           git lfs install
           git lfs pull
 
-      - name: Sanity checks
+      - name: Sanity
         run: |
           set -e
           sw_vers
           xcodebuild -version
           test -f ios/Runner.xcodeproj/project.pbxproj
           if head -n1 ios/Runner.xcodeproj/project.pbxproj | grep -q 'version https://git-lfs.github.com/spec'; then
-            echo "ERROR: pbxproj is a Git LFS pointer. Commit the real file."
-            exit 1
+            echo "ERROR: pbxproj is a Git LFS pointer"; exit 1
           fi
 
       - name: Setup Flutter
@@ -43,32 +40,25 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
-      - name: Locate p12 from repo (safe)
-        id: p12
+      - name: Locate p12 from repo and verify
         run: |
-          set -e
+          set -euo pipefail
           CANDIDATES="dist.p12 ios/dist.p12 ios/gearup/dist.p12"
           FOUND=""
-          for p in $CANDIDATES; do
-            if [ -s "$p" ]; then FOUND="$p"; break; fi
-          done
-          if [ -z "$FOUND" ]; then
-            echo "ERROR: No dist.p12 found in repo." >&2
-            exit 1
-          fi
+          for p in $CANDIDATES; do [ -s "$p" ] && { FOUND="$p"; break; }; done
+          [ -z "$FOUND" ] && { echo "ERROR: No dist.p12 found"; exit 1; }
           echo "Using $FOUND"
-          # Copy only if different path to avoid macOS cp error "identical (not copied)"
-          if [ "$FOUND" != "dist.p12" ]; then
-            cp -f "$FOUND" dist.p12
+          [ "$FOUND" != "dist.p12" ] && cp -f "$FOUND" dist.p12 || echo "dist.p12 already in place"
+
+          # Build openssl pass option (supports empty password)
+          if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then
+            PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"
           else
-            echo "dist.p12 already in place"
+            PASSOPT="-passin pass:"
           fi
-          # Verify password matches the p12
-          if ! openssl pkcs12 -in dist.p12 -noout -info -passin env:IOS_CERT_P12_PASSWORD >/dev/null 2>&1; then
-            echo "ERROR: P12 password invalid for repo p12." >&2
-            exit 1
-          fi
-          ls -lh dist.p12
+
+          # Confirm OpenSSL can read it
+          openssl pkcs12 -in dist.p12 -noout -info $PASSOPT >/dev/null
 
       - name: Create signing keychain
         run: |
@@ -77,34 +67,38 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security list-keychains -d user -s build.keychain login.keychain
 
-      - name: Import p12
+      - name: Extract cert and key with OpenSSL, then import
         run: |
-          security import dist.p12 -k build.keychain -P "$IOS_CERT_P12_PASSWORD" -A
+          set -euo pipefail
+          if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then
+            PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"
+          else
+            PASSOPT="-passin pass:"
+          fi
+
+          # Extract
+          openssl pkcs12 -in dist.p12 $PASSOPT -clcerts -nokeys -out cert.cer
+          openssl pkcs12 -in dist.p12 $PASSOPT -nocerts -nodes -out key.pem
+
+          # Import into CI keychain
+          security import cert.cer -k build.keychain -A -t cert
+          security import key.pem  -k build.keychain -A -t priv -f pem -P ""
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
-      - name: Provisioning profile from repo
+      - name: Install provisioning profile from repo
         run: |
-          set -e
-          CAND="*.mobileprovision ios/*.mobileprovision ios/gearup/*.mobileprovision"
-          PROFILE=""
-          for p in $CAND; do
-            if ls $p >/dev/null 2>&1; then PROFILE=$(ls $p | head -n1); break; fi
-          done
-          if [ -z "$PROFILE" ]; then
-            echo "ERROR: No .mobileprovision found in repo." >&2
-            exit 1
-          fi
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
+          set -euo pipefail
+          PROFILE=$(ls *.mobileprovision ios/*.mobileprovision ios/gearup/*.mobileprovision 2>/dev/null | head -n1 || true)
+          [ -z "$PROFILE" ] && { echo "ERROR: No .mobileprovision found"; exit 1; }
+          DIR="$HOME/Library/MobileDevice/Provisioning Profiles"; mkdir -p "$DIR"
           PLIST=$(/usr/bin/security cms -D -i "$PROFILE")
           NAME=$(echo "$PLIST" | /usr/bin/plutil -extract Name raw -)
           UUID=$(echo "$PLIST" | /usr/bin/plutil -extract UUID raw -)
-          cp -f "$PROFILE" "$PROFILE_DIR/$UUID.mobileprovision"
+          cp -f "$PROFILE" "$DIR/$UUID.mobileprovision"
+
           cat > ExportOptions.plist <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
+          <?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>
             <key>method</key><string>app-store</string>
             <key>signingStyle</key><string>manual</string>
             <key>provisioningProfiles</key><dict>
@@ -116,8 +110,7 @@ jobs:
           /usr/bin/plutil -p ExportOptions.plist
 
       - name: Build IPA
-        run: |
-          flutter build ipa --release --export-options-plist ExportOptions.plist
+        run: flutter build ipa --release --export-options-plist ExportOptions.plist
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
