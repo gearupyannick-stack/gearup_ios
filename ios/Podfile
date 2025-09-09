@@ -37,11 +37,13 @@ target 'RunnerTests' do
 end
 
 post_install do |installer|
-  installer.pods_project.targets.each do |t|
-    t.build_configurations.each do |config|
-      # Enforce iOS 15.0 for all pods
+  installer.pods_project.targets.each do |target|
+    # Flutter’s helper for build flags, architectures, etc.
+    flutter_additional_ios_build_settings(target)
+
+    # Enforce iOS 15.0 across all Pods to match the project setting
+    target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
     end
   end
-  flutter_post_install(installer)
 end
