@@ -83,14 +83,13 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "uuid=$UUID" >> "$GITHUB_OUTPUT"
 
-      # ---- CRITICAL: ensure iOS 15.0 before pod install ----
+      # ---- ensure iOS 15.0 in Podfile and project ----
       - name: Ensure iOS min target 15.0 in Podfile and project
         run: |
           set -euo pipefail
           POD=ios/Podfile
           if [ ! -f "$POD" ]; then
-            echo "ERROR: ios/Podfile missing. Commit the Podfile provided in the issue fix." >&2
-            exit 1
+            echo "ERROR: ios/Podfile missing."; exit 1
           fi
           if grep -qE "^[[:space:]]*platform :ios" "$POD"; then
             /usr/bin/sed -i '' -E "s/^[[:space:]]*platform :ios, *'[^']*'/platform :ios, '15.0'/" "$POD"
@@ -123,13 +122,6 @@ jobs:
             /usr/bin/sed -i '' -E "s/(PROVISIONING_PROFILE_SPECIFIER = )[^;]+;/\1${PROF};/g" "$PB"
           fi
 
-      - name: Clean Pods to avoid stale 13.0 lock
-        working-directory: ios
-        run: |
-          set -euo pipefail
-          rm -rf Pods Podfile.lock
-          pod repo update
-
       - name: Create ExportOptions.plist
         run: |
           cat > ExportOptions.plist <<PLIST
@@ -146,8 +138,32 @@ jobs:
           PLIST
           /usr/bin/plutil -p ExportOptions.plist
 
-      - name: Flutter build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
+      # ---- clean pods, then build with verbose logs and tails ----
+      - name: Enforce iOS 15 and clean Pods
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          rm -rf Pods Podfile.lock
+          pod repo update
+
+      - name: Flutter build iOS (no codesign, verbose, tee)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          flutter clean
+          (cd ios && pod install --verbose) | tee pod-verbose.log
+          flutter build ios --release --no-codesign -v | tee flutter-build.log
+
+      - name: If build failed, print last logs and fail
+        run: |
+          set -euo pipefail
+          echo "::group::TAIL pod-verbose.log"
+          tail -n 300 pod-verbose.log || true
+          echo "::endgroup::"
+          echo "::group::TAIL flutter-build.log"
+          tail -n 300 flutter-build.log || true
+          echo "::endgroup::"
+          grep -q "Built .*Runner.app" flutter-build.log || exit 1
 
       - name: Archive with manual signing
         env:
