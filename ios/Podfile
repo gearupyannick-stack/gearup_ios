@@ -1,8 +1,6 @@
 # ios/Podfile
 
 platform :ios, '15.0'
-
-# CocoaPods analytics off
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
@@ -17,8 +15,8 @@ def flutter_root
     raise "Generated.xcconfig must exist. Run 'flutter pub get' first."
   end
   File.foreach(generated_xcode_build_settings_path) do |line|
-    matches = line.match(/FLUTTER_ROOT\=(.*)/)
-    return matches[1].strip if matches
+    m = line.match(/FLUTTER_ROOT\=(.*)/)
+    return m[1].strip if m
   end
   raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}"
 end
@@ -41,10 +39,9 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |t|
     t.build_configurations.each do |config|
-      # Ensure all pods build for iOS 15.0 minimum
+      # Enforce iOS 15.0 for all pods
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
     end
   end
-  # Flutter helper
   flutter_post_install(installer)
 end

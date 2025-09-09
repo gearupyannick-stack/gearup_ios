@@ -12,8 +12,7 @@ jobs:
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -31,16 +30,14 @@ jobs:
             echo "ERROR: ios/Runner.xcodeproj/project.pbxproj is a Git LFS pointer"; exit 1
           fi
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: flutter pub get
-        run: flutter pub get
+      - run: flutter pub get
 
-      # ---- keychain + cert import (works with your p12/password) ----
+      # ---- cert/key import ----
       - name: Verify p12 password and prepare
         run: |
           set -euo pipefail
@@ -86,30 +83,28 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "uuid=$UUID" >> "$GITHUB_OUTPUT"
 
-      # ---- CRITICAL FIX: raise iOS deployment target to 15.0 ----
-      - name: set ios minimum to 15.0
+      # ---- CRITICAL: ensure iOS 15.0 before pod install ----
+      - name: Ensure iOS min target 15.0 in Podfile and project
         run: |
           set -euo pipefail
-          pod=ios/podfile
-          if [ -f "$pod" ]; then
-            if grep -qe "^[[:space:]]*platform :ios" "$pod"; then
-              /usr/bin/sed -i '' -e "s/^[[:space:]]*platform :ios, *'[^']*'/platform :ios, '15.0'/" "$pod"
-            else
-              # insert at top
-              /usr/bin/sed -i '' "1s;^;platform :ios, '15.0'\n;" "$pod"
-            fi
-            echo "podfile platform line:"
-            grep -n "platform :ios" "$pod" || true
-          else
-            echo "error: ios/podfile missing"; exit 1
+          POD=ios/Podfile
+          if [ ! -f "$POD" ]; then
+            echo "ERROR: ios/Podfile missing. Commit the Podfile provided in the issue fix." >&2
+            exit 1
           fi
+          if grep -qE "^[[:space:]]*platform :ios" "$POD"; then
+            /usr/bin/sed -i '' -E "s/^[[:space:]]*platform :ios, *'[^']*'/platform :ios, '15.0'/" "$POD"
+          else
+            /usr/bin/sed -i '' "1s;^;platform :ios, '15.0'\n;" "$POD"
+          fi
+          echo "Podfile platform line:"
+          grep -n "platform :ios" "$POD" || true
 
-          pb=ios/runner.xcodeproj/project.pbxproj
-          /usr/bin/sed -i '' -e "s/iphoneos_deployment_target = [0-9]+(\.[0-9]+)?;/iphoneos_deployment_target = 15.0;/g" "$pb"
-          echo "project deployment target lines:"
+          PB=ios/Runner.xcodeproj/project.pbxproj
+          /usr/bin/sed -i '' -E "s/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" "$PB"
+          echo "Project deployment target lines:"
           grep -n "IPHONEOS_DEPLOYMENT_TARGET" "$PB" | head || true
 
-      # keep bundle id, team, manual signing, profile
       - name: Force signing settings
         run: |
           set -euo pipefail
@@ -117,7 +112,6 @@ jobs:
           BUNDLE="${APP_BUNDLE_ID}"
           TEAM="${TEAM_ID}"
           PROF="${{ steps.prov.outputs.name }}"
-
           /usr/bin/sed -i '' -E "s/(PRODUCT_BUNDLE_IDENTIFIER = )[^;]+;/\1${BUNDLE};/g" "$PB"
           /usr/bin/sed -i '' -E "s/(DEVELOPMENT_TEAM = )[^;]+;/\1${TEAM};/g" "$PB"
           /usr/bin/sed -i '' -E "s/(CODE_SIGN_STYLE = )Automatic;/\1Manual;/g" "$PB"
@@ -128,6 +122,13 @@ jobs:
           else
             /usr/bin/sed -i '' -E "s/(PROVISIONING_PROFILE_SPECIFIER = )[^;]+;/\1${PROF};/g" "$PB"
           fi
+
+      - name: Clean Pods to avoid stale 13.0 lock
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          rm -rf Pods Podfile.lock
+          pod repo update
 
       - name: Create ExportOptions.plist
         run: |
@@ -145,14 +146,6 @@ jobs:
           PLIST
           /usr/bin/plutil -p ExportOptions.plist
 
-      - name: Ensure iOS min target 15.0 in Xcode project
-        run: |
-          set -euo pipefail
-          PB=ios/Runner.xcodeproj/project.pbxproj
-          /usr/bin/sed -i '' -E "s/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" "$PB"
-          grep -n "IPHONEOS_DEPLOYMENT_TARGET" "$PB" | head || true
-
-
       - name: Flutter build iOS (no codesign)
         run: flutter build ios --release --no-codesign
 
@@ -166,7 +159,6 @@ jobs:
           else
             export KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain"
           fi
-
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
@@ -187,8 +179,7 @@ jobs:
             -exportOptionsPlist ExportOptions.plist \
             -exportPath build/ios/ipa | xcpretty && exit ${PIPESTATUS[0]}
 
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: Signed-IPA
           path: build/ios/ipa/*.ipa
