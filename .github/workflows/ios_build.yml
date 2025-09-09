@@ -1,5 +1,7 @@
 name: iOS Signed Build & Upload
-on: { workflow_dispatch: {} }
+
+on:
+  workflow_dispatch:
 
 jobs:
   build-and-upload:
@@ -11,8 +13,10 @@ jobs:
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
     steps:
-      - uses: actions/checkout@v4
-        with: { lfs: true }
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Ensure LFS files
         run: |
@@ -26,13 +30,17 @@ jobs:
           xcodebuild -version
           test -f ios/Runner.xcodeproj/project.pbxproj
           if head -n1 ios/Runner.xcodeproj/project.pbxproj | grep -q 'version https://git-lfs.github.com/spec'; then
-            echo "ERROR: pbxproj is a Git LFS pointer"; exit 1
+            echo "ERROR: ios/Runner.xcodeproj/project.pbxproj is a Git LFS pointer"; exit 1
           fi
 
-      - uses: subosito/flutter-action@v2
-        with: { channel: stable, cache: true }
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
-      - run: flutter pub get
+      - name: flutter pub get
+        run: flutter pub get
 
       - name: Locate p12 and verify password
         run: |
@@ -44,6 +52,7 @@ jobs:
           echo "Using $FOUND"
           [ "$FOUND" != "dist.p12" ] && cp -f "$FOUND" dist.p12 || echo "dist.p12 already in place"
           if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"; else PASSOPT="-passin pass:"; fi
+          # Confirm the password is valid
           openssl pkcs12 -in dist.p12 -noout -info $PASSOPT >/dev/null
 
       - name: Create signing keychain
@@ -51,18 +60,22 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          # Prefer our CI keychain
           security list-keychains -d user -s build.keychain login.keychain
 
-      - name: Extract cert+key and import
+      - name: Extract cert+key and import (no PKCS#8 conversion)
         run: |
           set -euo pipefail
           if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"; else PASSOPT="-passin pass:"; fi
+
+          # Extract leaf certificate and private key as PEM
           openssl pkcs12 -in dist.p12 $PASSOPT -clcerts -nokeys -out cert.cer
           openssl pkcs12 -in dist.p12 $PASSOPT -nocerts -nodes -out key.pem
-          # PKCS#8 DER for deterministic import
-          openssl pkcs8 -topk8 -nocrypt -in key.pem -outform der -out key.p8
+
+          # Import into CI keychain
           security import cert.cer -k build.keychain -A -t cert
-          security import key.p8   -k build.keychain -A -t priv -f pkcs8
+          # Import PEM key; no -f flag (auto-detects)
+          security import key.pem  -k build.keychain -A -t priv -P ""
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
@@ -71,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           PROFILE=$(ls *.mobileprovision ios/*.mobileprovision ios/gearup/*.mobileprovision 2>/dev/null | head -n1 || true)
-          [ -z "$PROFILE" ] && { echo "ERROR: No .mobileprovision found"; exit 1; }
+          [ -z "$PROFILE" ] && { echo "ERROR: No .mobileprovision found in repo"; exit 1; }
           DIR="$HOME/Library/MobileDevice/Provisioning Profiles"; mkdir -p "$DIR"
           PLIST=$(/usr/bin/security cms -D -i "$PROFILE")
           NAME=$(echo "$PLIST" | /usr/bin/plutil -extract Name raw -)
@@ -81,7 +94,7 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "uuid=$UUID" >> "$GITHUB_OUTPUT"
 
-      - name: Force Xcode signing to match profile and bundle id
+      - name: Force Xcode project signing to match profile + bundle id
         run: |
           set -euo pipefail
           PB=ios/Runner.xcodeproj/project.pbxproj
@@ -92,22 +105,20 @@ jobs:
           echo "Before:"
           grep -nE 'PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|PROVISIONING_PROFILE' "$PB" | head || true
 
-          # Bundle id
-          sed -i '' -E "s/(PRODUCT_BUNDLE_IDENTIFIER = )[^;]+;/\1${BUNDLE};/g" "$PB"
-          # Team
-          sed -i '' -E "s/(DEVELOPMENT_TEAM = )[^;]+;/\1${TEAM};/g" "$PB"
+          # Bundle id for all configs
+          /usr/bin/sed -i '' -E "s/(PRODUCT_BUNDLE_IDENTIFIER = )[^;]+;/\1${BUNDLE};/g" "$PB"
+          # Team for all configs
+          /usr/bin/sed -i '' -E "s/(DEVELOPMENT_TEAM = )[^;]+;/\1${TEAM};/g" "$PB"
           # Manual signing
-          sed -i '' -E "s/(CODE_SIGN_STYLE = )Automatic;/\1Manual;/g" "$PB"
-          # Identity (Release iOS)
-          sed -i '' -E "s/(CODE_SIGN_IDENTITY\[sdk=iphoneos\*\] = )[^;]+;/\1Apple Distribution;/g" "$PB"
-          sed -i '' -E "s/(CODE_SIGN_IDENTITY = )iPhone Developer;/\1Apple Distribution;/g" "$PB"
-
-          # Provisioning profile specifier (add if missing)
+          /usr/bin/sed -i '' -E "s/(CODE_SIGN_STYLE = )Automatic;/\1Manual;/g" "$PB"
+          # Distribution identity everywhere
+          /usr/bin/sed -i '' -E "s/(CODE_SIGN_IDENTITY\[sdk=iphoneos\*\] = )[^;]+;/\1Apple Distribution;/g" "$PB"
+          /usr/bin/sed -i '' -E "s/(CODE_SIGN_IDENTITY = )iPhone Developer;/\1Apple Distribution;/g" "$PB"
+          # Profile specifier for all configs (add or replace)
           if ! grep -q "PROVISIONING_PROFILE_SPECIFIER" "$PB"; then
-            # add next to an existing build setting line (simple and effective)
-            sed -i '' -E "s/(PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE};)/\1\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = ${PROF};/g" "$PB"
+            /usr/bin/sed -i '' -E "s/(PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE};)/\1\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = ${PROF};/g" "$PB"
           else
-            sed -i '' -E "s/(PROVISIONING_PROFILE_SPECIFIER = )[^;]+;/\1${PROF};/g" "$PB"
+            /usr/bin/sed -i '' -E "s/(PROVISIONING_PROFILE_SPECIFIER = )[^;]+;/\1${PROF};/g" "$PB"
           fi
 
           echo "After:"
@@ -129,10 +140,45 @@ jobs:
           PLIST
           /usr/bin/plutil -p ExportOptions.plist
 
-      - name: Build IPA
-        run: flutter build ipa --release --export-options-plist ExportOptions.plist
+      # Build without codesign so Flutter doesn't block on "development certs"
+      - name: Flutter build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
 
-      - uses: actions/upload-artifact@v4
+      # Sign + archive with xcodebuild directly
+      - name: Archive with manual signing
+        env:
+          KEYCHAIN_PATH: ${{ runner.temp }}/keychain-path
+        run: |
+          set -euo pipefail
+          # discover keychain path used by security (db vs not)
+          if [ -f "$HOME/Library/Keychains/build.keychain-db" ]; then
+            export KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
+          else
+            export KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain"
+          fi
+
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/Runner.xcarchive \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="${TEAM_ID}" \
+            PRODUCT_BUNDLE_IDENTIFIER="${APP_BUNDLE_ID}" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ steps.prov.outputs.name }}" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            OTHER_CODE_SIGN_FLAGS="--keychain ${KEYCHAIN_PATH}" \
+            clean archive | xcpretty && exit ${PIPESTATUS[0]}
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/Runner.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/ios/ipa | xcpretty && exit ${PIPESTATUS[0]}
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
         with:
           name: Signed-IPA
           path: build/ios/ipa/*.ipa
