@@ -1,7 +1,6 @@
 name: iOS Signed Build & Upload
-
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   build-and-upload:
@@ -23,9 +22,8 @@ jobs:
           git lfs install
           git lfs pull
 
-      - name: Sanity
+      - name: Show Xcode
         run: |
-          set -e
           sw_vers
           xcodebuild -version
           test -f ios/Runner.xcodeproj/project.pbxproj
@@ -42,7 +40,8 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
-      - name: Locate p12 and verify password
+      # ---- keychain + cert import (works with your p12/password) ----
+      - name: Verify p12 password and prepare
         run: |
           set -euo pipefail
           CANDIDATES="dist.p12 ios/dist.p12 ios/gearup/dist.p12"
@@ -52,7 +51,6 @@ jobs:
           echo "Using $FOUND"
           [ "$FOUND" != "dist.p12" ] && cp -f "$FOUND" dist.p12 || echo "dist.p12 already in place"
           if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"; else PASSOPT="-passin pass:"; fi
-          # Confirm the password is valid
           openssl pkcs12 -in dist.p12 -noout -info $PASSOPT >/dev/null
 
       - name: Create signing keychain
@@ -60,31 +58,25 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          # Prefer our CI keychain
           security list-keychains -d user -s build.keychain login.keychain
 
-      - name: Extract cert+key and import (no PKCS#8 conversion)
+      - name: Import cert + private key
         run: |
           set -euo pipefail
           if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"; else PASSOPT="-passin pass:"; fi
-
-          # Extract leaf certificate and private key as PEM
           openssl pkcs12 -in dist.p12 $PASSOPT -clcerts -nokeys -out cert.cer
           openssl pkcs12 -in dist.p12 $PASSOPT -nocerts -nodes -out key.pem
-
-          # Import into CI keychain
           security import cert.cer -k build.keychain -A -t cert
-          # Import PEM key; no -f flag (auto-detects)
           security import key.pem  -k build.keychain -A -t priv -P ""
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
-      - name: Install provisioning profile from repo
+      - name: Install provisioning profile
         id: prov
         run: |
           set -euo pipefail
           PROFILE=$(ls *.mobileprovision ios/*.mobileprovision ios/gearup/*.mobileprovision 2>/dev/null | head -n1 || true)
-          [ -z "$PROFILE" ] && { echo "ERROR: No .mobileprovision found in repo"; exit 1; }
+          [ -z "$PROFILE" ] && { echo "ERROR: No .mobileprovision found"; exit 1; }
           DIR="$HOME/Library/MobileDevice/Provisioning Profiles"; mkdir -p "$DIR"
           PLIST=$(/usr/bin/security cms -D -i "$PROFILE")
           NAME=$(echo "$PLIST" | /usr/bin/plutil -extract Name raw -)
@@ -94,7 +86,31 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "uuid=$UUID" >> "$GITHUB_OUTPUT"
 
-      - name: Force Xcode project signing to match profile + bundle id
+      # ---- CRITICAL FIX: raise iOS deployment target to 15.0 ----
+      - name: set ios minimum to 15.0
+        run: |
+          set -euo pipefail
+          pod=ios/podfile
+          if [ -f "$pod" ]; then
+            if grep -qe "^[[:space:]]*platform :ios" "$pod"; then
+              /usr/bin/sed -i '' -e "s/^[[:space:]]*platform :ios, *'[^']*'/platform :ios, '15.0'/" "$pod"
+            else
+              # insert at top
+              /usr/bin/sed -i '' "1s;^;platform :ios, '15.0'\n;" "$pod"
+            fi
+            echo "podfile platform line:"
+            grep -n "platform :ios" "$pod" || true
+          else
+            echo "error: ios/podfile missing"; exit 1
+          fi
+
+          pb=ios/runner.xcodeproj/project.pbxproj
+          /usr/bin/sed -i '' -e "s/iphoneos_deployment_target = [0-9]+(\.[0-9]+)?;/iphoneos_deployment_target = 15.0;/g" "$pb"
+          echo "project deployment target lines:"
+          grep -n "IPHONEOS_DEPLOYMENT_TARGET" "$PB" | head || true
+
+      # keep bundle id, team, manual signing, profile
+      - name: Force signing settings
         run: |
           set -euo pipefail
           PB=ios/Runner.xcodeproj/project.pbxproj
@@ -102,27 +118,16 @@ jobs:
           TEAM="${TEAM_ID}"
           PROF="${{ steps.prov.outputs.name }}"
 
-          echo "Before:"
-          grep -nE 'PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|PROVISIONING_PROFILE' "$PB" | head || true
-
-          # Bundle id for all configs
           /usr/bin/sed -i '' -E "s/(PRODUCT_BUNDLE_IDENTIFIER = )[^;]+;/\1${BUNDLE};/g" "$PB"
-          # Team for all configs
           /usr/bin/sed -i '' -E "s/(DEVELOPMENT_TEAM = )[^;]+;/\1${TEAM};/g" "$PB"
-          # Manual signing
           /usr/bin/sed -i '' -E "s/(CODE_SIGN_STYLE = )Automatic;/\1Manual;/g" "$PB"
-          # Distribution identity everywhere
           /usr/bin/sed -i '' -E "s/(CODE_SIGN_IDENTITY\[sdk=iphoneos\*\] = )[^;]+;/\1Apple Distribution;/g" "$PB"
           /usr/bin/sed -i '' -E "s/(CODE_SIGN_IDENTITY = )iPhone Developer;/\1Apple Distribution;/g" "$PB"
-          # Profile specifier for all configs (add or replace)
           if ! grep -q "PROVISIONING_PROFILE_SPECIFIER" "$PB"; then
             /usr/bin/sed -i '' -E "s/(PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE};)/\1\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = ${PROF};/g" "$PB"
           else
             /usr/bin/sed -i '' -E "s/(PROVISIONING_PROFILE_SPECIFIER = )[^;]+;/\1${PROF};/g" "$PB"
           fi
-
-          echo "After:"
-          grep -nE 'PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|PROVISIONING_PROFILE' "$PB" | head || true
 
       - name: Create ExportOptions.plist
         run: |
@@ -140,17 +145,22 @@ jobs:
           PLIST
           /usr/bin/plutil -p ExportOptions.plist
 
-      # Build without codesign so Flutter doesn't block on "development certs"
+      - name: Ensure iOS min target 15.0 in Xcode project
+        run: |
+          set -euo pipefail
+          PB=ios/Runner.xcodeproj/project.pbxproj
+          /usr/bin/sed -i '' -E "s/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" "$PB"
+          grep -n "IPHONEOS_DEPLOYMENT_TARGET" "$PB" | head || true
+
+
       - name: Flutter build iOS (no codesign)
         run: flutter build ios --release --no-codesign
 
-      # Sign + archive with xcodebuild directly
       - name: Archive with manual signing
         env:
           KEYCHAIN_PATH: ${{ runner.temp }}/keychain-path
         run: |
           set -euo pipefail
-          # discover keychain path used by security (db vs not)
           if [ -f "$HOME/Library/Keychains/build.keychain-db" ]; then
             export KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
           else
