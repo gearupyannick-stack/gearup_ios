@@ -67,7 +67,7 @@ jobs:
 
           # Import into CI keychain
           security import cert.cer -k build.keychain -A -t cert
-          security import key.p8   -k build.keychain -A -t priv -f pkcs8
+          security import key.pem -k build.keychain -A -t priv -P ""
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
