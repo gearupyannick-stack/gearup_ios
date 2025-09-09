@@ -147,11 +147,11 @@ jobs:
           pod repo update
 
       - name: Flutter build iOS (no codesign, verbose, tee)
-        continue-on-error: true
         run: |
           set -euo pipefail
           flutter clean
-          (cd ios && pod install --verbose) | tee pod-verbose.log
+          flutter pub get                 # <-- regenerate ios/Flutter/Generated.xcconfig
+          (cd ios && pod install --repo-update --verbose) | tee pod-verbose.log
           flutter build ios --release --no-codesign -v | tee flutter-build.log
 
       - name: If build failed, print last logs and fail
