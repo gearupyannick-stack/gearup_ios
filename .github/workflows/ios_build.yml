@@ -146,13 +146,18 @@ jobs:
           rm -rf Pods Podfile.lock
           pod repo update
 
-      - name: Flutter build iOS (no codesign, verbose, tee)
+      - name: Build iOS (capture logs)
         run: |
           set -euo pipefail
-          flutter clean
-          rm -rf ios/Pods ios/Podfile.lock
-          cd ios && pod repo update && pod install && cd ..
-          flutter build ios --release --no-codesign
+          (cd ios && pod install --verbose) 2>&1 | tee pod-verbose.log
+          flutter build ios --release --no-codesign -v 2>&1 | tee flutter-build.log
+
+      - name: Show tails & verify
+        run: |
+          set -euo pipefail
+          [ -f pod-verbose.log ] && tail -n 300 pod-verbose.log || echo "pod-verbose.log missing"
+          [ -f flutter-build.log ] && tail -n 300 flutter-build.log || echo "flutter-build.log missing"
+          test -d build/ios/iphoneos/Runner.app || { echo "Runner.app not found"; exit 1; }
 
       - name: If build failed, print last logs and fail
         run: |
