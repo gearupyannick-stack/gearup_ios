@@ -65,10 +65,8 @@ jobs:
           openssl pkcs12 -in dist.p12 $PASSOPT -nocerts -nodes -out key.pem
           security import cert.cer -k build.keychain -A -t cert
           security import key.pem  -k build.keychain -A -t priv -P ""
-          security find-identity -v -p codesigning build.keychain
 
-      # ---- STEP 2: unlock & allow non-interactive codesign (partition list) ----
-      - name: Unlock keychain & allow codesign (non-interactive)
+      - name: Unlock keychain & allow codesign
         run: |
           set -euo pipefail
           if [ -f "$HOME/Library/Keychains/build.keychain-db" ]; then
@@ -150,27 +148,36 @@ jobs:
           PLIST
           /usr/bin/plutil -p ExportOptions.plist
 
-      - name: Enforce iOS 15 and clean Pods
+      - name: Clean Pods repo cache (fresh resolve)
         working-directory: ios
         run: |
           set -euo pipefail
           rm -rf Pods Podfile.lock
           pod repo update
 
-      - name: Build iOS
+      - name: Build iOS (no codesign)
         run: flutter build ios --release --no-codesign
 
       - name: Verify build output
         run: |
           set -euo pipefail
-          if [ -d build/ios/iphoneos/Runner.app ]; then
-            echo "Runner.app present ✅"
-          else
-            echo "Runner.app missing ❌"; exit 1
-          fi
+          test -d build/ios/iphoneos/Runner.app && echo "Runner.app present ✅" || { echo "Runner.app missing ❌"; exit 1; }
 
-      # ---- archive (with proper logging) ----
-      - name: Archive with manual signing
+      # -------- Archive UNSIGNED (avoid exit 65 during archive) --------
+      - name: Archive (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/Runner.xcarchive \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            clean archive | tee xcodebuild-archive.log | xcpretty
+          exit ${PIPESTATUS[0]}
+
+      # -------- Export & SIGN with your App Store profile --------
+      - name: Export IPA (sign during export)
         run: |
           set -euo pipefail
           if [ -f "$HOME/Library/Keychains/build.keychain-db" ]; then
@@ -182,27 +189,11 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
           set -o pipefail
-          xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -archivePath build/Runner.xcarchive \
-            -destination 'generic/platform=iOS' \
-            CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM="${TEAM_ID}" \
-            PRODUCT_BUNDLE_IDENTIFIER="${APP_BUNDLE_ID}" \
-            PROVISIONING_PROFILE_SPECIFIER="${{ steps.prov.outputs.name }}" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            OTHER_CODE_SIGN_FLAGS="--keychain ${KEYCHAIN_PATH}" \
-            clean archive | tee xcodebuild-archive.log | xcpretty
-          exit ${PIPESTATUS[0]}
-
-      - name: Export IPA
-        run: |
-          set -o pipefail
           xcodebuild -exportArchive \
             -archivePath build/Runner.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/ios/ipa | tee xcodebuild-export.log | xcpretty
+            -exportPath build/ios/ipa \
+            -allowProvisioningUpdates | tee xcodebuild-export.log | xcpretty
           exit ${PIPESTATUS[0]}
 
       - uses: actions/upload-artifact@v4
