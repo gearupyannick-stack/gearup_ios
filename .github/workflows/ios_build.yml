@@ -65,8 +65,20 @@ jobs:
           openssl pkcs12 -in dist.p12 $PASSOPT -nocerts -nodes -out key.pem
           security import cert.cer -k build.keychain -A -t cert
           security import key.pem  -k build.keychain -A -t priv -P ""
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
+
+      # ---- STEP 2: unlock & allow non-interactive codesign (partition list) ----
+      - name: Unlock keychain & allow codesign (non-interactive)
+        run: |
+          set -euo pipefail
+          if [ -f "$HOME/Library/Keychains/build.keychain-db" ]; then
+            KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
+          else
+            KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain"
+          fi
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
 
       - name: Install provisioning profile
         id: prov
@@ -138,7 +150,6 @@ jobs:
           PLIST
           /usr/bin/plutil -p ExportOptions.plist
 
-      # ---- clean pods, then build with verbose logs and tails ----
       - name: Enforce iOS 15 and clean Pods
         working-directory: ios
         run: |
@@ -158,27 +169,19 @@ jobs:
             echo "Runner.app missing ❌"; exit 1
           fi
 
-      - name: If build failed, print last logs and fail
-        run: |
-          set -euo pipefail
-          echo "::group::TAIL pod-verbose.log"
-          tail -n 300 pod-verbose.log || true
-          echo "::endgroup::"
-          echo "::group::TAIL flutter-build.log"
-          tail -n 300 flutter-build.log || true
-          echo "::endgroup::"
-          grep -q "Built .*Runner.app" flutter-build.log || exit 1
-
+      # ---- archive (with proper logging) ----
       - name: Archive with manual signing
-        env:
-          KEYCHAIN_PATH: ${{ runner.temp }}/keychain-path
         run: |
           set -euo pipefail
           if [ -f "$HOME/Library/Keychains/build.keychain-db" ]; then
-            export KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
+            KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
           else
-            export KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain"
+            KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain"
           fi
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          set -o pipefail
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
@@ -190,14 +193,17 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="${{ steps.prov.outputs.name }}" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             OTHER_CODE_SIGN_FLAGS="--keychain ${KEYCHAIN_PATH}" \
-            clean archive | xcpretty && exit ${PIPESTATUS[0]}
+            clean archive | tee xcodebuild-archive.log | xcpretty
+          exit ${PIPESTATUS[0]}
 
       - name: Export IPA
         run: |
+          set -o pipefail
           xcodebuild -exportArchive \
             -archivePath build/Runner.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/ios/ipa | xcpretty && exit ${PIPESTATUS[0]}
+            -exportPath build/ios/ipa | tee xcodebuild-export.log | xcpretty
+          exit ${PIPESTATUS[0]}
 
       - uses: actions/upload-artifact@v4
         with:
