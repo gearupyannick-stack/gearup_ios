@@ -78,10 +78,17 @@ cd gearup
 
 If you have any issues, questions, or feedback, please contact:
 
-**Email:** gearup.support@example.com  
-*(replace with your real contact email)*
+**Email:** gearup.yannick@gmail.com 
 
 Or open an issue in this repository.
+
+# Privacy Policy for GearUp
+
+GearUp does not collect personal information from users.  
+The app uses Google AdMob to serve ads, which may collect anonymous usage data.  
+Please refer to Google’s AdMob privacy policy for more details: https://policies.google.com/privacy  
+
+For support or questions: gearup.yannick@gmail.com
 
 
 ## About
@@ -92,9 +99,3 @@ Or open an issue in this repository.
 - **Category:** Education / Trivia  
 
 © 2025 Yannick Durindel. All rights reserved.
-
-# Install dependencies
-flutter pub get
-
-# Run the app
-flutter run
