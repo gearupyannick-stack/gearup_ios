@@ -6,24 +6,42 @@ jobs:
   build-and-upload:
     runs-on: macos-14
     env:
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
       APP_BUNDLE_ID: com.gearup.app
       TEAM_ID: ${{ secrets.TEAM_ID }}
       IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
-
     steps:
-      - name: Select Xcode 16.4
+      # --- Ensure Xcode 16.x with iOS 18 SDK ---
+      - name: Select Xcode 16
         run: |
-          sudo xcode-select -s "/Applications/Xcode_16.4.app/Contents/Developer"
-          echo "DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer" >> $GITHUB_ENV
-
-      - name: Verify Xcode & SDKs
-        run: |
+          set -euo pipefail
+          CANDS=(
+            "/Applications/Xcode_16.4.0.app/Contents/Developer"
+            "/Applications/Xcode_16.4.app/Contents/Developer"
+            "/Applications/Xcode_16.3.0.app/Contents/Developer"
+            "/Applications/Xcode_16.3.app/Contents/Developer"
+            "/Applications/Xcode_16.2.0.app/Contents/Developer"
+            "/Applications/Xcode_16.2.app/Contents/Developer"
+            "/Applications/Xcode_16.1.0.app/Contents/Developer"
+            "/Applications/Xcode_16.1.app/Contents/Developer"
+            "/Applications/Xcode_16.0.0.app/Contents/Developer"
+            "/Applications/Xcode_16.0.app/Contents/Developer"
+            "/Applications/Xcode_16.app/Contents/Developer"
+            "/Applications/Xcode.app/Contents/Developer"
+          )
+          FOUND=""
+          for d in "${CANDS[@]}"; do
+            if [ -d "$d" ]; then FOUND="$d"; break; fi
+          done
+          if [ -z "$FOUND" ]; then
+            echo "No Xcode 16 found"; ls -la /Applications; exit 1
+          fi
+          sudo xcode-select -s "$FOUND"
+          echo "DEVELOPER_DIR=$FOUND" >> $GITHUB_ENV
           xcodebuild -version
           xcode-select -p
-          xcodebuild -showsdks | grep -E "iOS 18|iphoneos18"
+          xcodebuild -showsdks | grep -E "iphoneos18|iOS 18"
 
       - uses: actions/checkout@v4
         with:
@@ -34,7 +52,7 @@ jobs:
           git lfs install
           git lfs pull
 
-      - name: Show Xcode
+      - name: Show system info
         run: |
           sw_vers
           xcodebuild -version
@@ -108,7 +126,6 @@ jobs:
 
       - name: Ensure iOS min target 15.0 in Podfile and project
         run: |
-          set -euo pipefail
           POD=ios/Podfile
           if grep -qE "^[[:space:]]*platform :ios" "$POD"; then
             /usr/bin/sed -i '' -E "s/^[[:space:]]*platform :ios, *'[^']*'/platform :ios, '15.0'/" "$POD"
@@ -120,7 +137,6 @@ jobs:
 
       - name: Force signing settings
         run: |
-          set -euo pipefail
           PB=ios/Runner.xcodeproj/project.pbxproj
           BUNDLE="${APP_BUNDLE_ID}"
           TEAM="${TEAM_ID}"
@@ -177,7 +193,6 @@ jobs:
 
       - name: Export IPA (signed)
         run: |
-          set -euo pipefail
           KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
           [ -f "$KEYCHAIN_PATH" ] || KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -196,13 +211,13 @@ jobs:
           path: build/ios/ipa/*.ipa
           if-no-files-found: error
 
-      # -------- Upload to App Store Connect via API key --------
+      # --- Upload to App Store Connect ---
       - name: Prepare App Store API key
         run: |
           mkdir -p ~/.private_keys
           echo "${APP_STORE_CONNECT_API_KEY}" > ~/.private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
         env:
-          APP_STORE_CONNECT_API_KEY:   ${{ secrets.APP_STORE_CONNECT_API_KEY }}   # .p8 content
+          APP_STORE_CONNECT_API_KEY:   ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
 
       - name: Find IPA
