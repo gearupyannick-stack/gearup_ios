@@ -4,19 +4,26 @@ on:
 
 jobs:
   build-and-upload:
-    runs-on: macos-15
+    runs-on: macos-14
     env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
       APP_BUNDLE_ID: com.gearup.app
       TEAM_ID: ${{ secrets.TEAM_ID }}
       IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
-    steps:
-      - name: Select Xcode 16
-        run: sudo xcode-select -s "/Applications/Xcode_16.app"
 
-      - name: Show available Xcodes
-        run: ls /Applications | grep Xcode
+    steps:
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s "/Applications/Xcode_16.4.app/Contents/Developer"
+          echo "DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer" >> $GITHUB_ENV
+
+      - name: Verify Xcode & SDKs
+        run: |
+          xcodebuild -version
+          xcode-select -p
+          xcodebuild -showsdks | grep -E "iOS 18|iphoneos18"
 
       - uses: actions/checkout@v4
         with:
