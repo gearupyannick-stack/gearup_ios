@@ -4,7 +4,7 @@ on:
 
 jobs:
   build-and-upload:
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       APP_BUNDLE_ID: com.gearup.app
       TEAM_ID: ${{ secrets.TEAM_ID }}
@@ -12,6 +12,12 @@ jobs:
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
     steps:
+      - name: Select Xcode 16
+        run: sudo xcode-select -s "/Applications/Xcode_16.app"
+
+      - name: Show available Xcodes
+        run: ls /Applications | grep Xcode
+
       - uses: actions/checkout@v4
         with:
           lfs: true
