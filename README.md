@@ -55,7 +55,7 @@ lib/
  │    ├── image_service_cache.dart
  │    └── lives_storage.dart
 
-
+```
 ---
 
 ## Getting Started
@@ -71,6 +71,27 @@ lib/
 # Clone the repository
 git clone https://github.com/gearupyannick-stack/gearup.git
 cd gearup
+```
+
+
+## Support
+
+If you have any issues, questions, or feedback, please contact:
+
+**Email:** gearup.support@example.com  
+*(replace with your real contact email)*
+
+Or open an issue in this repository.
+
+
+## About
+
+- **App Name:** GearUp  
+- **Developer:** Yannick Durindel  
+- **Platform:** iOS & Android  
+- **Category:** Education / Trivia  
+
+© 2025 Yannick Durindel. All rights reserved.
 
 # Install dependencies
 flutter pub get
