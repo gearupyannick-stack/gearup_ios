@@ -39,6 +39,16 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Debug P12 from secrets
+        env:
+          IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$IOS_CERT_P12_BASE64" | base64 --decode > dist.p12
+          echo "runner P12 sha256 = $(shasum -a256 dist.p12 | cut -d' ' -f1)"
+          openssl pkcs12 -in dist.p12 -nokeys -clcerts -passin env:IOS_CERT_P12_PASSWORD -info >/dev/null
+
       - name: Flutter pub get
         run: flutter pub get
 
