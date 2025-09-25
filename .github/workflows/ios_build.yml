@@ -29,7 +29,6 @@ jobs:
           lfs: true
 
       - name: Assert P12 + password are correct
-        id: p12check
         env:
           IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
           IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
@@ -41,7 +40,6 @@ jobs:
           echo "P12 sha256: $HASH"
           test -n "${IOS_CERT_P12_SHA256:-}" || { echo "Missing IOS_CERT_P12_SHA256 secret"; exit 2; }
           [ "$HASH" = "$IOS_CERT_P12_SHA256" ] || { echo "P12 hash mismatch vs secret"; exit 3; }
-          # Password must open the P12
           openssl pkcs12 -in dist.p12 -nokeys -clcerts -passin env:IOS_CERT_P12_PASSWORD -info >/dev/null
 
       - name: Ensure LFS
@@ -71,8 +69,12 @@ jobs:
           security cms -D -i AppStore.mobileprovision > profile.plist
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
           NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
+          BID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' profile.plist)
           echo "uuid=${UUID}" >> "$GITHUB_OUTPUT"
           echo "profilename=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "app_identifier=${BID}" >> "$GITHUB_OUTPUT"
+          echo "Profile Name: $NAME"
+          echo "App Identifier: $BID"
 
       - name: Create keychain
         env:
@@ -84,27 +86,16 @@ jobs:
           security list-keychains -d user -s build.keychain login.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
 
-      - name: Import certificate and key (split method)
+      - name: Import certificate and key
         env:
           IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
         run: |
           set -euo pipefail
-          echo "Extracting from P12..."
-          # Split certificate and key
-          openssl pkcs12 -in dist.p12 -clcerts -nokeys \
-            -passin env:IOS_CERT_P12_PASSWORD -out cert.pem
-          openssl pkcs12 -in dist.p12 -nocerts -nodes \
-            -passin env:IOS_CERT_P12_PASSWORD -out key.pem
-
-          echo "Importing cert..."
+          openssl pkcs12 -in dist.p12 -clcerts -nokeys -passin env:IOS_CERT_P12_PASSWORD -out cert.pem
+          openssl pkcs12 -in dist.p12 -nocerts -nodes -passin env:IOS_CERT_P12_PASSWORD -out key.pem
           security import cert.pem -k build.keychain -A -T /usr/bin/codesign -T /usr/bin/security
-
-          echo "Importing key..."
-          security import key.pem -k build.keychain -A -T /usr/bin/codesign -T /usr/bin/security
-
-          echo "Listing identities..."
+          security import key.pem  -k build.keychain -A -T /usr/bin/codesign -T /usr/bin/security
           security find-identity -v -p codesigning build.keychain
-
 
       - name: Install provisioning profile
         run: |
@@ -140,35 +131,12 @@ jobs:
             clean archive | xcpretty
           exit ${PIPESTATUS[0]}
 
-      - name: Create ExportOptions.plist
-        env:
-          TEAM_ID: ${{ secrets.TEAM_ID }}
-        run: |
-          cat > exportOptions.plist <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-            <key>method</key><string>app-store</string>
-            <key>teamID</key><string>${TEAM_ID}</string>
-            <key>destination</key><string>export</string>
-            <key>uploadSymbols</key><true/>
-            <key>signingStyle</key><string>manual</string>
-            <key>signingCertificate</key><string>Apple Distribution</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.gearup.app</key><string>GearupAppStore</string>
-            </dict>
-          </dict></plist>
-          PLIST
-
       - name: Export IPA (signed)
         env:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-          TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           set -eo pipefail
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          # Make the cert + key usable for codesign and Xcode
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
 
           echo "Available identities:"
@@ -177,7 +145,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath build/Runner.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist exportOptions.plist | xcpretty
+            -exportOptionsPlist ios/ExportOptions.plist | xcpretty
           exit ${PIPESTATUS[0]}
           ls -R build/export
 
