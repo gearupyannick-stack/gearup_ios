@@ -84,18 +84,27 @@ jobs:
           security list-keychains -d user -s build.keychain login.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
 
-      - name: Import certificate (with fallback)
+      - name: Import certificate and key (split method)
         env:
           IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
         run: |
           set -euo pipefail
-          echo "Trying security import..."
-          if ! security import dist.p12 -k build.keychain -P "$IOS_CERT_P12_PASSWORD" -A; then
-            echo "security import failed, retrying with openssl | security import..."
-            openssl pkcs12 -in dist.p12 -nodes -passin env:IOS_CERT_P12_PASSWORD | \
-              security import /dev/stdin -k build.keychain -A -T /usr/bin/codesign -T /usr/bin/security
-          fi
+          echo "Extracting from P12..."
+          # Split certificate and key
+          openssl pkcs12 -in dist.p12 -clcerts -nokeys \
+            -passin env:IOS_CERT_P12_PASSWORD -out cert.pem
+          openssl pkcs12 -in dist.p12 -nocerts -nodes \
+            -passin env:IOS_CERT_P12_PASSWORD -out key.pem
+
+          echo "Importing cert..."
+          security import cert.pem -k build.keychain -A -T /usr/bin/codesign -T /usr/bin/security
+
+          echo "Importing key..."
+          security import key.pem -k build.keychain -A -T /usr/bin/codesign -T /usr/bin/security
+
+          echo "Listing identities..."
           security find-identity -v -p codesigning build.keychain
+
 
       - name: Install provisioning profile
         run: |
