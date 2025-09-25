@@ -12,6 +12,14 @@
 .swiftpm/
 migrate_working_dir/
 
+# iOS signing
+*.p12
+*.mobileprovision
+*.p8
+*.b64
+profile.plist
+
+
 # IntelliJ related
 *.iml
 *.ipr

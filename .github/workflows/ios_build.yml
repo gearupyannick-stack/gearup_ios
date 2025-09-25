@@ -9,15 +9,22 @@ jobs:
     env:
       APP_BUNDLE_ID: com.gearup.app
       TEAM_ID: ${{ secrets.TEAM_ID }}
+<<<<<<< HEAD
       IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+=======
+>>>>>>> restore-759f570
       ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
       ASC_KEY_CONTENTS: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENTS }}
 
     steps:
+<<<<<<< HEAD
       # ---- Xcode toolchain ----
       - name: Select latest Xcode 16
+=======
+      - name: Select Xcode
+>>>>>>> restore-759f570
         run: |
           set -e
           CANDIDATES=(/Applications/Xcode_16*.app /Applications/Xcode.app)
@@ -26,15 +33,17 @@ jobs:
           done
           xcodebuild -version
 
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           lfs: true
 
-      - name: Ensure LFS files
+      - name: Ensure LFS
         run: |
           git lfs install
           git lfs pull
 
+<<<<<<< HEAD
       - name: Sanity checks
         run: |
           set -e
@@ -45,6 +54,10 @@ jobs:
           fi
 
       - uses: subosito/flutter-action@v2
+=======
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+>>>>>>> restore-759f570
         with:
           channel: stable
           cache: true
@@ -52,6 +65,7 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+<<<<<<< HEAD
       # ---- Certificates & provisioning profile from repo files ----
       - name: Locate signing assets
         id: signfiles
@@ -69,12 +83,37 @@ jobs:
           echo "profilename=${PROFILE_NAME}" >> $GITHUB_OUTPUT
 
       - name: Create build keychain
+=======
+      # ---------- SIGNING FROM SECRETS ----------
+      - name: Materialize signing assets
+        id: signfiles
+        env:
+          IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          MOBILEPROVISION_BASE64: ${{ secrets.MOBILEPROVISION_BASE64 }}
+        run: |
+          set -euo pipefail
+          [ -n "${IOS_CERT_P12_BASE64:-}" ] || { echo "Missing IOS_CERT_P12_BASE64"; exit 2; }
+          [ -n "${MOBILEPROVISION_BASE64:-}" ] || { echo "Missing MOBILEPROVISION_BASE64"; exit 2; }
+          echo "$IOS_CERT_P12_BASE64" | base64 --decode > dist.p12
+          echo "$MOBILEPROVISION_BASE64" | base64 --decode > AppStore.mobileprovision
+          security cms -D -i AppStore.mobileprovision > profile.plist
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
+          echo "uuid=${UUID}" >> "$GITHUB_OUTPUT"
+          echo "profilename=${NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Create keychain
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+>>>>>>> restore-759f570
         run: |
           set -e
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
           security list-keychains -d user -s build.keychain login.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
 
+<<<<<<< HEAD
       - name: Import certificate
         run: |
           set -euo pipefail
@@ -82,16 +121,39 @@ jobs:
           if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then PASSOPT="-P ${IOS_CERT_P12_PASSWORD}"; else PASSOPT=""; fi
           security import "$P12" -k build.keychain -A $PASSOPT
           security find-identity -v -p codesigning build.keychain || true
+=======
+      - name: Validate P12 password
+        env:
+          IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          openssl pkcs12 -in dist.p12 -nokeys -clcerts -passin env:IOS_CERT_P12_PASSWORD >/dev/null
+
+      - name: Import certificate
+        env:
+          IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          security import dist.p12 -k build.keychain -P "$IOS_CERT_P12_PASSWORD" -A
+          security find-identity -v -p codesigning build.keychain
+>>>>>>> restore-759f570
 
       - name: Install provisioning profile
         run: |
           set -e
+<<<<<<< HEAD
           MP="${{ steps.signfiles.outputs.mp }}"
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           UUID="${{ steps.signfiles.outputs.uuid }}"
           cp "$MP" "$HOME/Library/MobileDevice/Provisioning Profiles/${UUID}.mobileprovision"
           ls -l "$HOME/Library/MobileDevice/Provisioning Profiles/"
 
+=======
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp AppStore.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/${{ steps.signfiles.outputs.uuid }}.mobileprovision"
+
+      # ---------- BUILD ----------
+>>>>>>> restore-759f570
       - name: Prepare CocoaPods
         working-directory: ios
         run: |
@@ -100,11 +162,18 @@ jobs:
           pod repo update
           pod install
 
+<<<<<<< HEAD
       # ---- Build app (Flutter) and Xcode archive ----
       - name: Flutter build ios (no codesign)
         run: flutter build ios --release --no-codesign
 
       - name: Xcode archive (unsigned)
+=======
+      - name: Flutter build ios
+        run: flutter build ios --release --no-codesign
+
+      - name: Xcode archive
+>>>>>>> restore-759f570
         run: |
           set -eo pipefail
           xcodebuild -workspace ios/Runner.xcworkspace \
@@ -116,6 +185,7 @@ jobs:
             clean archive | xcpretty
           exit ${PIPESTATUS[0]}
 
+<<<<<<< HEAD
       - name: Create export options
         run: |
           set -e
@@ -140,6 +210,30 @@ jobs:
 
       - name: Export IPA (signed)
         run: |
+=======
+      - name: Create ExportOptions.plist
+        run: |
+          cat > exportOptions.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>uploadSymbols</key><true/>
+            <key>compileBitcode</key><false/>
+            <key>destination</key><string>export</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict>
+              <key>com.gearup.app</key><string>${{ steps.signfiles.outputs.profilename }}</string>
+            </dict>
+          </dict></plist>
+          PLIST
+
+      - name: Export IPA (signed)
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+>>>>>>> restore-759f570
           set -eo pipefail
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           xcodebuild -exportArchive \
@@ -152,11 +246,16 @@ jobs:
       - name: Locate artifacts
         id: locate
         run: |
+<<<<<<< HEAD
           set -e
           IPA=$(ls -1 build/export/*.ipa | head -n1)
           DSYM_DIR="build/Runner.xcarchive/dSYMs"
           echo "ipa=$IPA"        >> $GITHUB_OUTPUT
           echo "dsymdir=$DSYM_DIR" >> $GITHUB_OUTPUT
+=======
+          echo "ipa=$(ls -1 build/export/*.ipa | head -n1)" >> "$GITHUB_OUTPUT"
+          echo "dsymdir=build/Runner.xcarchive/dSYMs" >> "$GITHUB_OUTPUT"
+>>>>>>> restore-759f570
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -166,19 +265,34 @@ jobs:
 
       - name: Zip dSYMs
         run: |
+<<<<<<< HEAD
           set -e
           cd "${{ steps.locate.outputs.dsymdir }}"
           zip -r ../../dSYMs.zip . -q
           echo "DSYM_ZIP=$PWD/../../dSYMs.zip"
+=======
+          cd build/Runner.xcarchive/dSYMs
+          zip -r ../../dSYMs.zip . -q
+>>>>>>> restore-759f570
 
       - name: Upload dSYMs artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-dsyms
           path: build/dSYMs.zip
+<<<<<<< HEAD
 
       # ---- Upload to App Store Connect ----
       - name: Write ASC API key to file
+=======
+
+      - name: Write ASC API key
+        run: |
+          echo "$ASC_KEY_CONTENTS" > AuthKey_${ASC_KEY_ID}.p8
+          chmod 600 AuthKey_${ASC_KEY_ID}.p8
+
+      - name: Upload to App Store Connect
+>>>>>>> restore-759f570
         run: |
           set -e
           echo "$ASC_KEY_CONTENTS" > AuthKey_${ASC_KEY_ID}.p8
@@ -193,6 +307,7 @@ jobs:
             -t ios \
             --apiKey "$ASC_KEY_ID" \
             --apiIssuer "$ASC_ISSUER_ID"
+<<<<<<< HEAD
 
       # ---- Optional: Firebase Crashlytics symbol upload if Firebase is present ----
       - name: Upload symbols to Crashlytics
@@ -234,3 +349,5 @@ jobs:
         with:
           name: symbolicated-crashes
           path: build/symbolicated/*.symbolicated.txt
+=======
+>>>>>>> restore-759f570
