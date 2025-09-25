@@ -92,7 +92,7 @@ jobs:
           IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
         run: |
           set -euo pipefail
-          security import dist.p12 -k build.keychain -P "$IOS_CERT_P12_PASSWORD" -A
+          security import dist.p12 -k build.keychain -P "$(printf %s "$IOS_CERT_P12_PASSWORD")" -A
           security find-identity -v -p codesigning build.keychain
 
       - name: Install provisioning profile
