@@ -138,7 +138,8 @@ jobs:
         run: |
           cat > exportOptions.plist <<'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+              "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
             <key>method</key><string>app-store</string>
             <key>teamID</key><string>${TEAM_ID}</string>
@@ -155,9 +156,16 @@ jobs:
       - name: Export IPA (signed)
         env:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           set -eo pipefail
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          # Make the cert + key usable for codesign and Xcode
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          echo "Available identities:"
+          security find-identity -v -p codesigning build.keychain
+
           xcodebuild -exportArchive \
             -archivePath build/Runner.xcarchive \
             -exportPath build/export \
