@@ -1,4 +1,5 @@
-name: iOS Signed Build & Upload
+name: iOS Signed Build, Upload & Symbolication
+
 on:
   workflow_dispatch: {}
 
@@ -8,231 +9,175 @@ jobs:
     env:
       APP_BUNDLE_ID: com.gearup.app
       TEAM_ID: ${{ secrets.TEAM_ID }}
-      IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
-      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      ASC_KEY_CONTENTS: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENTS }}
 
     steps:
-      # --- Ensure Xcode 16.x with iOS 18 SDK ---
-      - name: Select Xcode 16
+      - name: Select Xcode
         run: |
-          set -euo pipefail
-          CANDS=(
-            "/Applications/Xcode_16.4.0.app/Contents/Developer"
-            "/Applications/Xcode_16.4.app/Contents/Developer"
-            "/Applications/Xcode_16.3.0.app/Contents/Developer"
-            "/Applications/Xcode_16.3.app/Contents/Developer"
-            "/Applications/Xcode_16.2.0.app/Contents/Developer"
-            "/Applications/Xcode_16.2.app/Contents/Developer"
-            "/Applications/Xcode_16.1.0.app/Contents/Developer"
-            "/Applications/Xcode_16.1.app/Contents/Developer"
-            "/Applications/Xcode_16.0.0.app/Contents/Developer"
-            "/Applications/Xcode_16.0.app/Contents/Developer"
-            "/Applications/Xcode_16.app/Contents/Developer"
-            "/Applications/Xcode.app/Contents/Developer"
-          )
-          FOUND=""
-          for d in "${CANDS[@]}"; do
-            if [ -d "$d" ]; then FOUND="$d"; break; fi
+          set -e
+          CANDIDATES=(/Applications/Xcode_16*.app /Applications/Xcode.app)
+          for x in "${CANDIDATES[@]}"; do
+            if [ -d "$x" ]; then sudo xcode-select -s "$x/Contents/Developer"; break; fi
           done
-          if [ -z "$FOUND" ]; then
-            echo "No Xcode 16 found"; ls -la /Applications; exit 1
-          fi
-          sudo xcode-select -s "$FOUND"
-          echo "DEVELOPER_DIR=$FOUND" >> $GITHUB_ENV
           xcodebuild -version
-          xcode-select -p
-          xcodebuild -showsdks | grep -E "iphoneos18|iOS 18"
 
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           lfs: true
 
-      - name: Ensure LFS files
+      - name: Ensure LFS
         run: |
           git lfs install
           git lfs pull
 
-      - name: Show system info
-        run: |
-          sw_vers
-          xcodebuild -version
-          test -f ios/Runner.xcodeproj/project.pbxproj
-          if head -n1 ios/Runner.xcodeproj/project.pbxproj | grep -q 'version https://git-lfs.github.com/spec'; then
-            echo "ERROR: ios/Runner.xcodeproj/project.pbxproj is a Git LFS pointer"; exit 1
-          fi
-
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - run: flutter pub get
+      - name: Flutter pub get
+        run: flutter pub get
 
-      # ---- cert/key import ----
-      - name: Verify p12 password and prepare
+      # ---------- SIGNING FROM SECRETS ----------
+      - name: Materialize signing assets
+        id: signfiles
+        env:
+          IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          MOBILEPROVISION_BASE64: ${{ secrets.MOBILEPROVISION_BASE64 }}
         run: |
           set -euo pipefail
-          CANDIDATES="dist.p12 ios/dist.p12 ios/gearup/dist.p12"
-          FOUND=""
-          for p in $CANDIDATES; do [ -s "$p" ] && { FOUND="$p"; break; }; done
-          [ -z "$FOUND" ] && { echo "ERROR: No dist.p12 found"; exit 1; }
-          echo "Using $FOUND"
-          [ "$FOUND" != "dist.p12" ] && cp -f "$FOUND" dist.p12 || true
-          if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"; else PASSOPT="-passin pass:"; fi
-          openssl pkcs12 -in dist.p12 -noout -info $PASSOPT >/dev/null
+          [ -n "${IOS_CERT_P12_BASE64:-}" ] || { echo "Missing IOS_CERT_P12_BASE64"; exit 2; }
+          [ -n "${MOBILEPROVISION_BASE64:-}" ] || { echo "Missing MOBILEPROVISION_BASE64"; exit 2; }
+          echo "$IOS_CERT_P12_BASE64" | base64 --decode > dist.p12
+          echo "$MOBILEPROVISION_BASE64" | base64 --decode > AppStore.mobileprovision
+          security cms -D -i AppStore.mobileprovision > profile.plist
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
+          echo "uuid=${UUID}" >> "$GITHUB_OUTPUT"
+          echo "profilename=${NAME}" >> "$GITHUB_OUTPUT"
 
-      - name: Create signing keychain
+      - name: Create keychain
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
+          set -e
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security list-keychains -d user -s build.keychain login.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
 
-      - name: Import cert + private key
+      - name: Validate P12 password
+        env:
+          IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
         run: |
           set -euo pipefail
-          if [ -n "${IOS_CERT_P12_PASSWORD:-}" ]; then PASSOPT="-passin env:IOS_CERT_P12_PASSWORD"; else PASSOPT="-passin pass:"; fi
-          openssl pkcs12 -in dist.p12 $PASSOPT -clcerts -nokeys -out cert.cer
-          openssl pkcs12 -in dist.p12 $PASSOPT -nocerts -nodes -out key.pem
-          security import cert.cer -k build.keychain -A -t cert
-          security import key.pem  -k build.keychain -A -t priv -P ""
+          openssl pkcs12 -in dist.p12 -nokeys -clcerts -passin env:IOS_CERT_P12_PASSWORD >/dev/null
 
-      - name: Unlock keychain & allow codesign
+      - name: Import certificate
+        env:
+          IOS_CERT_P12_PASSWORD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
         run: |
           set -euo pipefail
-          if [ -f "$HOME/Library/Keychains/build.keychain-db" ]; then
-            KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
-          else
-            KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain"
-          fi
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
+          security import dist.p12 -k build.keychain -P "$IOS_CERT_P12_PASSWORD" -A
+          security find-identity -v -p codesigning build.keychain
 
       - name: Install provisioning profile
-        id: prov
         run: |
-          set -euo pipefail
-          PROFILE=$(ls *.mobileprovision ios/*.mobileprovision ios/gearup/*.mobileprovision 2>/dev/null | head -n1 || true)
-          [ -z "$PROFILE" ] && { echo "ERROR: No .mobileprovision found"; exit 1; }
-          DIR="$HOME/Library/MobileDevice/Provisioning Profiles"; mkdir -p "$DIR"
-          PLIST=$(/usr/bin/security cms -D -i "$PROFILE")
-          NAME=$(echo "$PLIST" | /usr/bin/plutil -extract Name raw -)
-          UUID=$(echo "$PLIST" | /usr/bin/plutil -extract UUID raw -)
-          echo "Using profile: $NAME ($UUID)"
-          cp -f "$PROFILE" "$DIR/$UUID.mobileprovision"
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
-          echo "uuid=$UUID" >> "$GITHUB_OUTPUT"
+          set -e
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp AppStore.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/${{ steps.signfiles.outputs.uuid }}.mobileprovision"
 
-      - name: Ensure iOS min target 15.0 in Podfile and project
-        run: |
-          POD=ios/Podfile
-          if grep -qE "^[[:space:]]*platform :ios" "$POD"; then
-            /usr/bin/sed -i '' -E "s/^[[:space:]]*platform :ios, *'[^']*'/platform :ios, '15.0'/" "$POD"
-          else
-            /usr/bin/sed -i '' "1s;^;platform :ios, '15.0'\n;" "$POD"
-          fi
-          PB=ios/Runner.xcodeproj/project.pbxproj
-          /usr/bin/sed -i '' -E "s/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" "$PB"
-
-      - name: Force signing settings
-        run: |
-          PB=ios/Runner.xcodeproj/project.pbxproj
-          BUNDLE="${APP_BUNDLE_ID}"
-          TEAM="${TEAM_ID}"
-          PROF="${{ steps.prov.outputs.name }}"
-          /usr/bin/sed -i '' -E "s/(PRODUCT_BUNDLE_IDENTIFIER = )[^;]+;/\1${BUNDLE};/g" "$PB"
-          /usr/bin/sed -i '' -E "s/(DEVELOPMENT_TEAM = )[^;]+;/\1${TEAM};/g" "$PB"
-          /usr/bin/sed -i '' -E "s/(CODE_SIGN_STYLE = )Automatic;/\1Manual;/g" "$PB"
-          /usr/bin/sed -i '' -E "s/(CODE_SIGN_IDENTITY\[sdk=iphoneos\*\] = )[^;]+;/\1Apple Distribution;/g" "$PB"
-          /usr/bin/sed -i '' -E "s/(CODE_SIGN_IDENTITY = )iPhone Developer;/\1Apple Distribution;/g" "$PB"
-          if ! grep -q "PROVISIONING_PROFILE_SPECIFIER" "$PB"; then
-            /usr/bin/sed -i '' -E "s/(PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE};)/\1\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = ${PROF};/g" "$PB"
-          else
-            /usr/bin/sed -i '' -E "s/(PROVISIONING_PROFILE_SPECIFIER = )[^;]+;/\1${PROF};/g" "$PB"
-          fi
-
-      - name: Create ExportOptions.plist
-        run: |
-          cat > ExportOptions.plist <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>
-            <key>method</key><string>app-store</string>
-            <key>signingStyle</key><string>manual</string>
-            <key>provisioningProfiles</key><dict>
-              <key>${APP_BUNDLE_ID}</key><string>${{ steps.prov.outputs.name }}</string>
-            </dict>
-            <key>teamID</key><string>${TEAM_ID}</string>
-            <key>compileBitcode</key><false/>
-            <key>uploadBitcode</key><false/>
-          </dict></plist>
-          PLIST
-          /usr/bin/plutil -p ExportOptions.plist
-
-      - name: Clean Pods repo cache
+      # ---------- BUILD ----------
+      - name: Prepare CocoaPods
         working-directory: ios
         run: |
-          rm -rf Pods Podfile.lock
+          set -e
+          gem install cocoapods --no-document || true
           pod repo update
+          pod install
 
-      - name: Build iOS (no codesign)
+      - name: Flutter build ios
         run: flutter build ios --release --no-codesign
 
-      - name: Verify build output
-        run: test -d build/ios/iphoneos/Runner.app
-
-      - name: Archive (unsigned)
+      - name: Xcode archive
         run: |
-          set -o pipefail
+          set -eo pipefail
           xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner -configuration Release \
+            -scheme Runner \
+            -configuration Release \
             -archivePath build/Runner.xcarchive \
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
             clean archive | xcpretty
           exit ${PIPESTATUS[0]}
 
-      - name: Export IPA (signed)
+      - name: Create ExportOptions.plist
         run: |
-          KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
-          [ -f "$KEYCHAIN_PATH" ] || KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          set -o pipefail
+          cat > exportOptions.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>uploadSymbols</key><true/>
+            <key>compileBitcode</key><false/>
+            <key>destination</key><string>export</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict>
+              <key>com.gearup.app</key><string>${{ steps.signfiles.outputs.profilename }}</string>
+            </dict>
+          </dict></plist>
+          PLIST
+
+      - name: Export IPA (signed)
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -eo pipefail
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           xcodebuild -exportArchive \
             -archivePath build/Runner.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/ios/ipa \
-            -allowProvisioningUpdates | xcpretty
+            -exportPath build/export \
+            -exportOptionsPlist exportOptions.plist | xcpretty
           exit ${PIPESTATUS[0]}
+          ls -R build/export
 
-      - uses: actions/upload-artifact@v4
+      - name: Locate artifacts
+        id: locate
+        run: |
+          echo "ipa=$(ls -1 build/export/*.ipa | head -n1)" >> "$GITHUB_OUTPUT"
+          echo "dsymdir=build/Runner.xcarchive/dSYMs" >> "$GITHUB_OUTPUT"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: Signed-IPA
-          path: build/ios/ipa/*.ipa
-          if-no-files-found: error
+          name: ios-ipa
+          path: ${{ steps.locate.outputs.ipa }}
 
-      # --- Upload to App Store Connect ---
-      - name: Prepare App Store API key
+      - name: Zip dSYMs
         run: |
-          mkdir -p ~/.private_keys
-          echo "${APP_STORE_CONNECT_API_KEY}" > ~/.private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
-        env:
-          APP_STORE_CONNECT_API_KEY:   ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          cd build/Runner.xcarchive/dSYMs
+          zip -r ../../dSYMs.zip . -q
 
-      - name: Find IPA
-        id: findipa
+      - name: Upload dSYMs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-dsyms
+          path: build/dSYMs.zip
+
+      - name: Write ASC API key
         run: |
-          IPA=$(ls -1 build/ios/ipa/*.ipa | head -n1)
-          echo "ipa=$IPA" >> $GITHUB_OUTPUT
+          echo "$ASC_KEY_CONTENTS" > AuthKey_${ASC_KEY_ID}.p8
+          chmod 600 AuthKey_${ASC_KEY_ID}.p8
 
-      - name: Upload IPA to App Store Connect (altool)
-        env:
-          APP_STORE_CONNECT_API_KEY_ID:     ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID:  ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      - name: Upload to App Store Connect
         run: |
           xcrun altool --upload-app \
-            -f "${{ steps.findipa.outputs.ipa }}" \
+            -f "${{ steps.locate.outputs.ipa }}" \
             -t ios \
-            --apiKey "${APP_STORE_CONNECT_API_KEY_ID}" \
-            --apiIssuer "${APP_STORE_CONNECT_API_ISSUER_ID}"
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
