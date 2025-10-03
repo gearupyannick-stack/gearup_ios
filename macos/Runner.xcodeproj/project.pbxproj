@@ -232,7 +232,7 @@
 				ORGANIZATIONNAME = "";
 				TargetAttributes = {
 					331C80D4294CF70F00263BE5 = {
-						CreatedOnToolsVersion = 14.0;
+						CreatedOnToolsVersion = 15.0;
 						TestTargetID = 33CC10EC2044A3C60003C045;
 					};
 					33CC10EC2044A3C60003C045 = {
