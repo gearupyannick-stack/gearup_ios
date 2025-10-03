@@ -42,6 +42,13 @@ jobs:
           [ "$HASH" = "$IOS_CERT_P12_SHA256" ] || { echo "P12 hash mismatch vs secret"; exit 3; }
           openssl pkcs12 -in dist.p12 -nokeys -clcerts -passin env:IOS_CERT_P12_PASSWORD -info >/dev/null
 
+      - name: Decode provisioning profile
+        run: |
+          echo "$IOS_PROVISION_BASE64" | base64 --decode > AppStore.mobileprovision
+          
+      - run: ls -lh AppStore.mobileprovision && file AppStore.mobileprovision
+
+
       - name: Ensure LFS
         run: |
           git lfs install
