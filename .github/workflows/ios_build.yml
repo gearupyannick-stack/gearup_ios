@@ -44,9 +44,9 @@ jobs:
 
       - name: Decode provisioning profile
         run: |
-          echo "$IOS_PROVISION_BASE64" | base64 --decode > AppStore.mobileprovision
-          
-      - run: ls -lh AppStore.mobileprovision && file AppStore.mobileprovision
+          echo "$IOS_PROVISION_BASE64" | base64 --decode > GearupAppStore.mobileprovision
+
+      - run: ls -lh GearupAppStore.mobileprovision && file GearupAppStore.mobileprovision
 
 
       - name: Ensure LFS
@@ -72,8 +72,8 @@ jobs:
         run: |
           set -euo pipefail
           echo "$IOS_CERT_P12_BASE64" | base64 --decode > dist.p12
-          echo "$MOBILEPROVISION_BASE64" | base64 --decode > AppStore.mobileprovision
-          security cms -D -i AppStore.mobileprovision > profile.plist
+          echo "$MOBILEPROVISION_BASE64" | base64 --decode > GearupAppStore.mobileprovision
+          security cms -D -i GearupAppStore.mobileprovision > profile.plist
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
           NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
           BID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' profile.plist)
@@ -107,13 +107,13 @@ jobs:
       - name: Install provisioning profile
         run: |
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp AppStore.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/${{ steps.signfiles.outputs.uuid }}.mobileprovision"
+          cp GearupAppStore.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/${{ steps.signfiles.outputs.uuid }}.mobileprovision"
 
       - name: Inspect provisioning profile
         run: |
-          security cms -D -i AppStore.mobileprovision | /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin
-          security cms -D -i AppStore.mobileprovision | /usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /dev/stdin
-          security cms -D -i AppStore.mobileprovision | /usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /dev/stdin
+          security cms -D -i GearupAppStore.mobileprovision | /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin
+          security cms -D -i GearupAppStore.mobileprovision | /usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /dev/stdin
+          security cms -D -i GearupAppStore.mobileprovision | /usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /dev/stdin
 
       # ---------- BUILD ----------
       - name: Prepare CocoaPods
