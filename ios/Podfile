@@ -1,6 +1,8 @@
 # ios/Podfile
 platform :ios, '15.0'
 
+$FirebaseSDKVersion = '11.10.0'
+
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
