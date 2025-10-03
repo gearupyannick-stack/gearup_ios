@@ -21,11 +21,16 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Show macOS & Xcode
+        run: |
+            sw_vers
+            xcodebuild -version
+
       - name: CocoaPods install
         run: |
-          cd ios
-          pod install --repo-update
-          cd ..
+            cd ios
+            pod install --repo-update
+            cd ..
 
       - name: Build iOS (no signing)
         run: flutter build ios --release --no-codesign
