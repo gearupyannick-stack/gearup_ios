@@ -1,4 +1,4 @@
-name: iOS Build & Sign (robust PKCS#12 import)
+name: iOS Build & Sign (repack P12 on runner)
 
 on:
   push:
@@ -48,21 +48,45 @@ jobs:
           pod repo update
           pod install
 
-      # --------- Validate P12 & prepare extraction ---------
-      - name: Validate P12 secret/password
+      # --------- Decode & validate original P12 ---------
+      - name: Decode + validate P12
         env:
           CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
           CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
         run: |
           set -e
-          echo "$CERT_P12_BASE64" | base64 --decode > cert.p12
-          test -s cert.p12
-          echo "P12 size: $(stat -f%z cert.p12) bytes"
-          if ! openssl pkcs12 -in cert.p12 -nokeys -passin pass:"$CERT_P12_PASSWORD" -info >/dev/null 2>&1; then
-            echo "::error::CERT_P12_PASSWORD doesn't match the .p12, or CERT_P12_BASE64 is invalid."
+          echo "$CERT_P12_BASE64" | base64 --decode > orig.p12
+          test -s orig.p12
+          echo "Orig P12 size: $(stat -f%z orig.p12) bytes"
+          # sanity: confirm password opens it
+          if ! openssl pkcs12 -in orig.p12 -nokeys -passin pass:"$CERT_P12_PASSWORD" -info >/dev/null 2>&1; then
+            echo "::error::CERT_P12_PASSWORD doesn't match the provided CERT_P12_BASE64."
             exit 1
           fi
 
+      # --------- Repack P12 in a fresh container macOS likes ---------
+      - name: Repack P12 (PEM -> new PKCS#12)
+        env:
+          CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
+        run: |
+          set -e
+          # Extract leaf cert + private key from your original PKCS#12
+          openssl pkcs12 -in orig.p12 -clcerts -nokeys \
+                  -passin pass:"$CERT_P12_PASSWORD" -out dist-cert.pem
+          openssl pkcs12 -in orig.p12 -nocerts -nodes \
+                  -passin pass:"$CERT_P12_PASSWORD" -out dist-key.pem
+          # Re-package into a NEW PKCS#12 with a temporary password (REPACK_PASS)
+          export REPACK_PASS="$(openssl rand -hex 16)"
+          openssl pkcs12 -export \
+                  -inkey dist-key.pem \
+                  -in dist-cert.pem \
+                  -name "Apple Distribution (Repacked)" \
+                  -passout pass:"$REPACK_PASS" \
+                  -out repacked.p12
+          echo "REPACK_PASS=$REPACK_PASS" >> $GITHUB_ENV
+          echo "Repacked P12 size: $(stat -f%z repacked.p12) bytes"
+
+      # --------- Keychain + import the REPACKED PKCS#12 ---------
       - name: Create keychain
         run: |
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
@@ -70,29 +94,16 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
           security list-keychains -d user -s "$KEYCHAIN_NAME" $(security list-keychains -d user | sed 's/"//g')
 
-      # ---------- Robust import: extract cert + PKCS#8 key then import ----------
-      - name: Import signing identity (OpenSSL extraction → security import)
-        env:
-          CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
+      - name: Import signing identity (repacked.p12)
         run: |
           set -e
-          # Extract leaf certificate and private key
-          openssl pkcs12 -in cert.p12 -clcerts -nokeys \
-                  -passin pass:"$CERT_P12_PASSWORD" -out dist-cert.pem
-          openssl pkcs12 -in cert.p12 -nocerts -nodes \
-                  -passin pass:"$CERT_P12_PASSWORD" -out dist-key.pem
-
-          # Convert key to unencrypted PKCS#8 (required: use -f pkcs8 on import)
-          openssl pkcs8 -topk8 -nocrypt -in dist-key.pem -out dist-key-pkcs8.pem
-
-          # Import certificate and private key to the custom keychain
-          security import dist-cert.pem      -k "$KEYCHAIN_NAME" -t cert   -f pemseq -A -T /usr/bin/codesign -T /usr/bin/security
-          security import dist-key-pkcs8.pem -k "$KEYCHAIN_NAME" -t priv   -f pkcs8  -A -T /usr/bin/codesign -T /usr/bin/security
-
-          # Allow codesign to use the key non-interactively
+          security import repacked.p12 \
+            -k "$KEYCHAIN_NAME" \
+            -P "$REPACK_PASS" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          # allow non-interactive codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
-
-          # Show identities to confirm presence
+          echo "Codesigning identities:"
           security find-identity -v -p codesigning "$KEYCHAIN_NAME" || (echo "No signing identity found" && exit 1)
 
       - name: Install provisioning profile
