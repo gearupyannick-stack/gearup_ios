@@ -199,12 +199,8 @@ jobs:
           ASC_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
         run: |
           set -e
-          # Ensure the standard directory exists
-          mkdir -p ~/.appstoreconnect/private_keys
-          # Write and decode the key with the EXACT expected filename
-          echo "$ASC_KEY_BASE64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          ls -l ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_BASE64" | base64 --decode > AuthKey_${ASC_KEY_ID}.p8
+          chmod 600 AuthKey_${ASC_KEY_ID}.p8
 
           IPA_PATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
           echo "Uploading $IPA_PATH to TestFlight..."
@@ -213,4 +209,5 @@ jobs:
             --file "$IPA_PATH" \
             --apiKey "$ASC_KEY_ID" \
             --apiIssuer "$ASC_ISSUER_ID" \
+            --privateKeysDirectory "$PWD" \
             --verbose
