@@ -1,8 +1,6 @@
 name: iOS Build & Sign (repack P12 on runner)
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       upload_to_testflight:
@@ -198,14 +196,17 @@ jobs:
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-          ASC_KEY_CONTENTS: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          ASC_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
         run: |
           set -e
-          # Write your API key to a .p8 file
-          echo "$ASC_KEY_CONTENTS" > AuthKey_${ASC_KEY_ID}.p8
+          # Ensure the standard directory exists
+          mkdir -p ~/.appstoreconnect/private_keys
+          # Write and decode the key with the EXACT expected filename
+          echo "$ASC_KEY_BASE64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          ls -l ~/.appstoreconnect/private_keys
 
           IPA_PATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
-
           echo "Uploading $IPA_PATH to TestFlight..."
           xcrun altool --upload-app \
             --type ios \
