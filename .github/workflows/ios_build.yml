@@ -1,5 +1,4 @@
 name: build-and-upload-ios
-
 on:
   workflow_dispatch:
   push:
@@ -7,36 +6,28 @@ on:
 
 jobs:
   ios:
-    name: Build & Upload iOS (Signed)
     runs-on: macos-14
-
     env:
       APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
-
       CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
       CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
       PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
-
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
       APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: "3.35.5"
 
-      - name: Flutter pub get
-        run: flutter pub get
+      - run: flutter pub get
 
-      - name: Show Xcode version
-        run: |
+      - run: |
           sw_vers
           xcodebuild -version
 
@@ -44,43 +35,26 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
-      - name: Debug p12 decoding
-        run: |
-          echo "p12 size:"
-          wc -c $HOME/certs/ios_distribution.p12
-          echo "Try openssl parse again (on runner):"
-          set +e
-          openssl pkcs12 -in $HOME/certs/ios_distribution.p12 -noout -info -passin pass:"$CERT_P12_PASSWORD"
-          echo "status=$?"
-          set -e
-
-      # -------- Import signing assets --------
+      # >>> this was missing <<<
       - name: Decode signing files
         run: |
           mkdir -p $HOME/certs
-          # p12 (certificate)
-          echo "$CERT_P12_BASE64" | base64 --decode > $HOME/certs/ios_distribution.p12
-          # provisioning profile
+          echo "$CERT_P12_BASE64" | base64 --decode > $HOME/certs/dist.p12
           echo "$PROV_PROFILE_BASE64" | base64 --decode > $HOME/certs/profile.mobileprovision
-          # App Store Connect API key (.p8) — must also be base64-encoded in the secret
           echo "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > $HOME/certs/AuthKey.p8
           ls -lah $HOME/certs
 
-      - name: Verify PKCS12 password before keychain import
+      - name: Verify PKCS12 password
         run: |
-          # Show p12 metadata to validate password early (no secrets printed)
           set +e
-          OUT=$(openssl pkcs12 -in $HOME/certs/ios_distribution.p12 -noout -info -passin pass:"$CERT_P12_PASSWORD" 2>&1)
+          openssl pkcs12 -in $HOME/certs/dist.p12 -noout -info -passin pass:"$CERT_P12_PASSWORD"
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
-            echo "❌ PKCS12 verification failed. Check CERT_P12_PASSWORD and CERT_P12_BASE64."
-            echo "OpenSSL said:"
-            echo "$OUT"
+            echo "❌ PKCS12 verification failed. Check CERT_P12_PASSWORD/BASE64."
             exit 1
-          else
-            echo "✅ PKCS12 password OK."
           fi
+          echo "✅ PKCS12 password OK."
 
       - name: Configure keychain & certificate
         run: |
@@ -88,25 +62,10 @@ jobs:
           security create-keychain -p "" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "" build.keychain
-
-          # Import the p12 (password from secret).
-          # -A allows all apps to access the imported key (helps avoid permission issues)
-          security import $HOME/certs/ios_distribution.p12 \
-            -k build.keychain \
-            -P "${CERT_P12_PASSWORD}" \
-            -A \
-            -t cert \
-            -f pkcs12
-
-          # Set partition list so Xcode/codesign can use the key
+          security import $HOME/certs/dist.p12 -k build.keychain -P "${CERT_P12_PASSWORD}" -A -t cert -f pkcs12
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
-
-          # Use our keychain first
           security list-keychain -d user -s build.keychain login.keychain-db
-
-          echo "Identities in keychain:"
           security find-identity -v -p codesigning build.keychain || true
-
 
       - name: Install provisioning profile
         run: |
@@ -115,7 +74,6 @@ jobs:
           cp "$HOME/certs/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "Installed provisioning profile: $PROFILE_UUID"
 
-      # -------- Build archive with manual signing --------
       - name: Build iOS archive
         run: |
           rm -rf build/ios
@@ -131,7 +89,6 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             archive | xcpretty && exit ${PIPESTATUS[0]}
 
-      # -------- Export .ipa --------
       - name: Create exportOptions.plist
         run: |
           cat > $GITHUB_WORKSPACE/exportOptions.plist << 'PLIST'
@@ -153,7 +110,6 @@ jobs:
           </dict>
           </plist>
           PLIST
-          cat $GITHUB_WORKSPACE/exportOptions.plist
 
       - name: Export IPA
         run: |
@@ -163,7 +119,6 @@ jobs:
             -exportOptionsPlist "$GITHUB_WORKSPACE/exportOptions.plist" | xcpretty && exit ${PIPESTATUS[0]}
           ls -lah "$GITHUB_WORKSPACE/build/ios"
 
-      # -------- Upload to TestFlight --------
       - name: Upload to TestFlight (iTMSTransporter)
         run: |
           IPA="$GITHUB_WORKSPACE/build/ios/Runner.ipa"
