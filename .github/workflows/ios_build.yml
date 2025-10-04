@@ -38,3 +38,9 @@ jobs:
 
       - name: Build iOS (unsigned)
         run: flutter build ipa --release --no-codesign
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-unsigned
+          path: build/ios/ipa/*.ipa
