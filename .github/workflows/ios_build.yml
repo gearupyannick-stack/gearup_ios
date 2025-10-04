@@ -140,6 +140,13 @@ jobs:
           cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
           echo "Installed provisioning profile: $NAME ($UUID)"
 
+      - name: Restrict build to iPhone only
+        run: |
+          /usr/libexec/PlistBuddy -c "Delete :UIDeviceFamily" ios/Runner/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily:0 integer 1" ios/Runner/Info.plist
+          plutil -p ios/Runner/Info.plist | grep UIDeviceFamily
+
       - name: Create ExportOptions.plist (manual signing)
         run: |
           cat > ExportOptions.plist <<PLIST
