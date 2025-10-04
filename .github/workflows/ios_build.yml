@@ -1,4 +1,5 @@
 name: build-and-upload-ios
+
 on:
   workflow_dispatch:
   push:
@@ -29,15 +30,7 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
-      - name: Sanity checks for secrets/files
-        env:
-          CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
-        run: |
-          echo "P12 md5: $(md5 -q "$HOME/certs/dist.p12")"
-          echo "Prov md5: $(md5 -q "$HOME/certs/profile.mobileprovision")"
-          echo "P12 openssl check (should exit 0)…"
-          set +e; openssl pkcs12 -in "$HOME/certs/dist.p12" -noout -info -passin pass:"$CERT_P12_PASSWORD" >/dev/null; echo "status=$?"; set -e
-
+      # ---------- Signing assets ----------
       - name: Write signing files from secrets
         env:
           CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
@@ -46,8 +39,8 @@ jobs:
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
         run: |
           mkdir -p "$HOME/certs"
-          echo "$CERT_P12_BASE64"        | base64 --decode > "$HOME/certs/dist.p12"
-          echo "$PROV_PROFILE_BASE64"    | base64 --decode > "$HOME/certs/profile.mobileprovision"
+          echo "$CERT_P12_BASE64"              | base64 --decode > "$HOME/certs/dist.p12"
+          echo "$PROV_PROFILE_BASE64"          | base64 --decode > "$HOME/certs/profile.mobileprovision"
           echo "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > "$HOME/certs/AuthKey.p8"
 
           echo "Validating P12 password quickly…"
@@ -56,46 +49,53 @@ jobs:
           echo "status=$?"
           set -e
 
-      - name: Extract cert & key from P12 (PEM + RSA fallback)
+      - name: Sanity checks for files
+        env:
+          CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
+        run: |
+          echo "P12 md5:  $(md5 -q "$HOME/certs/dist.p12")"
+          echo "Prov md5: $(md5 -q "$HOME/certs/profile.mobileprovision")"
+          openssl version
+
+      - name: Extract cert & key from P12 (create PKCS#8 and RSA)
         env:
           CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
         run: |
           mkdir -p "$HOME/certs/extracted"
-          # Extract leaf cert and private key (unencrypted PEMs)
           openssl pkcs12 -in "$HOME/certs/dist.p12" \
-            -passin pass:"$CERT_P12_PASSWORD" \
-            -nodes -clcerts \
+            -passin pass:"$CERT_P12_PASSWORD" -nodes -clcerts \
             -out "$HOME/certs/extracted/combined.pem"
 
-          # Split cert and key
+          # Split certs/keys out of the combined file
           awk 'BEGIN{c=0} /BEGIN CERTIFICATE/{c++} {print > sprintf("%s/cert_%d.pem", ENVIRON["HOME"]"/certs/extracted", c)}' "$HOME/certs/extracted/combined.pem"
           awk 'BEGIN{k=0} /BEGIN PRIVATE KEY/{k++} {print > sprintf("%s/key_%d.pem", ENVIRON["HOME"]"/certs/extracted", k)}' "$HOME/certs/extracted/combined.pem"
 
-          # Normalize key formats: PKCS#8 (generic) and RSA (fallback)
-          cp "$HOME/certs/extracted/key_0.pem" "$HOME/certs/extracted/signing_key_pkcs8.pem" || true
-          openssl rsa -in "$HOME/certs/extracted/key_0.pem" -out "$HOME/certs/extracted/signing_key_rsa.pem" 2>/dev/null || true
-          # Choose the leaf cert (usually cert_1.pem). If only one exists, use cert_0.pem.
+          # Choose the leaf certificate
           if [[ -f "$HOME/certs/extracted/cert_1.pem" ]]; then
             cp "$HOME/certs/extracted/cert_1.pem" "$HOME/certs/extracted/signing_cert.pem"
           else
             cp "$HOME/certs/extracted/cert_0.pem" "$HOME/certs/extracted/signing_cert.pem"
           fi
 
-          echo "Extracted:"
+          # Keep PKCS#8 as-is and also make an RSA fallback
+          cp "$HOME/certs/extracted/key_0.pem" "$HOME/certs/extracted/signing_key_pkcs8.pem" || true
+          openssl rsa -in "$HOME/certs/extracted/key_0.pem" -out "$HOME/certs/extracted/signing_key_rsa.pem" 2>/dev/null || true
+
+          echo "Extracted files:"
           ls -lah "$HOME/certs/extracted"
 
-      - name: Import cert & key to keychain (PEM, with RSA fallback)
+      - name: Import cert & key to keychain (correct formats)
         run: |
           KEYCHAIN="$HOME/Library/Keychains/build.keychain-db"
           security create-keychain -p "" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "" build.keychain
 
-          # Import certificate
+          # Cert: let 'security' auto-detect (do NOT pass -f pem)
           security import "$HOME/certs/extracted/signing_cert.pem" \
-            -k build.keychain -A -t cert -f pem
+            -k build.keychain -A -t cert
 
-          # Try PKCS#8 key first
+          # Private key: try PKCS#8 first, then RSA (OpenSSL format)
           if security import "$HOME/certs/extracted/signing_key_pkcs8.pem" \
                -k build.keychain -A -t priv -f pkcs8 \
                -T /usr/bin/codesign -T /usr/bin/security; then
@@ -107,18 +107,18 @@ jobs:
               -T /usr/bin/codesign -T /usr/bin/security
           fi
 
-          # Allow Xcode/codesign
+          # Allow tools to use the keys & prefer this keychain
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
           security list-keychain -d user -s build.keychain login.keychain-db
 
-          echo "Identities in keychain:"
+          echo "Codesign identities in keychain:"
           security find-identity -v -p codesigning build.keychain || true
 
-      - name: Install provisioning profile (and export UUID & Name)
+      - name: Install provisioning profile (export UUID & Name)
         run: |
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i $HOME/certs/profile.mobileprovision)")
-          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i $HOME/certs/profile.mobileprovision)")
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i "$HOME/certs/profile.mobileprovision")")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i "$HOME/certs/profile.mobileprovision")")
           cp "$HOME/certs/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "Installed provisioning profile:"
           echo "  UUID: $PROFILE_UUID"
@@ -126,10 +126,11 @@ jobs:
           echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
           echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
 
-      - name: Build iOS archive (manual signing with profile UUID)
+      # ---------- Build, export, upload ----------
+      - name: Build iOS archive (manual signing)
         env:
-          TEAM_ID:         ${{ secrets.TEAM_ID }}
-          APP_BUNDLE_ID:   ${{ secrets.APP_BUNDLE_ID }}
+          TEAM_ID:       ${{ secrets.TEAM_ID }}
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
         run: |
           rm -rf build/ios
           cd ios
@@ -151,8 +152,7 @@ jobs:
           TEAM_ID:       ${{ secrets.TEAM_ID }}
           APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
         run: |
-          # Use the profile NAME for export mapping (exportOptions expects names, not UUIDs)
-          cat > exportOptions.plist <<'PLIST'
+          cat > exportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -180,8 +180,7 @@ jobs:
             | xcpretty && exit ${PIPESTATUS[0]}
           ls -lah "$GITHUB_WORKSPACE/build/ios/export"
 
-      # Optional: upload to TestFlight with the API key (you already have these)
-      - name: Upload to TestFlight
+      - name: Upload to TestFlight (App Store Connect API)
         env:
           APP_STORE_CONNECT_API_KEY_ID:     ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID:  ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
