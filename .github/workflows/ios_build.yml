@@ -13,8 +13,13 @@ on:
         options: ["false", "true"]
 
 jobs:
-  flutter-run:
+  build-ios:
     runs-on: macos-14
+    env:
+      KEYCHAIN_NAME: build.keychain-db
+      KEYCHAIN_PASSWORD: temp_pass_123
+      APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+      TEAM_ID: ${{ secrets.TEAM_ID }}
 
     steps:
       - name: Checkout repository
