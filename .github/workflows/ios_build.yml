@@ -198,10 +198,15 @@ jobs:
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          ASC_KEY_CONTENTS: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
         run: |
           set -e
+          # Write your API key to a .p8 file
+          echo "$ASC_KEY_CONTENTS" > AuthKey_${ASC_KEY_ID}.p8
+
           IPA_PATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
-          # Use altool with API key/issuer (no .p8 file needed)
+
+          echo "Uploading $IPA_PATH to TestFlight..."
           xcrun altool --upload-app \
             --type ios \
             --file "$IPA_PATH" \
