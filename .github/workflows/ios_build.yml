@@ -1,11 +1,27 @@
-name: iOS Build (no signing)
+name: build-and-upload-ios
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
-  build-ios:
+  ios:
+    name: Build & Upload iOS (Signed)
     runs-on: macos-14
+
+    env:
+      # --- Your existing secret names (from screenshot) ---
+      APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+      TEAM_ID: ${{ secrets.TEAM_ID }}
+
+      CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
+      CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
+      PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
+
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
 
     steps:
       - name: Checkout
@@ -14,23 +30,105 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x'
-          channel: 'stable'
-          cache: true
+          channel: stable
+          flutter-version: "3.35.5"
 
-      - name: Install dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      - name: Show macOS & Xcode
+      - name: Show Xcode version
         run: |
-            sw_vers
-            xcodebuild -version
+          sw_vers
+          xcodebuild -version
 
-      - name: CocoaPods install
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install --repo-update
+
+      # -------- Import signing assets --------
+      - name: Decode signing files
         run: |
-            cd ios
-            pod install --repo-update
-            cd ..
+          mkdir -p $HOME/certs
+          echo "$CERT_P12_BASE64" | base64 --decode > $HOME/certs/dist.p12
+          echo "$PROV_PROFILE_BASE64" | base64 --decode > $HOME/certs/profile.mobileprovision
+          # IMPORTANT: APP_STORE_CONNECT_API_KEY_P8 must be BASE64 of the .p8
+          echo "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > $HOME/certs/AuthKey.p8
 
-      - name: Build iOS (no signing)
-        run: flutter build ios --release --no-codesign
+      - name: Configure keychain & certificate
+        run: |
+          KEYCHAIN=$HOME/Library/Keychains/build.keychain-db
+          security create-keychain -p "" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import $HOME/certs/dist.p12 -k build.keychain -P "${CERT_P12_PASSWORD}" -T /usr/bin/codesign
+          security list-keychain -d user -s build.keychain login.keychain-db
+          security find-identity -v -p codesigning build.keychain || true
+
+      - name: Install provisioning profile
+        run: |
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i $HOME/certs/profile.mobileprovision)")
+          cp "$HOME/certs/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "Installed provisioning profile: $PROFILE_UUID"
+
+      # -------- Build archive with manual signing --------
+      - name: Build iOS archive
+        run: |
+          rm -rf build/ios
+          cd ios
+          xcodebuild \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath "$GITHUB_WORKSPACE/build/ios/Runner.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$APP_BUNDLE_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            archive | xcpretty && exit ${PIPESTATUS[0]}
+
+      # -------- Export .ipa --------
+      - name: Create exportOptions.plist
+        run: |
+          cat > $GITHUB_WORKSPACE/exportOptions.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>compileBitcode</key><false/>
+            <key>destination</key><string>export</string>
+            <key>method</key><string>app-store</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>signingStyle</key><string>manual</string>
+            <key>stripSwiftSymbols</key><true/>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${APP_BUNDLE_ID}</key><string>GearupAppStore</string>
+            </dict>
+          </dict>
+          </plist>
+          PLIST
+          cat $GITHUB_WORKSPACE/exportOptions.plist
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$GITHUB_WORKSPACE/build/ios/Runner.xcarchive" \
+            -exportPath "$GITHUB_WORKSPACE/build/ios" \
+            -exportOptionsPlist "$GITHUB_WORKSPACE/exportOptions.plist" | xcpretty && exit ${PIPESTATUS[0]}
+          ls -lah "$GITHUB_WORKSPACE/build/ios"
+
+      # -------- Upload to TestFlight --------
+      - name: Upload to TestFlight (iTMSTransporter)
+        run: |
+          IPA="$GITHUB_WORKSPACE/build/ios/Runner.ipa"
+          if [ ! -f "$IPA" ]; then
+            echo "Runner.ipa not found!"
+            exit 1
+          fi
+          xcrun iTMSTransporter -m upload \
+            -apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            -apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
+            -assetFile "$IPA" \
+            -verbose
