@@ -1,61 +1,24 @@
-name: iOS Build (Unsigned)
+name: Flutter macOS Build
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ main ] # Change this to your default branch if needed
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-ios:
-    name: Build iOS (no signing)
-    runs-on: macos-14
-
+  build:
+    runs-on: macos-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: stable
-          channel: stable
-          cache: true
+          flutter-version: '1.0.1' # Use your Flutter version
+          channel: 'stable'
 
-      - name: Flutter clean & pub get
-        run: |
-          flutter clean
-          flutter pub get
+      - name: Get dependencies
+        run: flutter pub get
 
-      - name: Build iOS (no codesign)
-        run: |
-          flutter build ios --no-codesign --release
-
-      - name: Archive Xcode project (unsigned)
-        run: |
-          cd ios
-          xcodebuild -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -sdk iphoneos \
-            -archivePath build/Runner.xcarchive \
-            clean archive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
-
-      - name: Export unsigned IPA
-        run: |
-          mkdir -p build/ios/ipa
-          xcodebuild -exportArchive \
-            -archivePath ios/build/Runner.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist ios/Flutter/ExportOptions.plist || true
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build
-          path: |
-            build/ios/ipa
-            ios/build/Runner.xcarchive
+      - name: Build macOS app
+        run: flutter build macos --release
