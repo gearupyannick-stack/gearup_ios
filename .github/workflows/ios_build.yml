@@ -24,6 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ---------- Preflight check ----------
       - name: Preflight check App Store Connect secrets
         if: ${{ inputs.upload_to_testflight == 'true' }}
         env:
@@ -46,6 +47,7 @@ jobs:
           fi
           echo "ASC secrets look well-formed."
 
+      # ---------- Flutter setup ----------
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -60,6 +62,7 @@ jobs:
       - name: Flutter doctor
         run: flutter doctor -v
 
+      # ---------- CocoaPods ----------
       - name: Install CocoaPods
         run: gem install cocoapods --no-document
 
@@ -69,13 +72,16 @@ jobs:
           pod repo update
           pod install
 
-      # ---------- iPhone only ----------
+      # ---------- Restrict to iPhone only ----------
       - name: Restrict build to iPhone only
         run: |
-          /usr/libexec/PlistBuddy -c "Delete :UIDeviceFamily" ios/Runner/Info.plist || true
-          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" ios/Runner/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily:0 integer 1" ios/Runner/Info.plist
-          plutil -p ios/Runner/Info.plist | grep UIDeviceFamily
+          PLIST=ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Delete :UIDeviceFamily" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily:0 integer 1" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :UIRequiresFullScreen" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool YES" "$PLIST"
+          plutil -p "$PLIST" | grep UIDeviceFamily
 
       # ---------- Decode & validate signing materials ----------
       - name: Decode + validate P12
@@ -130,6 +136,31 @@ jobs:
           echo "uuid=$UUID" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
 
+      # ---------- Create ExportOptions.plist ----------
+      - name: Create ExportOptions.plist
+        run: |
+          cat > ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>stripSwiftSymbols</key><true/>
+            <key>uploadSymbols</key><true/>
+            <key>destination</key><string>export</string>
+            <key>compileBitcode</key><false/>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${APP_BUNDLE_ID}</key><string>GearupAppStore</string>
+            </dict>
+            <key>teamID</key><string>${TEAM_ID}</string>
+          </dict>
+          </plist>
+          PLIST
+          /usr/libexec/PlistBuddy -c "Print" ExportOptions.plist >/dev/null && echo "ExportOptions.plist created."
+
+      # ---------- Build IPA ----------
       - name: Build signed IPA
         run: flutter build ipa --release --export-options-plist=ExportOptions.plist
 
@@ -139,7 +170,7 @@ jobs:
           name: ios-ipa-signed
           path: build/ios/ipa/*.ipa
 
-      # ---------- TestFlight ----------
+      # ---------- Upload to TestFlight ----------
       - name: Install ASC key
         if: ${{ inputs.upload_to_testflight == 'true' }}
         env:
