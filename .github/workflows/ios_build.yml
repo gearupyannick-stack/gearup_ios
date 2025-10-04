@@ -24,3 +24,12 @@ jobs:
 
       - name: Flutter doctor
         run: flutter doctor -v
+
+      - name: Install CocoaPods
+        run: gem install cocoapods --no-document
+
+      - name: Pod install
+        working-directory: ios
+        run: |
+          pod repo update
+          pod install
