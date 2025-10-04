@@ -121,18 +121,29 @@ jobs:
           echo "Codesigning identities:"
           security find-identity -v -p codesigning "$KEYCHAIN_NAME" || (echo "No signing identity found" && exit 1)
 
-      - name: Install provisioning profile
+      - name: Install provisioning profile (robust)
         id: prov
         env:
           PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
         run: |
           set -e
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$PROV_PROFILE_BASE64" | base64 --decode > app.mobileprovision
-          UUID=$(/usr/bin/security cms -D -i app.mobileprovision | /usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin)
-          NAME=$(/usr/bin/security cms -D -i app.mobileprovision | /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin)
+          echo "$PROV_PROFILE_BASE64" | tr -d '\n\r ' | base64 --decode > app.mobileprovision
+          
+          SIZE=$(stat -f%z app.mobileprovision)
+          echo "Decoded provisioning profile size: $SIZE bytes"
+          if [ "$SIZE" -lt 1000 ]; then
+            echo "::error::Decoded provisioning profile too small; invalid secret"
+            exit 1
+          fi
+
+          # Validate Apple binary format before using it
+          /usr/bin/security cms -D -i app.mobileprovision > profile.plist
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
           echo "uuid=$UUID" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
+          
           cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
           echo "Installed provisioning profile: $NAME ($UUID)"
 
