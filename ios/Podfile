@@ -2,7 +2,7 @@
 platform :ios, '15.0'
 
 # Pin Firebase to a Swift 5–compatible release for Xcode 15.4
-$FirebaseSDKVersion = '11.10.0'
+$FirebaseSDKVersion = '10.29.0'
 ENV['FIREBASE_SDK_VERSION'] = $FirebaseSDKVersion
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
