@@ -1,6 +1,8 @@
 name: Flutter Run iOS (no signing)
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
