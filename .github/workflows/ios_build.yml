@@ -4,6 +4,13 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      upload_to_testflight:
+        description: "Upload the signed IPA to TestFlight"
+        required: true
+        default: "false"
+        type: choice
+        options: ["false", "true"]
 
 jobs:
   flutter-run:
@@ -44,3 +51,11 @@ jobs:
         with:
           name: ios-ipa-unsigned
           path: build/ios/ipa/*.ipa
+
+      - name: Create keychain
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_NAME"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+          # Add to search list (keep existing)
+          security list-keychains -d user -s "$KEYCHAIN_NAME" $(security list-keychains -d user | sed 's/"//g')
