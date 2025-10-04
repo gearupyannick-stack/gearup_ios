@@ -169,6 +169,21 @@ jobs:
           </plist>
           PLIST
 
+      - name: Configure code signing settings
+        run: |
+          PROFILE_PATH=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -n1)
+          PROFILE_UUID=$(basename "$PROFILE_PATH" .mobileprovision)
+          echo "Using provisioning profile UUID: $PROFILE_UUID"
+
+          # Write xcconfig overrides so Flutter/Xcode sees them
+          echo "CODE_SIGN_IDENTITY=Apple Distribution: Yannick Durindel (${TEAM_ID})" >> ios/Flutter/Release.xcconfig
+          echo "PROVISIONING_PROFILE_SPECIFIER=$PROFILE_UUID" >> ios/Flutter/Release.xcconfig
+          echo "DEVELOPMENT_TEAM=$TEAM_ID" >> ios/Flutter/Release.xcconfig
+          echo "PRODUCT_BUNDLE_IDENTIFIER=$APP_BUNDLE_ID" >> ios/Flutter/Release.xcconfig
+
+      - name: Verify identity in keychain
+        run: security find-identity -p codesigning "$KEYCHAIN_NAME"
+
       - name: Build signed IPA
         run: flutter build ipa --release --export-options-plist=ExportOptions.plist
 
