@@ -62,27 +62,19 @@ jobs:
       - name: Extract signing cert & key from p12
         run: |
           mkdir -p $HOME/certs/extracted
-
-          # Extract the LEAF certificate (no keys, no CA certs)
+          # Leaf certificate only (no CA)
           openssl pkcs12 -in $HOME/certs/dist.p12 \
             -passin pass:"$CERT_P12_PASSWORD" \
             -clcerts -nokeys \
             -out $HOME/certs/extracted/signing_cert.pem
-
-          # Extract the PRIVATE KEY (no certs)
+          # Private key only (unencrypted)
           openssl pkcs12 -in $HOME/certs/dist.p12 \
             -passin pass:"$CERT_P12_PASSWORD" \
             -nocerts -nodes \
             -out $HOME/certs/extracted/signing_key.pem
-
-          echo "Extracted files:"
           ls -lah $HOME/certs/extracted
-          echo "Cert head:"
-          head -n 2 $HOME/certs/extracted/signing_cert.pem
-          echo "Key head:"
-          head -n 2 $HOME/certs/extracted/signing_key.pem
 
-      # 2) Create keychain and import the pair
+      # 2) Create keychain and import with correct format/type
       - name: Configure keychain & import cert/key
         run: |
           KEYCHAIN=$HOME/Library/Keychains/build.keychain-db
@@ -90,15 +82,16 @@ jobs:
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "" build.keychain
 
-          # Import the leaf certificate (PEM)
+          # Import the certificate (PEM sequence -> pemseq)
           security import $HOME/certs/extracted/signing_cert.pem \
-            -k build.keychain -A -t cert -f pem
+            -k build.keychain -A -t cert -f pemseq
 
-          # Import the private key (PEM) and allow codesign/security to use it
+          # Import the private key (PEM sequence -> pemseq) as a private key item
           security import $HOME/certs/extracted/signing_key.pem \
-            -k build.keychain -A -f pem -T /usr/bin/codesign -T /usr/bin/security
+            -k build.keychain -A -t priv -f pemseq \
+            -T /usr/bin/codesign -T /usr/bin/security
 
-          # Allow Xcode/codesign to access keys without UI prompts
+          # Allow Xcode/codesign to access without prompts
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
 
           # Prefer our keychain
