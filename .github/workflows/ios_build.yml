@@ -170,17 +170,14 @@ jobs:
         run: |
           set -e
           mkdir -p ~/.appstoreconnect/private_keys
-          # If secret starts with PEM header use as-is, else treat as base64
           if printf "%s" "$ASC_KEY_CONTENTS" | head -n1 | grep -q "BEGIN PRIVATE KEY"; then
             printf "%s" "$ASC_KEY_CONTENTS" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
           else
             echo "$ASC_KEY_CONTENTS" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
           fi
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          # Validate key is a proper EC private key
-          openssl ec -in ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 -noout -text >/dev/null \
-            || (echo "::error::APP_STORE_CONNECT_API_KEY_P8 is invalid (not a valid EC PEM)."; exit 1)
-          echo "ASC key installed for ${ASC_KEY_ID}"
+          # sanity: must be an EC private key
+          openssl ec -in ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 -noout >/dev/null
 
       - name: Upload to TestFlight
         if: ${{ inputs.upload_to_testflight == 'true' }}
@@ -190,10 +187,10 @@ jobs:
         run: |
           set -e
           IPA_PATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
-          echo "Uploading $IPA_PATH to TestFlight..."
-          xcrun altool --upload-app \
-            --type ios \
-            --file "$IPA_PATH" \
-            --apiKey "$ASC_KEY_ID" \
-            --apiIssuer "$ASC_ISSUER_ID" \
-            --verbose
+          echo "Uploading $IPA_PATH to TestFlight with iTMSTransporter..."
+          # iTMSTransporter is the supported uploader for App Store Connect
+          xcrun iTMSTransporter -m upload \
+            -assetFile "$IPA_PATH" \
+            -apiKey "$ASC_KEY_ID" \
+            -apiIssuer "$ASC_ISSUER_ID" \
+            -v informational
