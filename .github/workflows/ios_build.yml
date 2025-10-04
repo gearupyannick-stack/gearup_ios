@@ -47,10 +47,10 @@ jobs:
       - name: Debug p12 decoding
         run: |
           echo "p12 size:"
-          wc -c $HOME/certs/dist.p12
+          wc -c $HOME/certs/ios_distribution.p12
           echo "Try openssl parse again (on runner):"
           set +e
-          openssl pkcs12 -in $HOME/certs/dist.p12 -noout -info -passin pass:"$CERT_P12_PASSWORD"
+          openssl pkcs12 -in $HOME/certs/ios_distribution.p12 -noout -info -passin pass:"$CERT_P12_PASSWORD"
           echo "status=$?"
           set -e
 
@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p $HOME/certs
           # p12 (certificate)
-          echo "$CERT_P12_BASE64" | base64 --decode > $HOME/certs/dist.p12
+          echo "$CERT_P12_BASE64" | base64 --decode > $HOME/certs/ios_distribution.p12
           # provisioning profile
           echo "$PROV_PROFILE_BASE64" | base64 --decode > $HOME/certs/profile.mobileprovision
           # App Store Connect API key (.p8) — must also be base64-encoded in the secret
@@ -70,7 +70,7 @@ jobs:
         run: |
           # Show p12 metadata to validate password early (no secrets printed)
           set +e
-          OUT=$(openssl pkcs12 -in $HOME/certs/dist.p12 -noout -info -passin pass:"$CERT_P12_PASSWORD" 2>&1)
+          OUT=$(openssl pkcs12 -in $HOME/certs/ios_distribution.p12 -noout -info -passin pass:"$CERT_P12_PASSWORD" 2>&1)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -91,7 +91,7 @@ jobs:
 
           # Import the p12 (password from secret).
           # -A allows all apps to access the imported key (helps avoid permission issues)
-          security import $HOME/certs/dist.p12 \
+          security import $HOME/certs/ios_distribution.p12 \
             -k build.keychain \
             -P "${CERT_P12_PASSWORD}" \
             -A \
