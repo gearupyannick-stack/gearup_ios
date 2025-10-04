@@ -58,24 +58,31 @@ jobs:
 
 #-------------------------------------------------------------------------------------------------
 
-      # 1) Extract cert & key from the PKCS#12 (using your password)
-      - name: Extract cert & key from p12
+      # 1) Extract leaf signing cert and private key ONLY from the PKCS#12
+      - name: Extract signing cert & key from p12
         run: |
           mkdir -p $HOME/certs/extracted
-          # Extract everything (unencrypted PEM); we don't print the output
+
+          # Extract the LEAF certificate (no keys, no CA certs)
           openssl pkcs12 -in $HOME/certs/dist.p12 \
             -passin pass:"$CERT_P12_PASSWORD" \
-            -nodes \
-            -out $HOME/certs/extracted/combined.pem
+            -clcerts -nokeys \
+            -out $HOME/certs/extracted/signing_cert.pem
 
-          # Split into separate files (cert + key)
-          awk 'BEGIN{c=0} /BEGIN CERTIFICATE/{c++} {print > sprintf("%s/cert_%d.pem", ENVIRON["HOME"]"/certs/extracted", c)}' $HOME/certs/extracted/combined.pem
-          awk 'BEGIN{k=0} /BEGIN PRIVATE KEY/{k++} {print > sprintf("%s/key_%d.pem", ENVIRON["HOME"]"/certs/extracted", k)}' $HOME/certs/extracted/combined.pem
+          # Extract the PRIVATE KEY (no certs)
+          openssl pkcs12 -in $HOME/certs/dist.p12 \
+            -passin pass:"$CERT_P12_PASSWORD" \
+            -nocerts -nodes \
+            -out $HOME/certs/extracted/signing_key.pem
 
           echo "Extracted files:"
           ls -lah $HOME/certs/extracted
+          echo "Cert head:"
+          head -n 2 $HOME/certs/extracted/signing_cert.pem
+          echo "Key head:"
+          head -n 2 $HOME/certs/extracted/signing_key.pem
 
-      # 2) Create keychain and import cert + key separately
+      # 2) Create keychain and import the pair
       - name: Configure keychain & import cert/key
         run: |
           KEYCHAIN=$HOME/Library/Keychains/build.keychain-db
@@ -83,19 +90,15 @@ jobs:
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "" build.keychain
 
-          # Import ALL certs found
-          for CERT in $HOME/certs/extracted/cert_*.pem; do
-            echo "Importing cert: $CERT"
-            security import "$CERT" -k build.keychain -A -t cert -f x509
-          done
+          # Import the leaf certificate (PEM)
+          security import $HOME/certs/extracted/signing_cert.pem \
+            -k build.keychain -A -t cert -f pem
 
-          # Import ALL private keys found
-          for KEY in $HOME/certs/extracted/key_*.pem; do
-            echo "Importing key: $KEY"
-            security import "$KEY" -k build.keychain -A -f pem -T /usr/bin/codesign -T /usr/bin/security
-          done
+          # Import the private key (PEM) and allow codesign/security to use it
+          security import $HOME/certs/extracted/signing_key.pem \
+            -k build.keychain -A -f pem -T /usr/bin/codesign -T /usr/bin/security
 
-          # Allow codesign/xcode to use the keychain
+          # Allow Xcode/codesign to access keys without UI prompts
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
 
           # Prefer our keychain
