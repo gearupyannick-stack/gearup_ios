@@ -1,127 +1,79 @@
-name: iOS Build & Sign + TestFlight
+name: build-ios
 
 on:
   workflow_dispatch:
-    inputs:
-      upload_to_testflight:
-        description: "Upload the signed IPA to TestFlight"
-        required: true
-        default: "false"
-        type: choice
-        options: ["false", "true"]
+  push:
+    branches: [ main ]
 
 jobs:
-  build-ios:
+  ios:
     runs-on: macos-14
-    env:
-      KEYCHAIN_NAME: build.keychain-db
-      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-      APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
-      TEAM_ID: ${{ secrets.TEAM_ID }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---------- PRECHECK (fail fast if ASC secrets are wrong) ----------
-      - name: Preflight check App Store Connect secrets
-        if: ${{ inputs.upload_to_testflight == 'true' }}
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-          ASC_KEY_CONTENTS: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+      # ✅ Pick the Xcode that actually exists on macos-14
+      - name: Select Xcode 15.4
+        uses: actions/setup-xcode@v1
+        with:
+          xcode-version: '15.4'
+
+      - name: Show Xcode & SDKs
         run: |
-          set -euo pipefail
-          echo "KeyId length: ${#ASC_KEY_ID}"
-          echo "IssuerId length: ${#ASC_ISSUER_ID}"
-          echo "p8 length: ${#ASC_KEY_CONTENTS}"
-          if [[ ! "$ASC_KEY_ID" =~ ^[A-Z0-9]{10,12}$ ]]; then
-            echo "::error::APP_STORE_CONNECT_API_KEY_ID must be 10–12 uppercase letters/digits."; exit 1
-          fi
-          if [[ ! "$ASC_ISSUER_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
-            echo "::error::APP_STORE_CONNECT_API_ISSUER_ID must be a UUID"; exit 1
-          fi
-          if [[ -z "${ASC_KEY_CONTENTS}" ]]; then
-            echo "::error::APP_STORE_CONNECT_API_KEY_P8 is empty"; exit 1
-          fi
-          echo "ASC secrets look well-formed."
+          xcodebuild -version
+          xcodebuild -showsdks
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
-      - name: Flutter version
+      - name: flutter --version
         run: flutter --version
 
-      - name: Install dependencies
+      - name: flutter pub get
         run: flutter pub get
-
-      - name: Flutter doctor
-        run: flutter doctor -v
 
       - name: Install CocoaPods
         run: gem install cocoapods --no-document
 
-      - name: Pod install
+      - name: pod repo update
         working-directory: ios
-        run: |
-          pod repo update
-          pod install
+        run: pod repo update
 
-      # ---------- Decode & validate P12 ----------
-      - name: Decode + validate P12
-        env:
-          CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
-          CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
-        run: |
-          set -e
-          echo "$CERT_P12_BASE64" | base64 --decode > orig.p12
-          test -s orig.p12
-          if ! openssl pkcs12 -in orig.p12 -nokeys -passin pass:"$CERT_P12_PASSWORD" -info >/dev/null 2>&1; then
-            echo "::error::CERT_P12_PASSWORD doesn't match CERT_P12_BASE64"; exit 1
-          fi
-          echo "Orig P12 OK ($(stat -f%z orig.p12) bytes)"
-
-      - name: Validate provisioning profile
-        env:
-          PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
+      # --- Signing setup (same as you already do) ---
+      - name: Decode provisioning profile (sanity)
+        shell: bash
         run: |
           set -e
           echo "$PROV_PROFILE_BASE64" | base64 --decode > app.mobileprovision
           /usr/bin/security cms -D -i app.mobileprovision >/dev/null || { echo "::error::Invalid provisioning profile"; exit 1; }
           echo "Provisioning profile OK ($(stat -f%z app.mobileprovision) bytes)"
-
-      # ---------- Repack P12 ----------
-      - name: Repack P12
         env:
-          CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
-        run: |
-          openssl pkcs12 -in orig.p12 -clcerts -nokeys -passin pass:"$CERT_P12_PASSWORD" -out dist-cert.pem
-          openssl pkcs12 -in orig.p12 -nocerts -nodes -passin pass:"$CERT_P12_PASSWORD" -out dist-key.pem
-          export REPACK_PASS="$(openssl rand -hex 16)"
-          openssl pkcs12 -export -inkey dist-key.pem -in dist-cert.pem -name "Apple Distribution (Repacked)" -passout pass:"$REPACK_PASS" -out repacked.p12
-          echo "REPACK_PASS=$REPACK_PASS" >> $GITHUB_ENV
+          PROV_PROFILE_BASE64: ${{ secrets.APP_STORE_PROVISIONING_PROFILE_BASE64 }}
 
-      - name: Create keychain
+      - name: Import cert to keychain
+        shell: bash
         run: |
+          set -e
+          KEYCHAIN_NAME=build.keychain-db
+          KEYCHAIN_PASSWORD="${{ secrets.KEYCHAIN_PASSWORD }}"
+          echo "${{ secrets.DISTRIBUTION_P12_BASE64 }}" | base64 --decode > dist.p12
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_NAME"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
-
-      - name: Import signing identity
-        run: |
-          security import repacked.p12 -k "$KEYCHAIN_NAME" -P "$REPACK_PASS" -T /usr/bin/codesign -T /usr/bin/security
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_NAME"
+          security import dist.p12 -k "$KEYCHAIN_NAME" -P "${{ secrets.DISTRIBUTION_P12_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/security
+          security list-keychains -d user -s "$KEYCHAIN_NAME" login.keychain-db
           security find-identity -v -p codesigning "$KEYCHAIN_NAME"
 
       - name: Install provisioning profile
         id: prov
-        env:
-          PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
+        shell: bash
         run: |
+          set -e
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$PROV_PROFILE_BASE64" | base64 --decode > app.mobileprovision
           /usr/bin/security cms -D -i app.mobileprovision > profile.plist
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
           NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
@@ -132,39 +84,31 @@ jobs:
 
       - name: Create ExportOptions.plist
         run: |
-          cat > ExportOptions.plist <<PLIST
+          cat > ExportOptions.plist <<'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store</string>
-            <key>teamID</key><string>${TEAM_ID}</string>
-            <key>signingStyle</key><string>manual</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>stripSwiftSymbols</key><true/>
+            <key>uploadBitcode</key><false/>
+            <key>compileBitcode</key><false/>
+            <key>destination</key><string>export</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>${APP_BUNDLE_ID}</key><string>${{ steps.prov.outputs.name }}</string>
+              <key>${{ secrets.APP_BUNDLE_ID }}</key><string>${{ steps.prov.outputs.name }}</string>
             </dict>
-            <key>destination</key><string>export</string>
-            <key>stripSwiftSymbols</key><true/>
-            <key>compileBitcode</key><false/>
-            <key>manageAppVersionAndBuildNumber</key><true/>
           </dict>
           </plist>
           PLIST
 
-      - name: Configure code signing overrides
+      # --- Build & export using Xcode 15.4 + iOS 17.5 SDK ---
+      # Note: no DEVELOPER_DIR env; Xcode is selected already.
+      - name: Archive (xcodebuild)
         run: |
-          PROFILE_PATH=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -n1)
-          PROFILE_UUID=$(basename "$PROFILE_PATH" .mobileprovision)
-          {
-            echo "CODE_SIGN_IDENTITY=Apple Distribution: Yannick Durindel (${TEAM_ID})"
-            echo "PROVISIONING_PROFILE_SPECIFIER=$PROFILE_UUID"
-            echo "DEVELOPMENT_TEAM=$TEAM_ID"
-            echo "PRODUCT_BUNDLE_IDENTIFIER=$APP_BUNDLE_ID"
-          } >> ios/Flutter/Release.xcconfig
-
-      - name: Build signed IPA
-        run: |
+          set -e
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
@@ -172,45 +116,15 @@ jobs:
             -archivePath build/ios/archive/Runner.xcarchive \
             clean archive
 
+      - name: Export IPA
+        run: |
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
             -exportPath build/ios/ipa
 
-      - name: Upload signed IPA as artifact
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa-signed
+          name: Gearup-IPA
           path: build/ios/ipa/*.ipa
-
-      # ---------- Install ASC key ----------
-      - name: Install App Store Connect API key
-        if: ${{ inputs.upload_to_testflight == 'true' }}
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          ASC_KEY_CONTENTS: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          if printf "%s" "$ASC_KEY_CONTENTS" | head -n1 | grep -q "BEGIN PRIVATE KEY"; then
-            printf "%s" "$ASC_KEY_CONTENTS" > "$KEY_PATH"
-          else
-            echo "$ASC_KEY_CONTENTS" | base64 --decode > "$KEY_PATH"
-          fi
-          chmod 600 "$KEY_PATH"
-          openssl ec -in "$KEY_PATH" -noout >/dev/null
-
-      - name: Upload to TestFlight
-        if: ${{ inputs.upload_to_testflight == 'true' }}
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-        run: |
-          IPA_PATH=$(ls -1 build/ios/ipa/*.ipa | head -n1)
-          echo "Uploading $IPA_PATH to TestFlight..."
-          xcrun altool --upload-app \
-            --type ios \
-            --file "$IPA_PATH" \
-            --apiKey "$ASC_KEY_ID" \
-            --apiIssuer "$ASC_ISSUER_ID" \
-            --verbose
