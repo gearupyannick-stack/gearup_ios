@@ -165,7 +165,14 @@ jobs:
           } >> ios/Flutter/Release.xcconfig
 
       - name: Build signed IPA
-        run: flutter build ipa --release --export-options-plist=ExportOptions.plist
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            clean archive
 
       - name: Upload signed IPA as artifact
         uses: actions/upload-artifact@v4
