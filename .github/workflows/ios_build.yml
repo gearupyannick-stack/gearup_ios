@@ -1,8 +1,6 @@
 name: iOS Build & Sign + TestFlight
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       upload_to_testflight:
