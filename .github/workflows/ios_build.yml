@@ -24,8 +24,3 @@ jobs:
 
       - name: Flutter doctor
         run: flutter doctor -v
-
-      - name: Run on iOS simulator
-        run: |
-          flutter devices
-          flutter run -d macos --verbose
