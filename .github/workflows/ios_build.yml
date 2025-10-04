@@ -58,7 +58,6 @@ jobs:
           echo "$CERT_P12_BASE64" | base64 --decode > cert.p12
           test -s cert.p12
           echo "P12 size: $(stat -f%z cert.p12) bytes"
-          # Check password really opens the PKCS#12
           if ! openssl pkcs12 -in cert.p12 -nokeys -passin pass:"$CERT_P12_PASSWORD" -info >/dev/null 2>&1; then
             echo "::error::CERT_P12_PASSWORD doesn't match the .p12, or CERT_P12_BASE64 is invalid."
             exit 1
@@ -71,27 +70,29 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
           security list-keychains -d user -s "$KEYCHAIN_NAME" $(security list-keychains -d user | sed 's/"//g')
 
-      # ---------- Robust import: extract cert+key with OpenSSL, then import ----------
+      # ---------- Robust import: extract cert + PKCS#8 key then import ----------
       - name: Import signing identity (OpenSSL extraction → security import)
         env:
           CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
         run: |
           set -e
-          # Extract the leaf certificate and private key from the PKCS#12
-          openssl pkcs12 -in cert.p12 -clcerts -nokeys -passin pass:"$CERT_P12_PASSWORD" -out dist-cert.pem
-          openssl pkcs12 -in cert.p12 -nocerts -nodes  -passin pass:"$CERT_P12_PASSWORD" -out dist-key.pem
+          # Extract leaf certificate and private key
+          openssl pkcs12 -in cert.p12 -clcerts -nokeys \
+                  -passin pass:"$CERT_P12_PASSWORD" -out dist-cert.pem
+          openssl pkcs12 -in cert.p12 -nocerts -nodes \
+                  -passin pass:"$CERT_P12_PASSWORD" -out dist-key.pem
 
-          # Optional: clean key format (PKCS#8 unencrypted)
-          openssl pkey -in dist-key.pem -out dist-key-unenc.pem
+          # Convert key to unencrypted PKCS#8 (required: use -f pkcs8 on import)
+          openssl pkcs8 -topk8 -nocrypt -in dist-key.pem -out dist-key-pkcs8.pem
 
-          # Import cert and key separately into the custom keychain
-          security import dist-cert.pem -k "$KEYCHAIN_NAME" -A -t cert
-          security import dist-key-unenc.pem -k "$KEYCHAIN_NAME" -A -t priv -f pem
+          # Import certificate and private key to the custom keychain
+          security import dist-cert.pem      -k "$KEYCHAIN_NAME" -t cert   -f pemseq -A -T /usr/bin/codesign -T /usr/bin/security
+          security import dist-key-pkcs8.pem -k "$KEYCHAIN_NAME" -t priv   -f pkcs8  -A -T /usr/bin/codesign -T /usr/bin/security
 
-          # Allow codesign tools to use the key non-interactively
+          # Allow codesign to use the key non-interactively
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
 
-          # Show identities to confirm
+          # Show identities to confirm presence
           security find-identity -v -p codesigning "$KEYCHAIN_NAME" || (echo "No signing identity found" && exit 1)
 
       - name: Install provisioning profile
