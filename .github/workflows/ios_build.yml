@@ -7,27 +7,34 @@ on:
 jobs:
   ios:
     runs-on: macos-14
+
     env:
       APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
+
       CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
       CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
       PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
+
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
       APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: "3.35.5"
 
-      - run: flutter pub get
+      - name: flutter pub get
+        run: flutter pub get
 
-      - run: |
+      - name: Show macOS/Xcode
+        run: |
           sw_vers
           xcodebuild -version
 
@@ -35,8 +42,8 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
-      # >>> this was missing <<<
-      - name: Decode signing files
+      # ---- Decode secrets to files ----
+      - name: Decode signing/API files
         run: |
           mkdir -p $HOME/certs
           echo "$CERT_P12_BASE64" | base64 --decode > $HOME/certs/dist.p12
@@ -44,6 +51,7 @@ jobs:
           echo "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > $HOME/certs/AuthKey.p8
           ls -lah $HOME/certs
 
+      # ---- Verify P12 password early ----
       - name: Verify PKCS12 password
         run: |
           set +e
@@ -51,31 +59,40 @@ jobs:
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
-            echo "❌ PKCS12 verification failed. Check CERT_P12_PASSWORD/BASE64."
+            echo "❌ PKCS12 verification failed. Check CERT_P12_PASSWORD / CERT_P12_BASE64."
             exit 1
           fi
           echo "✅ PKCS12 password OK."
 
-#-------------------------------------------------------------------------------------------------
-
-      - name: Extract signing cert & key from p12
+      # ---- Extract cert + key (leaf only) ----
+      - name: Extract signing cert & key
         run: |
           mkdir -p $HOME/certs/extracted
-          # Leaf certificate only (works already)
+
+          # Leaf certificate (PEM, no CA chain)
           openssl pkcs12 -in $HOME/certs/dist.p12 \
             -passin pass:"$CERT_P12_PASSWORD" \
             -clcerts -nokeys \
             -out $HOME/certs/extracted/signing_cert.pem
 
-          # 🔧 Private key → clean PKCS#8 (no headers/bag attributes)
-          # We first dump the key, then re-encode as PKCS#8
+          # Private key as clean PKCS#8 PEM
           openssl pkcs12 -in $HOME/certs/dist.p12 \
             -passin pass:"$CERT_P12_PASSWORD" \
             -nocerts -nodes \
           | openssl pkcs8 -topk8 -nocrypt -out $HOME/certs/extracted/signing_key_pkcs8.pem
 
-          ls -lah $HOME/certs/extracted
+          # Also prepare OpenSSL/RSA fallback (traditional PKCS#1)
+          openssl pkcs12 -in $HOME/certs/dist.p12 \
+            -passin pass:"$CERT_P12_PASSWORD" \
+            -nocerts -nodes \
+          | openssl rsa -out $HOME/certs/extracted/signing_key_rsa.pem
 
+          ls -lah $HOME/certs/extracted
+          head -n 2 $HOME/certs/extracted/signing_cert.pem
+          head -n 2 $HOME/certs/extracted/signing_key_pkcs8.pem || true
+          head -n 2 $HOME/certs/extracted/signing_key_rsa.pem || true
+
+      # ---- Import into keychain (with robust key import) ----
       - name: Configure keychain & import cert/key
         run: |
           KEYCHAIN=$HOME/Library/Keychains/build.keychain-db
@@ -83,20 +100,35 @@ jobs:
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "" build.keychain
 
-          # Cert: PEM sequence
+          # Import certificate (PEM sequence)
           security import $HOME/certs/extracted/signing_cert.pem \
             -k build.keychain -A -t cert -f pemseq
 
-          # ✅ Key: PKCS#8 format
+          # Try importing the private key as PKCS#8 first
+          set +e
           security import $HOME/certs/extracted/signing_key_pkcs8.pem \
             -k build.keychain -A -t priv -f pkcs8 \
             -T /usr/bin/codesign -T /usr/bin/security
+          KEY_STATUS=$?
+          set -e
 
+          if [ $KEY_STATUS -ne 0 ]; then
+            echo "PKCS#8 import failed, trying OpenSSL/RSA format…"
+            security import $HOME/certs/extracted/signing_key_rsa.pem \
+              -k build.keychain -A -t priv -f openssl \
+              -T /usr/bin/codesign -T /usr/bin/security
+          fi
+
+          # Allow Xcode/codesign access
           security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+
+          # Prefer our keychain first
           security list-keychain -d user -s build.keychain login.keychain-db
+
           echo "Identities in keychain:"
           security find-identity -v -p codesigning build.keychain || true
 
+      # ---- Install provisioning profile ----
       - name: Install provisioning profile
         run: |
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
@@ -104,6 +136,7 @@ jobs:
           cp "$HOME/certs/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "Installed provisioning profile: $PROFILE_UUID"
 
+      # ---- Archive ----
       - name: Build iOS archive
         run: |
           rm -rf build/ios
@@ -119,6 +152,7 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             archive | xcpretty && exit ${PIPESTATUS[0]}
 
+      # ---- ExportOptions.plist ----
       - name: Create exportOptions.plist
         run: |
           cat > $GITHUB_WORKSPACE/exportOptions.plist << 'PLIST'
@@ -140,7 +174,9 @@ jobs:
           </dict>
           </plist>
           PLIST
+          cat $GITHUB_WORKSPACE/exportOptions.plist
 
+      # ---- Export IPA ----
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
@@ -149,6 +185,7 @@ jobs:
             -exportOptionsPlist "$GITHUB_WORKSPACE/exportOptions.plist" | xcpretty && exit ${PIPESTATUS[0]}
           ls -lah "$GITHUB_WORKSPACE/build/ios"
 
+      # ---- Upload to TestFlight ----
       - name: Upload to TestFlight (iTMSTransporter)
         run: |
           IPA="$GITHUB_WORKSPACE/build/ios/Runner.ipa"
