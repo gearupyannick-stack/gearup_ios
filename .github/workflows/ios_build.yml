@@ -2,7 +2,7 @@ name: Flutter macOS Build
 
 on:
   push:
-    branches: [ main ] # Change this to your default branch if needed
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -14,7 +14,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '1.0.1' # Use your Flutter version
+          flutter-version: '3.19.5' # Use a supported version
           channel: 'stable'
 
       - name: Get dependencies
