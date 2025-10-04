@@ -11,7 +11,6 @@ jobs:
     runs-on: macos-14
 
     env:
-      # --- Your existing secret names (from screenshot) ---
       APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
 
@@ -49,10 +48,29 @@ jobs:
       - name: Decode signing files
         run: |
           mkdir -p $HOME/certs
+          # decode p12
           echo "$CERT_P12_BASE64" | base64 --decode > $HOME/certs/dist.p12
+          # decode provisioning profile
           echo "$PROV_PROFILE_BASE64" | base64 --decode > $HOME/certs/profile.mobileprovision
-          # IMPORTANT: APP_STORE_CONNECT_API_KEY_P8 must be BASE64 of the .p8
+          # decode API key (.p8)
           echo "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > $HOME/certs/AuthKey.p8
+          ls -lah $HOME/certs
+
+      - name: Verify PKCS12 password before keychain import
+        run: |
+          # Show p12 metadata to validate password early (no secrets printed)
+          set +e
+          OUT=$(openssl pkcs12 -in $HOME/certs/dist.p12 -noout -info -passin pass:"$CERT_P12_PASSWORD" 2>&1)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "❌ PKCS12 verification failed. Check CERT_P12_PASSWORD and CERT_P12_BASE64."
+            echo "OpenSSL said:"
+            echo "$OUT"
+            exit 1
+          else
+            echo "✅ PKCS12 password OK."
+          fi
 
       - name: Configure keychain & certificate
         run: |
