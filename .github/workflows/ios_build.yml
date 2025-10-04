@@ -32,9 +32,16 @@ jobs:
           ASC_KEY_CONTENTS: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
         run: |
           set -euo pipefail
-          if [[ ! "$ASC_KEY_ID" =~ ^[A-Z0-9]{10}$ ]]; then
-            echo "::error::APP_STORE_CONNECT_API_KEY_ID must be 10 chars like ABCDE12345"; exit 1
+          # show lengths only (no secret values)
+          echo "KeyId length: ${#ASC_KEY_ID}"
+          echo "IssuerId length: ${#ASC_ISSUER_ID}"
+          echo "p8 length: ${#ASC_KEY_CONTENTS}"
+
+          # Apple’s ASC Key IDs are typically 10, but some are 12 chars. Allow 10–12.
+          if [[ ! "$ASC_KEY_ID" =~ ^[A-Z0-9]{10,12}$ ]]; then
+            echo "::error::APP_STORE_CONNECT_API_KEY_ID must be 10–12 uppercase letters/digits (e.g. ABCDE12345). Got length ${#ASC_KEY_ID}."; exit 1
           fi
+          # Issuer must be a UUID
           if [[ ! "$ASC_ISSUER_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
             echo "::error::APP_STORE_CONNECT_API_ISSUER_ID must be a UUID"; exit 1
           fi
@@ -175,7 +182,7 @@ jobs:
           name: ios-ipa-signed
           path: build/ios/ipa/*.ipa
 
-      # ---------- Prepare ASC key (raw PEM or base64) ----------
+      # ---------- Install ASC p8 (raw PEM or base64) ----------
       - name: Install App Store Connect API key
         if: ${{ inputs.upload_to_testflight == 'true' }}
         env:
