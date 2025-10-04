@@ -58,11 +58,11 @@ jobs:
       - name: Decode signing files
         run: |
           mkdir -p $HOME/certs
-          # decode p12
+          # p12 (certificate)
           echo "$CERT_P12_BASE64" | base64 --decode > $HOME/certs/dist.p12
-          # decode provisioning profile
+          # provisioning profile
           echo "$PROV_PROFILE_BASE64" | base64 --decode > $HOME/certs/profile.mobileprovision
-          # decode API key (.p8)
+          # App Store Connect API key (.p8) — must also be base64-encoded in the secret
           echo "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > $HOME/certs/AuthKey.p8
           ls -lah $HOME/certs
 
