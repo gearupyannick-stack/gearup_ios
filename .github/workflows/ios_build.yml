@@ -64,6 +64,21 @@ jobs:
             exit 1
           fi
 
+      - name: Validate provisioning profile secret
+        env:
+          PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
+        run: |
+          set -e
+          echo "$PROV_PROFILE_BASE64" | base64 --decode > app.mobileprovision || { echo "::error::PROV_PROFILE_BASE64 is not valid base64"; exit 1; }
+          BYTES=$(stat -f%z app.mobileprovision)
+          echo "Decoded provisioning profile size: $BYTES bytes"
+          if [ "$BYTES" -lt 1000 ]; then
+            echo "::error::Decoded provisioning profile is too small — the secret is likely empty or wrong file."
+            exit 1
+          fi
+          # Quick parse check
+          /usr/bin/security cms -D -i app.mobileprovision >/dev/null 2>&1 || { echo "::error::Provisioning profile cannot be parsed. Make sure you pasted the correct base64."; exit 1; }
+
       # --------- Repack P12 in a fresh container macOS likes ---------
       - name: Repack P12 (PEM -> new PKCS#12)
         env:
