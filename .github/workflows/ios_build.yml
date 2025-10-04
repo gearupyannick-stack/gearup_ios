@@ -24,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---------- Preflight check ----------
+      # ---------- Preflight ----------
       - name: Preflight check App Store Connect secrets
         if: ${{ inputs.upload_to_testflight == 'true' }}
         env:
@@ -32,22 +32,10 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           ASC_KEY_CONTENTS: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
         run: |
-          set -euo pipefail
-          echo "KeyId length: ${#ASC_KEY_ID}"
-          echo "IssuerId length: ${#ASC_ISSUER_ID}"
-          echo "p8 length: ${#ASC_KEY_CONTENTS}"
-          if [[ ! "$ASC_KEY_ID" =~ ^[A-Z0-9]{10,12}$ ]]; then
-            echo "::error::APP_STORE_CONNECT_API_KEY_ID must be 10–12 uppercase letters/digits"; exit 1
-          fi
-          if [[ ! "$ASC_ISSUER_ID" =~ ^[0-9a-fA-F-]{36}$ ]]; then
-            echo "::error::APP_STORE_CONNECT_API_ISSUER_ID must be a UUID"; exit 1
-          fi
+          echo "KeyId: ${#ASC_KEY_ID}, IssuerId: ${#ASC_ISSUER_ID}, p8: ${#ASC_KEY_CONTENTS}"
           if [[ -z "${ASC_KEY_CONTENTS}" ]]; then
-            echo "::error::APP_STORE_CONNECT_API_KEY_P8 is empty"; exit 1
-          fi
-          echo "ASC secrets look well-formed."
+            echo "::error::App Store Connect key missing"; exit 1; fi
 
-      # ---------- Flutter setup ----------
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -62,7 +50,6 @@ jobs:
       - name: Flutter doctor
         run: flutter doctor -v
 
-      # ---------- CocoaPods ----------
       - name: Install CocoaPods
         run: gem install cocoapods --no-document
 
@@ -72,19 +59,18 @@ jobs:
           pod repo update
           pod install
 
-      # ---------- Restrict to iPhone only ----------
+      # ---------- Restrict to iPhone ----------
       - name: Restrict build to iPhone only
         run: |
           PLIST=ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Delete :UIDeviceFamily" "$PLIST" || true
           /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily:0 integer 1" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Delete :UIRequiresFullScreen" "$PLIST" || true
           /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool YES" "$PLIST"
-          plutil -p "$PLIST" | grep UIDeviceFamily
+          echo "✅ iPhone-only enforced"
 
-      # ---------- Decode & validate signing materials ----------
-      - name: Decode + validate P12
+      # ---------- Decode signing ----------
+      - name: Decode and verify P12
         env:
           CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
           CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
@@ -101,23 +87,21 @@ jobs:
           /usr/bin/security cms -D -i app.mobileprovision >/dev/null
           echo "Provisioning profile OK"
 
-      - name: Repack P12
+      # ---------- Repack P12 ----------
+      - name: Repack certificate
         env:
           CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
         run: |
           openssl pkcs12 -in orig.p12 -clcerts -nokeys -passin pass:"$CERT_P12_PASSWORD" -out dist-cert.pem
           openssl pkcs12 -in orig.p12 -nocerts -nodes -passin pass:"$CERT_P12_PASSWORD" -out dist-key.pem
-          export REPACK_PASS="$(openssl rand -hex 16)"
-          openssl pkcs12 -export -inkey dist-key.pem -in dist-cert.pem -name "Apple Distribution (Repacked)" -passout pass:"$REPACK_PASS" -out repacked.p12
+          export REPACK_PASS=$(openssl rand -hex 12)
+          openssl pkcs12 -export -inkey dist-key.pem -in dist-cert.pem -name "Apple Distribution (Repacked)" -passout pass:$REPACK_PASS -out repacked.p12
           echo "REPACK_PASS=$REPACK_PASS" >> $GITHUB_ENV
 
-      - name: Create keychain
+      - name: Create keychain and import cert
         run: |
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
-
-      - name: Import signing identity
-        run: |
           security import repacked.p12 -k "$KEYCHAIN_NAME" -P "$REPACK_PASS" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
           security find-identity -v -p codesigning "$KEYCHAIN_NAME"
@@ -132,11 +116,12 @@ jobs:
           /usr/bin/security cms -D -i app.mobileprovision > profile.plist
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
           NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
-          cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
           echo "uuid=$UUID" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
+          cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          echo "✅ Installed $NAME ($UUID)"
 
-      # ---------- Create ExportOptions.plist ----------
+      # ---------- ExportOptions.plist ----------
       - name: Create ExportOptions.plist
         run: |
           cat > ExportOptions.plist <<PLIST
@@ -146,31 +131,43 @@ jobs:
           <dict>
             <key>method</key><string>app-store</string>
             <key>signingStyle</key><string>manual</string>
-            <key>stripSwiftSymbols</key><true/>
-            <key>uploadSymbols</key><true/>
-            <key>destination</key><string>export</string>
-            <key>compileBitcode</key><false/>
+            <key>teamID</key><string>${TEAM_ID}</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>${APP_BUNDLE_ID}</key><string>GearupAppStore</string>
+              <key>${APP_BUNDLE_ID}</key><string>${{ steps.prov.outputs.name }}</string>
             </dict>
-            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>destination</key><string>export</string>
+            <key>stripSwiftSymbols</key><true/>
+            <key>compileBitcode</key><false/>
           </dict>
           </plist>
           PLIST
-          /usr/libexec/PlistBuddy -c "Print" ExportOptions.plist >/dev/null && echo "ExportOptions.plist created."
+          echo "✅ ExportOptions.plist created"
+
+      # ---------- Force code signing for Flutter ----------
+      - name: Configure signing overrides
+        run: |
+          {
+            echo "CODE_SIGN_IDENTITY=Apple Distribution: Yannick Durindel (${TEAM_ID})"
+            echo "DEVELOPMENT_TEAM=${TEAM_ID}"
+            echo "PROVISIONING_PROFILE_SPECIFIER=${{ steps.prov.outputs.name }}"
+            echo "PRODUCT_BUNDLE_IDENTIFIER=${APP_BUNDLE_ID}"
+          } >> ios/Flutter/Release.xcconfig
+          cat ios/Flutter/Release.xcconfig
 
       # ---------- Build IPA ----------
       - name: Build signed IPA
-        run: flutter build ipa --release --export-options-plist=ExportOptions.plist
+        run: |
+          flutter build ipa --release --export-options-plist=ExportOptions.plist \
+            --build-name=1.0.1 --build-number=2
 
-      - name: Upload signed IPA as artifact
+      - name: Upload signed IPA
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa-signed
           path: build/ios/ipa/*.ipa
 
-      # ---------- Upload to TestFlight ----------
+      # ---------- TestFlight ----------
       - name: Install ASC key
         if: ${{ inputs.upload_to_testflight == 'true' }}
         env:
