@@ -166,13 +166,20 @@ jobs:
 
       - name: Build signed IPA
         run: |
+          # Build archive using iOS 17.5 SDK explicitly
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
-            -sdk iphoneos \
+            -sdk iphoneos17.5 \
             -destination 'generic/platform=iOS' \
             -archivePath build/ios/archive/Runner.xcarchive \
             clean archive
+
+          # Export IPA (same as before)
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/ios/ipa
 
       - name: Upload signed IPA as artifact
         uses: actions/upload-artifact@v4
