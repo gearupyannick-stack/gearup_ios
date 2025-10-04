@@ -1,25 +1,31 @@
-name: Flutter macOS Build
+name: Flutter Run iOS (no signing)
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: macos-latest
+  flutter-run:
+    runs-on: macos-14
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.5'
-          channel: 'stable'
-          architecture: 'x64'
+          channel: stable
 
-      - name: Get dependencies
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Build macOS app
-        run: flutter build macos --release
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Run on iOS simulator
+        run: |
+          flutter devices
+          flutter run -d macos --verbose
