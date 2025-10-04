@@ -13,9 +13,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ✅ Pick the Xcode that actually exists on macos-14
+      # ✅ Correct action to select Xcode
       - name: Select Xcode 15.4
-        uses: actions/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '15.4'
 
@@ -30,10 +30,10 @@ jobs:
           channel: stable
           cache: true
 
-      - name: flutter --version
+      - name: Flutter version
         run: flutter --version
 
-      - name: flutter pub get
+      - name: Get packages
         run: flutter pub get
 
       - name: Install CocoaPods
@@ -43,13 +43,13 @@ jobs:
         working-directory: ios
         run: pod repo update
 
-      # --- Signing setup (same as you already do) ---
-      - name: Decode provisioning profile (sanity)
+      # --- Signing (same as you had) ---
+      - name: Validate provisioning profile
         shell: bash
         run: |
           set -e
           echo "$PROV_PROFILE_BASE64" | base64 --decode > app.mobileprovision
-          /usr/bin/security cms -D -i app.mobileprovision >/dev/null || { echo "::error::Invalid provisioning profile"; exit 1; }
+          /usr/bin/security cms -D -i app.mobileprovision >/dev/null
           echo "Provisioning profile OK ($(stat -f%z app.mobileprovision) bytes)"
         env:
           PROV_PROFILE_BASE64: ${{ secrets.APP_STORE_PROVISIONING_PROFILE_BASE64 }}
@@ -104,8 +104,7 @@ jobs:
           </plist>
           PLIST
 
-      # --- Build & export using Xcode 15.4 + iOS 17.5 SDK ---
-      # Note: no DEVELOPER_DIR env; Xcode is selected already.
+      # --- Build & export with Xcode 15.4 / iOS 17.5 SDK ---
       - name: Archive (xcodebuild)
         run: |
           set -e
