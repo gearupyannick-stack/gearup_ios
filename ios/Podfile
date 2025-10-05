@@ -1,55 +1,25 @@
-# ios/Podfile
 platform :ios, '13.0'
 
-# Find podhelper.rb (prefer local, else from FLUTTER_ROOT)
-flutter_root = ENV['FLUTTER_ROOT']
-
-helper_path_local = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
-helper_path_sdk   = flutter_root.nil? ? nil : File.expand_path(File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb'))
-
-if File.exist?(helper_path_local)
-  require helper_path_local
-elsif !helper_path_sdk.nil? && File.exist?(helper_path_sdk)
-  require helper_path_sdk
-else
-  raise <<~ERR
-    Could not find podhelper.rb.
-    Tried:
-      - #{helper_path_local}
-      - #{helper_path_sdk}
-  ERR
-end
-
-flutter_ios_podfile_setup
+# Flutter helper (provided by Flutter SDK)
+require File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
 
 target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
 
-  flutter_install_all_ios_pods(File.dirname(File.realpath(__FILE__)))
+  flutter_ios_podfile_setup
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
-# ---- IMPORTANT: do NOT call flutter_additional_ios_build_settings(installer) here ----
-# CocoaPods 1.16.x + Flutter 3.35.x have a breaking change (platform_name missing).
-# We apply the minimal stable settings ourselves instead.
-
 post_install do |installer|
-  # Minimal, safe settings compatible with App Store builds
   installer.pods_project.targets.each do |t|
-    t.build_configurations.each do |c|
-      settings = c.build_settings
-
-      # iOS 13+ as per platform at the top
-      settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-
-      # Bitcode deprecated; ensure off
-      settings['ENABLE_BITCODE'] = 'NO'
-
-      # Avoid simulator/arm64 hiccups on some pods
-      settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
-
-      # Let XCFrameworks be distributable (helps with Ads/Firebase)
-      settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
+    t.build_configurations.each do |config|
+      # Recommended for Swift Plugins with Xcode 15/16
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
     end
   end
+
+  flutter_additional_ios_build_settings(installer)
 end
