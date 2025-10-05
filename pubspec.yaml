@@ -16,9 +16,9 @@ dependencies:
   tutorial_coach_mark: ^1.3.0
 
   # ↓ Downgraded Firebase libs to match Google Mobile Ads (<11)
-  firebase_core: ^4
-  firebase_storage: ^13
-  firebase_analytics: ^12
+  firebase_core: ^4.0.0
+  firebase_storage: ^13.0.0
+  firebase_analytics: ^12.0.0
 
   google_mobile_ads: ^3.0.0
   dio: ^5.4.0
