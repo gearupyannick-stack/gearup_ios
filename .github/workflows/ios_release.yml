@@ -6,7 +6,7 @@ on:
 
 jobs:
   ios:
-    runs-on: macos-latest
+    runs-on: macos-15
     env:
       APP_BUNDLE_ID: com.gearup.app
       KEYCHAIN_NAME: signing_${{ github.run_id }}
@@ -33,12 +33,17 @@ jobs:
       - name: Select Xcode 16
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.0'  # You can also try '16' or '16.1' if available
+          xcode-version: '16.1'  # You can also try '16' or '16.1' if available
 
       - name: Check Xcode version
         run: |
           xcodebuild -version
           xcode-select -p
+
+      - name: Verify iOS SDKs present
+        run: |
+          xcodebuild -showsdks
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Precache iOS engine & write podhelper/xcconfig
         shell: bash
