@@ -2,7 +2,6 @@ platform :ios, '13.0'
 
 flutter_root = ENV['FLUTTER_ROOT']
 if flutter_root.nil? || !File.directory?(flutter_root)
-  # Fallback: read from Generated.xcconfig if the env var is missing
   generated = File.expand_path(File.join(__dir__, 'Flutter', 'Generated.xcconfig'))
   if File.exist?(generated)
     File.foreach(generated) do |line|
@@ -14,20 +13,23 @@ if flutter_root.nil? || !File.directory?(flutter_root)
     end
   end
 end
-
 raise 'FLUTTER_ROOT is not set or invalid. Set it in CI before pod install.' if flutter_root.nil? || !File.directory?(flutter_root)
 
 require File.expand_path('packages/flutter_tools/bin/podhelper.rb', flutter_root)
 
 target 'Runner' do
   use_frameworks! :linkage => :static
-  use_modular_headers!
+  # ❌ supprime: use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |t|
+    # Garde le hook Flutter
+    flutter_additional_ios_build_settings(t)
+
+    # Filet de sécurité pour les en-têtes non modulaires
     t.build_configurations.each do |config|
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
