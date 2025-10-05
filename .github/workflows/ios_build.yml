@@ -52,13 +52,15 @@ jobs:
               exit 1
             fi
           done
+          
         env:
-          APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APP_STORE_PROVISIONING_PROFILE_BASE64 }}
-          DISTRIBUTION_P12_BASE64: ${{ secrets.DISTRIBUTION_P12_BASE64 }}
-          DISTRIBUTION_P12_PASSWORD: ${{ secrets.DISTRIBUTION_P12_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          # map old secret names to the new ones the job expects
+          APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
+          DISTRIBUTION_P12_BASE64:             ${{ secrets.DISTRIBUTION_P12_BASE64 }}   # or DIST_P12_B64 if that’s your actual name
+          DISTRIBUTION_P12_PASSWORD:           ${{ secrets.CERT_P12_PASSWORD }}
+          APPLE_TEAM_ID:                       ${{ secrets.TEAM_ID }}
+          APP_BUNDLE_ID:                       ${{ secrets.APP_BUNDLE_ID }}
+          KEYCHAIN_PASSWORD:                   ${{ secrets.KEYCHAIN_PASSWORD }}
 
       - name: Import signing cert to keychain
         shell: bash
