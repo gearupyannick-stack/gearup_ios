@@ -6,7 +6,7 @@ on:
 
 jobs:
   ios:
-    runs-on: macos-14
+    runs-on: macos-latest
     env:
       APP_BUNDLE_ID: com.gearup.app
       KEYCHAIN_NAME: signing_${{ github.run_id }}
