@@ -150,10 +150,13 @@ jobs:
           grep -Fq "$INCLUDE_LINE" "$FILE" || echo "$INCLUDE_LINE" >> "$FILE"
           flutter build ipa --release --export-options-plist=ios/ci_export_appstore.plist
 
+      - name: Verify built IPA exists
+        run: ls -lh build/ios/ipa
+
       - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v1
         with:
-          app-path: build/ios/ipa/*.ipa
+          app-path: build/ios/ipa/Runner.ipa
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
           api-private-key: ${{ secrets.ASC_KEY_P8 }}
