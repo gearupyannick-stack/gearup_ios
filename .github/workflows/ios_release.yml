@@ -8,41 +8,41 @@ on:
 jobs:
   ios:
     runs-on: macos-14
+
     env:
       APP_BUNDLE_ID: com.gearup.app
-      # Unique keychain name per run to prevent collisions
-      KEYCHAIN_NAME: signing_${{ github.run_id }}
+      KEYCHAIN_NAME: signing_${{ github.run_id }} # unique per run
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Flutter toolchain ------------------------------------------------------
-      - name: Install Flutter (stable arm64)
+      - name: Cache Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: /Users/runner/hostedtoolcache/flutter
+          key: flutter-stable-3.35.5-arm64
+
+      - name: Flutter SDK
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: '3.35.5'
           architecture: arm64
 
-      - name: Configure Flutter for iOS pods
+      - name: Precache iOS engine & write podhelper/xcconfig
         shell: bash
         run: |
           set -euo pipefail
+          flutter precache --ios --no-universal --force
 
-          # Real FLUTTER_ROOT (podhelper.rb needs this)
           FLUTTER_BIN="$(which flutter)"
           FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd -P)"
           echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
 
-          # Make sure the iOS engine artifacts exist (Flutter.xcframework)
-          flutter precache --ios --no-universal --force
-
-          # Ensure podhelper.rb is present for CocoaPods
           mkdir -p ios/Flutter
           cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
 
-          # Generate a minimal Generated.xcconfig so podhelper.rb can read envs
           cat > ios/Flutter/Generated.xcconfig <<EOF
           FLUTTER_ROOT=$FLUTTER_ROOT
           FLUTTER_APPLICATION_PATH=$GITHUB_WORKSPACE
@@ -53,26 +53,22 @@ jobs:
           PACKAGE_CONFIG=.dart_tool/package_config.json
           EOF
 
-      - name: Flutter pub get
+      - name: flutter pub get
         run: flutter pub get
 
-      # CocoaPods --------------------------------------------------------------
       - name: CocoaPods install
         shell: bash
         run: |
           set -euo pipefail
-          pushd ios >/dev/null
+          pushd ios
           pod repo update
+          # If you had a previous lock with wrong settings, clear it:
+          rm -f Podfile.lock
           pod install
-          popd >/dev/null
+          popd
 
-          # Fix "base configuration" warning: ensure Pods xcconfig is included
-          INCLUDE_LINE='#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"'
-          FILE="ios/Flutter/Release.xcconfig"
-          grep -Fq "$INCLUDE_LINE" "$FILE" || echo "$INCLUDE_LINE" >> "$FILE"
-
-      # Code signing material --------------------------------------------------
-      - name: Import Apple Distribution certificate
+      # ✅ Import certs ONCE with a unique keychain name
+      - name: Import code signing cert
         uses: apple-actions/import-codesign-certs@v2
         with:
           p12-file-base64: ${{ secrets.IOS_CERT_P12_BASE64 }}
@@ -80,68 +76,23 @@ jobs:
           keychain: ${{ env.KEYCHAIN_NAME }}
           create-keychain: true
 
-      - name: Download App Store provisioning profile
-        uses: apple-actions/download-provisioning-profiles@v1
-        with:
-          bundle-id: ${{ env.APP_BUNDLE_ID }}
-          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
-          api-key-id: ${{ secrets.ASC_KEY_ID }}
-          api-private-key: ${{ secrets.ASC_KEY_P8_BASE64 }}
-          profile-type: IOS_APP_STORE
+      # (Optional) Download provisioning profile(s) if you use manual profiles
+      # - name: Download provisioning profiles
+      #   uses: apple-actions/download-provisioning-profiles@v1
+      #   with:
+      #     bundle-id: ${{ env.APP_BUNDLE_ID }}
+      #     issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+      #     api-key-id: ${{ secrets.ASC_KEY_ID }}
+      #     api-private-key: ${{ secrets.ASC_KEY_P8_BASE64 }}
 
-      - name: Make signing keychain default (so xcodebuild finds the cert)
-        shell: bash
-        run: |
-          security default-keychain -s "${KEYCHAIN_NAME}.keychain"
-          security list-keychains -d user -s "${KEYCHAIN_NAME}.keychain" login.keychain
-          security unlock-keychain -p "" "${KEYCHAIN_NAME}.keychain" || true
-
-      - name: Force manual signing for Release (CI-only)
-        shell: bash
-        env:
-          TEAM_ID: ${{ secrets.APPSTORE_TEAM_ID }}
-          PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
-        run: |
-          set -euo pipefail
-          cat >> ios/Flutter/Release.xcconfig <<EOF
-
-          // ---- CI signing overrides ----
-          DEVELOPMENT_TEAM = ${TEAM_ID}
-          PRODUCT_BUNDLE_IDENTIFIER = ${APP_BUNDLE_ID}
-          CODE_SIGN_STYLE = Manual
-          CODE_SIGN_IDENTITY = Apple Distribution
-          PROVISIONING_PROFILE_SPECIFIER = ${PROFILE_NAME}
-          EOF
-
-      - name: Create ExportOptions.plist (manual signing)
-        shell: bash
-        env:
-          PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
-        run: |
-          cat > ios/ci_export_appstore.plist <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key><string>app-store</string>
-            <key>signingStyle</key><string>manual</string>
-            <key>signingCertificate</key><string>Apple Distribution</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>${APP_BUNDLE_ID}</key><string>${PROFILE_NAME}</string>
-            </dict>
-            <key>stripSwiftSymbols</key><true/>
-            <key>uploadSymbols</key><true/>
-            <key>compileBitcode</key><false/>
-          </dict>
-          </plist>
-          PLIST
-
-      # Build & upload ---------------------------------------------------------
       - name: Build IPA (App Store)
         shell: bash
         run: |
           set -euo pipefail
+          INCLUDE_LINE='#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"'
+          FILE="ios/Flutter/Release.xcconfig"
+          grep -Fq "$INCLUDE_LINE" "$FILE" || echo "$INCLUDE_LINE" >> "$FILE"
+
           flutter build ipa --release --export-options-plist=ios/ci_export_appstore.plist
 
       - name: Upload to TestFlight
