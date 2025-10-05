@@ -84,7 +84,7 @@ jobs:
           bundle-id:        ${{ env.APP_BUNDLE_ID }}
           issuer-id:        ${{ secrets.ASC_ISSUER_ID }}
           api-key-id:       ${{ secrets.ASC_KEY_ID }}
-          api-private-key:  ${{ secrets.ASC_KEY_P8_BASE64 }}
+          api-private-key:  ${{ secrets.ASC_KEY_P8 }}
           profile-type:     IOS_APP_STORE
 
       # Create ExportOptions.plist on the fly to match your profile name
@@ -123,4 +123,4 @@ jobs:
           app-path: build/ios/ipa/*.ipa
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
-          api-private-key: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          api-private-key: ${{ secrets.ASC_KEY_P8 }}
