@@ -20,50 +20,50 @@ jobs:
           flutter-version: '3.35.5'
           architecture: arm64
 
-      # 1) Force FLUTTER_ROOT and precache iOS artifacts
-      - name: Precache iOS engine + make podhelper available
+      - name: Setup Flutter (stable arm64)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.35.5'
+          architecture: arm64
+
+      - name: Configure Flutter env for iOS pods
         shell: bash
         run: |
-          echo "FLUTTER_ROOT=${{ env.FLUTTER_HOME }}" >> "$GITHUB_ENV"
-          flutter --version
-          flutter doctor -v
+          set -euo pipefail
+
+          # Find the real SDK root from the flutter binary
+          FLUTTER_BIN="$(which flutter)"
+          FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd -P)"
+          echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
+
+          # Precache the iOS engine so Flutter.xcframework exists
           flutter precache --ios --no-universal --force
+
+          # Ensure the Pod helper exists in the project (CI agents don't have it in repo)
           mkdir -p ios/Flutter
           cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
 
-      - name: Pub get
+          # Overwrite Generated.xcconfig so podhelper.rb reads the CORRECT FLUTTER_ROOT
+          GEN_XC="ios/Flutter/Generated.xcconfig"
+          : > "$GEN_XC"
+          {
+            echo "FLUTTER_ROOT=$FLUTTER_ROOT"
+            echo "FLUTTER_APPLICATION_PATH=$GITHUB_WORKSPACE"
+            echo "FLUTTER_TARGET=lib/main.dart"
+            echo "DART_OBFUSCATION=false"
+            echo "TRACK_WIDGET_CREATION=false"
+            echo "TREE_SHAKE_ICONS=true"
+            echo "PACKAGE_CONFIG=.dart_tool/package_config.json"
+          } >> "$GEN_XC"
+
+      - name: Flutter pub get
         run: flutter pub get
 
-      # 2) Import signing cert
-      - name: Import code-signing cert
-        uses: apple-actions/import-codesign-certs@v2
-        with:
-          p12-file-base64: ${{ secrets.CERT_P12_BASE64 }}
-          p12-password: ${{ secrets.CERT_P12_PASSWORD }}
-
-      # 3) Install provisioning profile
-      - name: Install provisioning profile
+      - name: CocoaPods install
         shell: bash
-        env:
-          PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
-          PROFILE_NAME: GearupAppStore
         run: |
-          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
-          echo "$PROV_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
-          if ! /usr/bin/security cms -D -i "$PROFILE_PATH" >/dev/null 2>&1; then
-            echo "Decoded profile is invalid/empty"; exit 1
-          fi
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(/usr/bin/security cms -D -i "$PROFILE_PATH")")
-          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
-          echo "PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
-
-      # 4) CocoaPods with the proper env
-      - name: Pod install (fresh)
-        shell: bash
-        env:
-          FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }}
-        run: |
+          set -euo pipefail
           rm -f ios/Podfile.lock
           pushd ios
           pod repo update
