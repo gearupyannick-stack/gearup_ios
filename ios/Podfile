@@ -1,7 +1,7 @@
 # ios/Podfile
 platform :ios, '13.0'
 
-# --- Locate podhelper.rb (local first, then from Flutter SDK via FLUTTER_ROOT) ---
+# Find podhelper.rb (prefer local, else from FLUTTER_ROOT)
 flutter_root = ENV['FLUTTER_ROOT']
 
 helper_path_local = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
@@ -17,9 +17,6 @@ else
     Tried:
       - #{helper_path_local}
       - #{helper_path_sdk}
-
-    Ensure Flutter is installed and FLUTTER_ROOT is set in your CI,
-    or run `flutter --version` locally once to generate ios/Flutter files.
   ERR
 end
 
@@ -32,13 +29,27 @@ target 'Runner' do
   flutter_install_all_ios_pods(File.dirname(File.realpath(__FILE__)))
 end
 
-post_install do |installer|
-  flutter_additional_ios_build_settings(installer)
+# ---- IMPORTANT: do NOT call flutter_additional_ios_build_settings(installer) here ----
+# CocoaPods 1.16.x + Flutter 3.35.x have a breaking change (platform_name missing).
+# We apply the minimal stable settings ourselves instead.
 
-  # Bitcode is deprecated; make sure it's disabled for all configs
+post_install do |installer|
+  # Minimal, safe settings compatible with App Store builds
   installer.pods_project.targets.each do |t|
     t.build_configurations.each do |c|
-      c.build_settings['ENABLE_BITCODE'] = 'NO'
+      settings = c.build_settings
+
+      # iOS 13+ as per platform at the top
+      settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # Bitcode deprecated; ensure off
+      settings['ENABLE_BITCODE'] = 'NO'
+
+      # Avoid simulator/arm64 hiccups on some pods
+      settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+
+      # Let XCFrameworks be distributable (helps with Ads/Firebase)
+      settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
     end
   end
 end
