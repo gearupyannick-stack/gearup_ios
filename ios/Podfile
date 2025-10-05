@@ -1,4 +1,4 @@
-platform :ios, '15.0'
+platform :ios, '13.0'
 require File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
 flutter_ios_podfile_setup
 target 'Runner' do
