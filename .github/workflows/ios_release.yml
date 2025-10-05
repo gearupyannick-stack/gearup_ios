@@ -152,6 +152,8 @@ jobs:
           echo "LC_ALL=en_US.UTF-8" >> $GITHUB_ENV
           echo "RUBYOPT=-EUTF-8:UTF-8" >> $GITHUB_ENV
 
+      # (your Flutter precache / Generated.xcconfig steps go before this)
+
       - name: Replace Podfile with clean ASCII (iOS-only)
         working-directory: ios
         run: |
@@ -185,7 +187,6 @@ jobs:
           post_install do |installer|
             installer.pods_project.targets.each do |t|
               t.build_configurations.each do |config|
-                # Keeps the build happy with Firebase headers in newer SDKs
                 config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
               end
             end
@@ -199,10 +200,9 @@ jobs:
           nl -ba Podfile | sed -n '1,200p'
           echo "-------------------"
 
-      - name: CocoaPods (deintegrate & install fresh)
+      - name: CocoaPods (fresh install)
         working-directory: ios
         run: |
-          pod repo update
           pod deintegrate || true
           rm -rf Pods Podfile.lock
           pod install --verbose
