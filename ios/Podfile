@@ -1,60 +1,18 @@
 # ios/Podfile
-platform :ios, '15.0'
+platform :ios, '13.0'
 
-# Pin Firebase to a Swift 5–compatible release for Xcode 15.4
-$FirebaseSDKVersion = '10.29.0'
-ENV['FIREBASE_SDK_VERSION'] = $FirebaseSDKVersion
-
-ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-
-project 'Runner', {
-  'Debug' => :debug,
-  'Profile' => :release,
-  'Release' => :release,
-}
-
-def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter build ios (or run) generated it."
-  end
-  File.foreach(generated_xcode_build_settings_path) do |line|
-    match = line.match(/FLUTTER_ROOT\=(.*)/)
-    return match[1].strip if match
-  end
-  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}"
-end
-
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
-
-flutter_ios_podfile_setup
+use_frameworks! :linkage => :static
+use_modular_headers!
 
 target 'Runner' do
-  use_frameworks!
-  use_modular_headers!
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  flutter_install_all_ios_pods(File.dirname(File.realpath(__FILE__)))
 end
 
 post_install do |installer|
-  # Ensure pods use iOS 15 & Swift 5.0 for Xcode 15.4 runners
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-      config.build_settings['SWIFT_VERSION'] = '5.0'
+      # Désactive le bitcode (de toute façon obsolète)
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
     end
-  end
-
-  installer.aggregate_targets.each do |agg|
-    agg.user_project.native_targets.each do |nt|
-      nt.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-        config.build_settings['SWIFT_VERSION'] = '5.0'
-      end
-    end
-  end
-
-  # Keep Flutter’s extra settings
-  installer.pods_project.targets.each do |target|
-    flutter_additional_ios_build_settings(target)
   end
 end
