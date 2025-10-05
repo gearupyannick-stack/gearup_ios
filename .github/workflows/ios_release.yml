@@ -1,16 +1,15 @@
-name: iOS Release → TestFlight (Flutter)
+name: iOS → Build, Sign & TestFlight (simple)
 
 on:
   workflow_dispatch:
     inputs:
       build_number:
-        description: "Optionnel: forcer un build number > précédent (sinon auto)"
+        description: "Optionnel: override build number (sinon auto)"
         required: false
         default: ""
 
 jobs:
-  release:
-    name: Archive, Sign & Upload TestFlight
+  ios:
     runs-on: macos-15
 
     env:
@@ -26,75 +25,78 @@ jobs:
       ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
 
     steps:
+      # (1) Checkout + Flutter prêt
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Xcode / macOS info
-        shell: bash
-        run: |
-          xcodebuild -version
-          xcode-select -p
-          sw_vers
-
-      - name: Set Flutter 3.35.5 (stable, arm64)
+      - name: Setup Flutter stable 3.35.5 (arm64)
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.35.5"
-          channel: "stable"
-          architecture: "arm64"
+          channel: stable
+          architecture: arm64
 
       - name: Flutter pub get
         run: flutter pub get
 
-      # IMPORT DE LA CERTIF DANS UN KEYCHAIN TEMPORNAIRE (fiable)
-      - name: Install signing certificate (Apple p12) into keychain
+      # (2) Certificat & Profil installés proprement
+      - name: Import signing cert (Apple p12)
         uses: apple-actions/import-codesign-certs@v2
         with:
           p12-file-base64: ${{ env.CERT_P12_BASE64 }}
           p12-password: ${{ env.CERT_P12_PASSWORD }}
 
-      # INSTALLATION DU PROVISIONING PROFILE (depuis le secret Base64)
-      - name: Install provisioning profile
+      - name: Install provisioning profile (from secret)
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "$PROV_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
 
-          PROFILE_NAME=$(/usr/bin/security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | \
-            /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin)
-          PROFILE_UUID=$(/usr/bin/security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | \
-            /usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin)
+          # Decode robuste (tolère CRLF/whitespaces)
+          python3 - <<'PY'
+          import os, sys, base64, re, pathlib
+          data = os.environ['PROV_PROFILE_BASE64']
+          data = re.sub(r'\s+', '', data)  # strip all whitespace just in case
+          raw = base64.b64decode(data)
+          pp = pathlib.Path(os.environ['RUNNER_TEMP'])/'profile.mobileprovision'
+          pp.write_bytes(raw)
+          print(pp)
+          PY
 
-          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
-
-          echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
-          echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
-          echo "Installed profile: $PROFILE_NAME ($PROFILE_UUID)"
-
-      # PODS à jour (sans sudo)
-      - name: Pods install (fresh)
-        working-directory: ios
-        shell: bash
-        run: |
-          rm -f Podfile.lock
-          pod install --repo-update
-
-      # CALCUL DU BUILD NUMBER (monotone)
-      - name: Compute build number
-        id: bn
-        shell: bash
-        run: |
-          if [[ -n "${{ github.event.inputs.build_number }}" ]]; then
-            echo "value=${{ github.event.inputs.build_number }}" >> $GITHUB_OUTPUT
-          else
-            # offset +1000: évite tout conflit si tu as déjà fait des builds manuels
-            echo "value=$((1000 + ${{ github.run_number }}))" >> $GITHUB_OUTPUT
+          PROFILE_PATH=$(cat)
+          if [[ ! -s "$PROFILE_PATH" ]]; then
+            echo "Decoded profile is empty"; exit 1
           fi
 
-      # ExportOptions.plist généré à la volée (pas de secret en clair dans le repo)
-      - name: Create ExportOptions.plist (App Store)
+          PROFILE_NAME=$(/usr/bin/security cms -D -i "$PROFILE_PATH" | \
+            /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin)
+          PROFILE_UUID=$(/usr/bin/security cms -D -i "$PROFILE_PATH" | \
+            /usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin)
+
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
+          echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
+          echo "Installed: $PROFILE_NAME ($PROFILE_UUID)"
+
+      - name: CocoaPods install
+        working-directory: ios
+        run: |
+          rm -f Podfile.lock
+          pod repo update
+          pod install
+
+      # (3) Génère ExportOptions + numéros de version
+      - name: Compute build number & create ExportOptions.plist
+        id: prep
         shell: bash
         run: |
+          set -euo pipefail
+          if [[ -n "${{ github.event.inputs.build_number }}" ]]; then
+            BN="${{ github.event.inputs.build_number }}"
+          else
+            BN=$((1000 + ${{ github.run_number }}))
+          fi
+          echo "bn=$BN" >> $GITHUB_OUTPUT
           cat > ios/ci_export_appstore.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -114,40 +116,41 @@ jobs:
             </dict>
           </plist>
           PLIST
+          echo "ExportOptions ready with BN=$BN"
 
-      # BUILD + ARCHIVE + EXPORT IPA (signé)
+      # (4) Build & Sign l’IPA avec Flutter (archive + export)
       - name: Build signed IPA
         env:
-          BUILD_NUMBER: ${{ steps.bn.outputs.value }}
-        shell: bash
+          BN: ${{ steps.prep.outputs.bn }}
         run: |
-          echo "Using build number: $BUILD_NUMBER"
+          set -euo pipefail
           flutter clean
-          # IMPORTANT: on force un build-name croissant (1.0.${BUILD_NUMBER})
           flutter build ipa \
             --release \
-            --build-name "1.0.${BUILD_NUMBER}" \
-            --build-number "${BUILD_NUMBER}" \
+            --build-name "1.0.${BN}" \
+            --build-number "${BN}" \
             --export-options-plist ios/ci_export_appstore.plist \
             --no-tree-shake-icons
+          ls -lh build/ios/ipa
 
-      # Prépare la clé API privée pour iTMSTransporter (~/.private_keys/AuthKey_<ID>.p8)
-      - name: Prepare App Store Connect API key file
-        shell: bash
+      # (5) Upload TestFlight via iTMSTransporter (clé API)
+      - name: Upload to TestFlight
         run: |
+          set -euo pipefail
           mkdir -p "$HOME/.private_keys"
-          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$HOME/.private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          # Nettoie et décode la clé API
+          python3 - <<'PY'
+          import os, re, base64, pathlib
+          b64 = re.sub(r'\s+','', os.environ['ASC_KEY_P8_BASE64'])
+          raw = base64.b64decode(b64)
+          p = pathlib.Path.home()/'.private_keys'/('AuthKey_%s.p8' % os.environ['ASC_KEY_ID'])
+          p.write_bytes(raw)
+          PY
           chmod 600 "$HOME/.private_keys/AuthKey_${ASC_KEY_ID}.p8"
-          ls -l "$HOME/.private_keys"
 
-      # UPLOAD TESTFLIGHT
-      - name: Upload to TestFlight (iTMSTransporter)
-        shell: bash
-        run: |
           IPA="build/ios/ipa/Runner.ipa"
-          if [[ ! -f "$IPA" ]]; then
-            echo "IPA not found at $IPA"; exit 1
-          fi
+          test -s "$IPA" || (echo "IPA not found"; exit 1)
+
           xcrun iTMSTransporter \
             -m upload \
             -assetFile "$IPA" \
@@ -155,10 +158,8 @@ jobs:
             -apiIssuer "$ASC_ISSUER_ID" \
             -verbose
 
-      - name: Keep artifacts (IPA + ExportOptions)
+      - name: Keep IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa-and-export
-          path: |
-            build/ios/ipa/*.ipa
-            ios/ci_export_appstore.plist
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
