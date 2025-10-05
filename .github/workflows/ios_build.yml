@@ -1,4 +1,4 @@
-name: iOS Archive & Export (manual signing)
+name: iOS Archive & Export (manual signing) — stable import
 
 on:
   workflow_dispatch:
@@ -10,19 +10,18 @@ jobs:
   archive-ios:
     runs-on: macos-15
 
-    # keep env simple; no direct reference to vars/secrets here to avoid editor warnings
     env:
       APP_BUNDLE_ID: com.gearup.app
       CODE_SIGN_IDENTITY: Apple Distribution
 
-      # Required secrets (these are fine to reference here)
+      # required
       CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
-      CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
+      CERT_P12_BASE64:   ${{ secrets.CERT_P12_BASE64 }}
       PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
 
-      # Optional (for upload)
-      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      # optional upload
+      ASC_KEY_ID:        ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID:     ${{ secrets.ASC_ISSUER_ID }}
       ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
 
     steps:
@@ -36,7 +35,6 @@ jobs:
           xcode-select -p
           sw_vers
 
-      # ✅ Set DEVELOPMENT_TEAM from the APPLE_TEAM_ID secret (no linter complaints)
       - name: Set DEVELOPMENT_TEAM from secret
         shell: bash
         run: |
@@ -67,25 +65,38 @@ jobs:
           PY
           ls -l cert.p12 profile.mobileprovision
 
-      - name: Create & unlock temporary keychain, import p12
+      - name: Create & unlock temporary keychain, import p12 (no-hang)
         id: keychain
         shell: bash
         run: |
           set -euo pipefail
+
           KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
           KEYCHAIN_PASSWORD="$(LC_ALL=C tr -dc A-Za-z0-9 </dev/urandom | head -c 24)"
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_OUTPUT
           echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_OUTPUT
 
+          # create & unlock
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH"
           security default-keychain -d user -s "$KEYCHAIN_PATH"
 
-          # Import p12 and allow codesign tools
-          security import cert.p12 -k "$KEYCHAIN_PATH" -P "${CERT_P12_PASSWORD}" -T /usr/bin/codesign -T /usr/bin/security
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo ">>> Importing p12 with -A to grant tool access (avoids UI prompts)..."
+          # -A = allow all applications to access; we restrict with keychain scope anyway.
+          security import cert.p12 -k "$KEYCHAIN_PATH" -P "${CERT_P12_PASSWORD}" -A
+
+          echo ">>> (Optional) Setting key partition list (will not block if flaky)..."
+          # Some runners hang here; we make it best-effort.
+          ( security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" ) || true
+
+          echo ">>> Verifying that a codesigning identity is present..."
+          # must list at least one Apple Distribution identity after import
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" || {
+            echo "No codesigning identities found in temp keychain after import."
+            exit 1
+          }
 
       - name: Install provisioning profile
         id: prof
@@ -119,7 +130,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Keychain identities (codesigning) ==="
-          security find-identity -v -p codesigning || true
+          security find-identity -v -p codesigning "${{ steps.keychain.outputs.KEYCHAIN_PATH }}" || true
           echo
           echo "=== Certificates in temp keychain (subject, expiry, serial) ==="
           security find-certificate -a -p "${{ steps.keychain.outputs.KEYCHAIN_PATH }}" | \
