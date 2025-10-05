@@ -104,6 +104,54 @@ jobs:
           keychain:        ${{ env.KEYCHAIN_NAME }}
           create-keychain: true
 
+      - name: Normalize Podfile quotes (avoid smart quotes)
+        working-directory: ios
+        run: |
+          # Replace any curly quotes with straight ASCII quotes.
+          perl -0777 -pe "tr/“”‘’/\"\"''/;" -i Podfile
+          echo "Podfile normalized."
+
+      - name: Write clean Release.xcconfig (manual signing + iOS-only)
+        run: |
+          printf '%s\n' \
+          '#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"' \
+          '' \
+          'PRODUCT_BUNDLE_IDENTIFIER=com.gearup.app' \
+          'DEVELOPMENT_TEAM=M282YL56RT' \
+          'PROVISIONING_PROFILE_SPECIFIER=GearupAppStore' \
+          'CODE_SIGN_STYLE=Manual' \
+          '' \
+          'MARKETING_VERSION=1.0.1' \
+          'CURRENT_PROJECT_VERSION=3' \
+          'IPHONEOS_DEPLOYMENT_TARGET=15.0' \
+          > ios/Flutter/Release.xcconfig
+
+          echo "----- ios/Flutter/Release.xcconfig -----"
+          nl -ba ios/Flutter/Release.xcconfig
+          echo "----------------------------------------"
+
+      - name: Sanity-check critical settings
+        run: |
+          grep -q '^DEVELOPMENT_TEAM=M282YL56RT$' ios/Flutter/Release.xcconfig
+          grep -q '^PROVISIONING_PROFILE_SPECIFIER=GearupAppStore$' ios/Flutter/Release.xcconfig
+          grep -q '^PRODUCT_BUNDLE_IDENTIFIER=com.gearup.app$' ios/Flutter/Release.xcconfig
+          grep -q '^IPHONEOS_DEPLOYMENT_TARGET=15.0$' ios/Flutter/Release.xcconfig
+
+      - name: Ensure iOS only (no Catalyst targets)
+        working-directory: ios
+        run: |
+          # Guard rails in case Catalyst sneaks in; these are no-ops if absent.
+          /usr/libexec/PlistBuddy -c "Delete :targets:0:attributes:LastSwiftMigration" Runner.xcodeproj/project.pbxproj || true
+          /usr/libexec/PlistBuddy -c "Delete :targets:0:attributes:LastSwiftUpdateCheck" Runner.xcodeproj/project.pbxproj || true
+          # Force iOS-only by removing any accidental Mac Catalyst settings (safe to run).
+          sed -i '' '/MACCATALYST/d' Runner.xcodeproj/project.pbxproj || true
+
+      - name: Pod install (explicit)
+        working-directory: ios
+        run: |
+          pod repo update
+          pod install --verbose
+
       - name: Make signing keychain default
         shell: bash
         run: |
