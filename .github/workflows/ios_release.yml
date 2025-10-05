@@ -19,6 +19,12 @@ jobs:
           channel: stable
           flutter-version: '3.35.5'
           architecture: arm64
+      
+      - name: Import code signing cert
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_CERT_P12_PASSWORD }}
 
       - name: Configure Flutter for iOS pods
         shell: bash
