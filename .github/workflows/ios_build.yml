@@ -1,128 +1,128 @@
-name: build-ios
+name: ios
 
 on:
-  workflow_dispatch:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   ios:
     runs-on: macos-14
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Select Xcode 15.4
-        uses: maxim-lobanov/setup-xcode@v1
+      # Pin Xcode 15.4 (has iOS 17.5 SDK)
+      - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '15.4'
 
-      - name: Show Xcode & SDKs
-        run: |
-          xcodebuild -version
-          xcodebuild -showsdks
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      # Flutter
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+          flutter-version: '3.35.5'
 
-      - name: Flutter deps
-        run: |
-          flutter --version
-          flutter pub get
+      - run: flutter --version
+      - run: flutter pub get
 
-      - name: Install CocoaPods
-        run: gem install cocoapods --no-document
-
-      - name: Pod repo update
+      # CocoaPods
+      - name: Install pods
         working-directory: ios
-        run: pod repo update
+        run: pod install --repo-update
 
-      # ---------- FAIL FAST IF SECRETS MISSING ----------
-      - name: Validate required secrets
+      # Fail fast if required secrets are missing (uses your EXISTING names)
+      - name: Check required secrets
         shell: bash
         run: |
           set -euo pipefail
-          for v in APP_STORE_PROVISIONING_PROFILE_BASE64 DISTRIBUTION_P12_BASE64 DISTRIBUTION_P12_PASSWORD APPLE_TEAM_ID APP_BUNDLE_ID KEYCHAIN_PASSWORD; do
-            if [[ -z "${!v:-}" ]]; then
-              echo "::error::Missing required secret: $v"
-              exit 1
-            fi
-          done
-          
-        env:
-          # map old secret names to the new ones the job expects
-          APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
-          DISTRIBUTION_P12_BASE64:             ${{ secrets.DISTRIBUTION_P12_BASE64 }}   # or DIST_P12_B64 if that’s your actual name
-          DISTRIBUTION_P12_PASSWORD:           ${{ secrets.CERT_P12_PASSWORD }}
-          APPLE_TEAM_ID:                       ${{ secrets.TEAM_ID }}
-          APP_BUNDLE_ID:                       ${{ secrets.APP_BUNDLE_ID }}
-          KEYCHAIN_PASSWORD:                   ${{ secrets.KEYCHAIN_PASSWORD }}
-
-      - name: Import signing cert to keychain
-        shell: bash
+          # p12 can be in either of these (support both)
+          P12_B64="${DISTRIBUTION_P12_BASE64:-${CERT_P12_BASE64:-}}"
+          : "${P12_B64:?Missing p12 base64: set DISTRIBUTION_P12_BASE64 or CERT_P12_BASE64}"
+          : "${PROV_PROFILE_BASE64:?Missing PROV_PROFILE_BASE64}"
+          : "${CERT_P12_PASSWORD:?Missing CERT_P12_PASSWORD}"
+          : "${TEAM_ID:?Missing TEAM_ID}"
+          : "${APP_BUNDLE_ID:?Missing APP_BUNDLE_ID}"
+          : "${KEYCHAIN_PASSWORD:?Missing KEYCHAIN_PASSWORD}"
         env:
           DISTRIBUTION_P12_BASE64: ${{ secrets.DISTRIBUTION_P12_BASE64 }}
-          DISTRIBUTION_P12_PASSWORD: ${{ secrets.DISTRIBUTION_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          set -euo pipefail
-          KEYCHAIN_NAME=build.keychain-db
-          echo "$DISTRIBUTION_P12_BASE64" | base64 --decode > dist.p12
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_NAME"
-          security import dist.p12 -k "$KEYCHAIN_NAME" -P "$DISTRIBUTION_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
-          security list-keychains -d user -s "$KEYCHAIN_NAME" login.keychain-db
-          security find-identity -v -p codesigning "$KEYCHAIN_NAME"
+          CERT_P12_BASE64:         ${{ secrets.CERT_P12_BASE64 }}
+          PROV_PROFILE_BASE64:     ${{ secrets.PROV_PROFILE_BASE64 }}
+          CERT_P12_PASSWORD:       ${{ secrets.CERT_P12_PASSWORD }}
+          TEAM_ID:                 ${{ secrets.TEAM_ID }}
+          APP_BUNDLE_ID:           ${{ secrets.APP_BUNDLE_ID }}
+          KEYCHAIN_PASSWORD:       ${{ secrets.KEYCHAIN_PASSWORD }}
 
-      - name: Install provisioning profile
-        id: prov
+      # Prepare signing (keychain, provisioning profile)
+      - name: Set up signing
+        id: signing
         shell: bash
-        env:
-          APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APP_STORE_PROVISIONING_PROFILE_BASE64 }}
         run: |
           set -euo pipefail
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$APP_STORE_PROVISIONING_PROFILE_BASE64" | base64 --decode > app.mobileprovision
-          /usr/bin/security cms -D -i app.mobileprovision > profile.plist
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
-          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
-          cp app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
-          echo "uuid=$UUID" >> $GITHUB_OUTPUT
-          echo "name=$NAME" >> $GITHUB_OUTPUT
-          echo "Installed provisioning profile: $NAME ($UUID)"
 
-      - name: Create ExportOptions.plist
+          P12_B64="${DISTRIBUTION_P12_BASE64:-${CERT_P12_BASE64:-}}"
+
+          # Decode files
+          echo "$P12_B64"            | base64 --decode > dist.p12
+          echo "$PROV_PROFILE_BASE64" | base64 --decode > app.mobileprovision
+
+          # Validate profile and extract name/uuid
+          /usr/bin/security cms -D -i app.mobileprovision > profile.plist
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' profile.plist)
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' profile.plist)
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp app.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          echo "profile_name=$PROFILE_NAME" >> "$GITHUB_OUTPUT"
+          echo "profile_uuid=$PROFILE_UUID" >> "$GITHUB_OUTPUT"
+
+          # Create & unlock build keychain
+          KEYCHAIN="build.keychain-db"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+
+          # Import p12
+          security import dist.p12 -k "$KEYCHAIN" -P "$CERT_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          DISTRIBUTION_P12_BASE64: ${{ secrets.DISTRIBUTION_P12_BASE64 }}
+          CERT_P12_BASE64:         ${{ secrets.CERT_P12_BASE64 }}
+          PROV_PROFILE_BASE64:     ${{ secrets.PROV_PROFILE_BASE64 }}
+          CERT_P12_PASSWORD:       ${{ secrets.CERT_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD:       ${{ secrets.KEYCHAIN_PASSWORD }}
+
+      # Export options (manual signing with your profile)
+      - name: Write ExportOptions.plist
         run: |
-          cat > ExportOptions.plist <<'PLIST'
+          cat > ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store</string>
             <key>signingStyle</key><string>manual</string>
-            <key>stripSwiftSymbols</key><true/>
-            <key>uploadBitcode</key><false/>
-            <key>compileBitcode</key><false/>
-            <key>teamID</key><string>${{ env.APPLE_TEAM_ID }}</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>${{ env.APP_BUNDLE_ID }}</key><string>${{ steps.prov.outputs.name }}</string>
+              <key>${APP_BUNDLE_ID}</key><string>${{ steps.signing.outputs.profile_name }}</string>
             </dict>
+            <key>compileBitcode</key><false/>
+            <key>uploadBitcode</key><false/>
+            <key>uploadSymbols</key><true/>
           </dict>
           </plist>
           PLIST
+        env:
+          TEAM_ID:       ${{ secrets.TEAM_ID }}
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
 
-      - name: Archive (xcodebuild)
+      # Archive (uses Xcode 15.4 selected above)
+      - name: Build archive
         run: |
-          set -euo pipefail
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
@@ -130,6 +130,7 @@ jobs:
             -archivePath build/ios/archive/Runner.xcarchive \
             clean archive
 
+      # Export IPA
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
@@ -137,8 +138,8 @@ jobs:
             -exportOptionsPlist ExportOptions.plist \
             -exportPath build/ios/ipa
 
-      - name: Upload IPA artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Gearup-IPA
+          name: ios-ipa
           path: build/ios/ipa/*.ipa
