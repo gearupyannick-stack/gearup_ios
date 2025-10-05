@@ -213,6 +213,9 @@ jobs:
           pod repo update
           pod install --verbose
 
+      - name: Build iOS artifacts (no codesign)
+        run: flutter build ios --release --no-codesign
+
       - name: Make signing keychain default
         shell: bash
         run: |
@@ -278,14 +281,39 @@ jobs:
                     -configuration Release \
                     -showBuildSettings | egrep 'CODE_SIGN|DEVELOPMENT_TEAM|PRODUCT_BUNDLE_IDENTIFIER|PROVISIONING_PROFILE'
 
-      - name: Build IPA (App Store)
-        shell: bash
+      # Archive with Xcode (Release, phone-only)
+      - name: Archive with Xcode
         run: |
           set -euo pipefail
+          # Make sure Pods profile is included
           INCLUDE_LINE='#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"'
           FILE="ios/Flutter/Release.xcconfig"
           grep -Fq "$INCLUDE_LINE" "$FILE" || echo "$INCLUDE_LINE" >> "$FILE"
-          flutter build ipa --release --export-options-plist=ios/ci_export_appstore.plist
+
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Runner.xcarchive \
+            DEVELOPMENT_TEAM=M282YL56RT \
+            PRODUCT_BUNDLE_IDENTIFIER=com.gearup.app \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="GearupAppStore" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            archive | xcpretty && exit ${PIPESTATUS[0]}
+
+      # Export a signed IPA using ExportOptions.plist you already wrote
+      - name: Export IPA
+        run: |
+          set -euo pipefail
+          xcodebuild -exportArchive \
+            -archivePath build/Runner.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist ios/ci_export_appstore.plist | xcpretty && exit ${PIPESTATUS[0]}
+
+      - name: Show exported IPA
+        run: ls -la build/export
 
       - name: Verify built IPA exists
         run: ls -lh build/ios/ipa
@@ -293,7 +321,7 @@ jobs:
       - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v1
         with:
-          app-path: build/ios/ipa/car_learning_app.ipa
+          app-path: build/export/Runner.ipa
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
           api-private-key: ${{ secrets.ASC_KEY_P8 }}
