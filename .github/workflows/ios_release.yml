@@ -9,151 +9,84 @@ jobs:
   ios:
     runs-on: macos-14
 
-    permissions:
-      contents: read
-
-    env:
-      APP_BUNDLE_ID: com.gearup.app
-
     steps:
-      # 1) Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2) Flutter SDK
-      - name: Setup Flutter
+      - name: Flutter SDK
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.35.5
+          flutter-version: '3.35.5'
           architecture: arm64
 
-      # 3) Certificates (P12) to temp keychain
-      - name: Import signing cert
+      # 1) Force FLUTTER_ROOT and precache iOS artifacts
+      - name: Precache iOS engine + make podhelper available
+        shell: bash
+        run: |
+          echo "FLUTTER_ROOT=${{ env.FLUTTER_HOME }}" >> "$GITHUB_ENV"
+          flutter --version
+          flutter doctor -v
+          flutter precache --ios --no-universal --force
+          mkdir -p ios/Flutter
+          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
+
+      - name: Pub get
+        run: flutter pub get
+
+      # 2) Import signing cert
+      - name: Import code-signing cert
         uses: apple-actions/import-codesign-certs@v2
         with:
           p12-file-base64: ${{ secrets.CERT_P12_BASE64 }}
           p12-password: ${{ secrets.CERT_P12_PASSWORD }}
 
-      # 4) Provisioning profile (robust install)
+      # 3) Install provisioning profile
       - name: Install provisioning profile
         shell: bash
         env:
           PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
+          PROFILE_NAME: GearupAppStore
         run: |
-          set -euo pipefail
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
-
-          # base64 decode (tolerate whitespace, macOS/GNU flags)
-          if printf '%s' "$PROV_PROFILE_BASE64" | tr -d '\n\r\t ' | base64 -D > "$PROFILE_PATH" 2>/dev/null; then
-            :
-          else
-            printf '%s' "$PROV_PROFILE_BASE64" | tr -d '\n\r\t ' | base64 --decode > "$PROFILE_PATH"
+          echo "$PROV_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          if ! /usr/bin/security cms -D -i "$PROFILE_PATH" >/dev/null 2>&1; then
+            echo "Decoded profile is invalid/empty"; exit 1
           fi
-
-          [[ -s "$PROFILE_PATH" ]] || { echo "Decoded profile is empty"; exit 1; }
-
-          /usr/bin/security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist" \
-            || { echo "security cms failed (corrupt profile?)"; exit 1; }
-
-          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
-          [[ -n "$UUID" ]] || { echo "No UUID in profile"; exit 1; }
-
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(/usr/bin/security cms -D -i "$PROFILE_PATH")")
           cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
-          echo "PROFILE_NAME=$NAME" >> $GITHUB_ENV
-          echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
-          echo "Installed profile: $NAME ($UUID)"
+          echo "PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
-      # 5) App Store Connect API key
-      - name: Write ASC API key
+      # 4) CocoaPods with the proper env
+      - name: Pod install (fresh)
         shell: bash
         env:
-          ASC_KEY_ID:        ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID:     ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }}
         run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.appstoreconnect/private_keys"
-          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
-          printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode > "$KEY_PATH"
-          chmod 600 "$KEY_PATH"
-          echo "ASC_KEY_PATH=$KEY_PATH" >> $GITHUB_ENV
-
-      # 6) CocoaPods prep (copy the missing podhelper.rb from Flutter SDK, then pod install)
-      - name: Prepare CocoaPods
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ios/Flutter
-          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
-
-          # If your Xcode config is custom, ensure Pods config is included for release builds
-          FILE="ios/Flutter/Release.xcconfig"
-          LINE='#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"'
-          grep -Fq "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
-
-          cd ios
-          rm -f Podfile.lock
+          rm -f ios/Podfile.lock
+          pushd ios
           pod repo update
           pod install
-          cd -
+          popd
 
-      # 7) Resolve Dart deps (once)
-      - name: flutter pub get
-        run: flutter pub get
-
-      # 8) Build IPA (archive + export) with the installed profile
-      - name: Build IPA
+      # 5) Build & export IPA
+      - name: Build IPA (App Store)
         shell: bash
         env:
-          BN: ${{ github.run_number }}
+          APP_BUNDLE_ID: com.gearup.app
         run: |
-          set -euo pipefail
-          flutter clean
-          # Export options (App Store, manual signing by profile UUID)
-          cat > ios/ExportOptions.plist <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>destination</key><string>export</string>
-            <key>method</key><string>app-store</string>
-            <key>signingStyle</key><string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>${APP_BUNDLE_ID}</key><string>${PROFILE_NAME}</string>
-            </dict>
-            <key>stripSwiftSymbols</key><true/>
-            <key>compileBitcode</key><false/>
-            <key>uploadBitcode</key><false/>
-            <key>uploadSymbols</key><true/>
-          </dict>
-          </plist>
-          PLIST
+          # Ensure Pods/ xconfigs are included (safety net)
+          INCLUDE_LINE='#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"'
+          FILE="ios/Flutter/Release.xcconfig"
+          grep -Fq "$INCLUDE_LINE" "$FILE" || echo "$INCLUDE_LINE" >> "$FILE"
+          flutter build ipa --release --export-options-plist=ios/ci_export_appstore.plist
 
-          flutter build ipa \
-            --release \
-            --build-name "1.0.${BN}" \
-            --build-number "${BN}" \
-            --export-options-plist ios/ExportOptions.plist \
-            --no-tree-shake-icons
-
-          echo "IPA content:"
-          ls -lh build/ios/ipa || true
-
-      # 9) Upload to TestFlight via ASC API key
+      # 6) Upload to TestFlight (App Store Connect API key)
       - name: Upload to TestFlight
-        if: success()
-        shell: bash
-        env:
-          ASC_KEY_ID:    ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          IPA=$(ls -1 build/ios/ipa/*.ipa | head -n1)
-          [[ -f "$IPA" ]] || { echo "IPA not found"; exit 1; }
-          xcrun altool --upload-app -f "$IPA" -t ios \
-            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
-          echo "Upload submitted to App Store Connect: $IPA"
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          app-path: build/ios/ipa/*.ipa
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id: ${{ secrets.ASC_KEY_ID }}
+          api-private-key: ${{ secrets.ASC_KEY_P8_BASE64 }}

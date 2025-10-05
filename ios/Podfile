@@ -1,6 +1,5 @@
-platform :ios, '14.0'  # or keep 17.0 if you want; 14.0 is broadly safe
+platform :ios, '14.0'
 
-# Flutter helper (provided by Flutter SDK)
 require File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
 
 target 'Runner' do
@@ -12,6 +11,6 @@ end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
-    flutter_additional_ios_build_settings(target)  # <-- correct signature
+    flutter_additional_ios_build_settings(target)
   end
 end
