@@ -27,12 +27,10 @@ jobs:
           flutter-version: '3.35.5'
           architecture: arm64
 
-      - name: Configure Flutter env for iOS pods
+      - name: Configure Flutter env for iOS
         shell: bash
         run: |
           set -euo pipefail
-
-          # Find the real SDK root from the flutter binary
           FLUTTER_BIN="$(which flutter)"
           FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd -P)"
           echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
@@ -40,22 +38,16 @@ jobs:
           # Precache the iOS engine so Flutter.xcframework exists
           flutter precache --ios --no-universal --force
 
-          # Ensure the Pod helper exists in the project (CI agents don't have it in repo)
-          mkdir -p ios/Flutter
-          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
+          # Sanity check: this MUST exist after precache
+          test -d "$FLUTTER_ROOT/bin/cache/artifacts/engine/ios/Flutter.xcframework"
+          echo "Engine OK at: $FLUTTER_ROOT/bin/cache/artifacts/engine/ios/Flutter.xcframework"
 
-          # Overwrite Generated.xcconfig so podhelper.rb reads the CORRECT FLUTTER_ROOT
-          GEN_XC="ios/Flutter/Generated.xcconfig"
-          : > "$GEN_XC"
+          # Minimal Generated.xcconfig so Podfile fallback can read FLUTTER_ROOT if env is missing
+          mkdir -p ios/Flutter
           {
             echo "FLUTTER_ROOT=$FLUTTER_ROOT"
             echo "FLUTTER_APPLICATION_PATH=$GITHUB_WORKSPACE"
-            echo "FLUTTER_TARGET=lib/main.dart"
-            echo "DART_OBFUSCATION=false"
-            echo "TRACK_WIDGET_CREATION=false"
-            echo "TREE_SHAKE_ICONS=true"
-            echo "PACKAGE_CONFIG=.dart_tool/package_config.json"
-          } >> "$GEN_XC"
+          } > ios/Flutter/Generated.xcconfig
 
       - name: Flutter pub get
         run: flutter pub get

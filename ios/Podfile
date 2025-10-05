@@ -1,6 +1,23 @@
 platform :ios, '14.0'
 
-require File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
+flutter_root = ENV['FLUTTER_ROOT']
+if flutter_root.nil? || !File.directory?(flutter_root)
+  # Fallback: read from Generated.xcconfig if the env var is missing
+  generated = File.expand_path(File.join(__dir__, 'Flutter', 'Generated.xcconfig'))
+  if File.exist?(generated)
+    File.foreach(generated) do |line|
+      m = line.match(/^FLUTTER_ROOT=(.*)$/)
+      if m
+        flutter_root = m[1].strip
+        break
+      end
+    end
+  end
+end
+
+raise 'FLUTTER_ROOT is not set or invalid. Set it in CI before pod install.' if flutter_root.nil? || !File.directory?(flutter_root)
+
+require File.expand_path('packages/flutter_tools/bin/podhelper.rb', flutter_root)
 
 target 'Runner' do
   use_frameworks! :linkage => :static
