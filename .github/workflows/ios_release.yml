@@ -50,6 +50,55 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          # Check que le secret n'est pas vide
+          python3 - <<'PY'
+          import os, re, sys
+          v = os.environ.get('PROV_PROFILE_BASE64', '')
+          print(f"PROV_PROFILE_BASE64 length = {len(v)}")
+          if len(v.strip()) == 0:
+              print("ERROR: PROV_PROFILE_BASE64 is empty or not visible to this workflow.")
+              sys.exit(2)
+          else:
+              # On retire tous les espaces/sauts de ligne juste pour être safe
+              v = re.sub(r'\s+','', v)
+              os.environ['SANITIZED'] = v
+              open(os.environ['GITHUB_OUTPUT'],'a').write(f"len={len(v)}\n")
+          PY
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+
+          # Decode (robuste CR/LF)
+          python3 - <<'PY'
+          import os, base64, pathlib
+          b64 = os.environ['PROV_PROFILE_BASE64']
+          b64 = ''.join(b64.split())
+          raw = base64.b64decode(b64)
+          pp = pathlib.Path(os.environ['RUNNER_TEMP'])/'profile.mobileprovision'
+          pp.write_bytes(raw)
+          print(pp)
+          PY
+
+          PROFILE_PATH=$(cat)
+          if [[ ! -s "$PROFILE_PATH" ]]; then
+            echo "Decoded profile is empty"; exit 1
+          fi
+
+          PROFILE_NAME=$(/usr/bin/security cms -D -i "$PROFILE_PATH" | \
+            /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin)
+          PROFILE_UUID=$(/usr/bin/security cms -D -i "$PROFILE_PATH" | \
+            /usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin)
+
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
+          echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
+          echo "Installed: $PROFILE_NAME ($PROFILE_UUID)"
+
+      - name: Install provisioning profile (from secret)
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
 
           # Decode robuste (tolère CRLF/whitespaces)
