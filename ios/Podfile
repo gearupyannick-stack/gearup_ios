@@ -19,18 +19,20 @@ require File.expand_path('packages/flutter_tools/bin/podhelper.rb', flutter_root
 
 target 'Runner' do
   use_frameworks! :linkage => :static
-  # ❌ supprime: use_modular_headers!
+  # no: use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |t|
-    # Garde le hook Flutter
+    # keep Flutter’s build settings
     flutter_additional_ios_build_settings(t)
 
-    # Filet de sécurité pour les en-têtes non modulaires
     t.build_configurations.each do |config|
+      # make every pod a proper module — fixes “non-modular header”
+      config.build_settings['DEFINES_MODULE'] = 'YES'
+      # belt-and-suspenders
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
