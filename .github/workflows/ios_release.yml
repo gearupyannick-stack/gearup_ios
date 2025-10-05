@@ -103,7 +103,6 @@ jobs:
 
       # Create ExportOptions.plist on the fly to match your profile name
       - name: Create ExportOptions.plist
-        shell: bash
         run: |
           cat > ios/ci_export_appstore.plist <<'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -111,16 +110,34 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store</string>
+            <key>teamID</key><string>M282YL56RT</string>
             <key>signingStyle</key><string>manual</string>
             <key>provisioningProfiles</key>
             <dict>
               <key>com.gearup.app</key><string>GearupAppStore</string>
             </dict>
-            <key>uploadBitcode</key><false/>
             <key>compileBitcode</key><true/>
+            <key>uploadBitcode</key><false/>
           </dict>
           </plist>
           PLIST
+
+      - name: Force manual signing settings (Release)
+        run: |
+          cat >> ios/Flutter/Release.xcconfig <<'EOF'
+          DEVELOPMENT_TEAM=M282YL56RT
+          PRODUCT_BUNDLE_IDENTIFIER=com.gearup.app
+          CODE_SIGN_STYLE=Manual
+          CODE_SIGN_IDENTITY=Apple Distribution
+          PROVISIONING_PROFILE_SPECIFIER=GearupAppStore
+          EOF
+
+      - name: Show Xcode signing settings (Release)
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace \
+                    -scheme Runner \
+                    -configuration Release \
+                    -showBuildSettings | egrep 'CODE_SIGN|DEVELOPMENT_TEAM|PRODUCT_BUNDLE_IDENTIFIER|PROVISIONING_PROFILE'
 
       - name: Build IPA (App Store)
         shell: bash
