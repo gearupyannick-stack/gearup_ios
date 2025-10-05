@@ -1,5 +1,4 @@
 name: ios
-
 on:
   workflow_dispatch:
   push:
@@ -8,10 +7,10 @@ on:
 jobs:
   ios:
     runs-on: macos-14
-
     env:
       APP_BUNDLE_ID: com.gearup.app
       KEYCHAIN_NAME: signing_${{ github.run_id }} # unique per run
+      PROFILE_NAME: GearupAppStore                # <-- exactly as in Developer portal
 
     steps:
       - name: Checkout
@@ -35,14 +34,11 @@ jobs:
         run: |
           set -euo pipefail
           flutter precache --ios --no-universal --force
-
           FLUTTER_BIN="$(which flutter)"
           FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd -P)"
           echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
-
           mkdir -p ios/Flutter
           cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
-
           cat > ios/Flutter/Generated.xcconfig <<EOF
           FLUTTER_ROOT=$FLUTTER_ROOT
           FLUTTER_APPLICATION_PATH=$GITHUB_WORKSPACE
@@ -62,28 +58,55 @@ jobs:
           set -euo pipefail
           pushd ios
           pod repo update
-          # If you had a previous lock with wrong settings, clear it:
           rm -f Podfile.lock
           pod install
           popd
 
-      # ✅ Import certs ONCE with a unique keychain name
+      # Import your Apple Distribution .p12
       - name: Import code signing cert
         uses: apple-actions/import-codesign-certs@v2
         with:
           p12-file-base64: ${{ secrets.IOS_CERT_P12_BASE64 }}
-          p12-password: ${{ secrets.IOS_CERT_P12_PASSWORD }}
-          keychain: ${{ env.KEYCHAIN_NAME }}
+          p12-password:    ${{ secrets.IOS_CERT_P12_PASSWORD }}
+          keychain:        ${{ env.KEYCHAIN_NAME }}
           create-keychain: true
 
-      # (Optional) Download provisioning profile(s) if you use manual profiles
-      # - name: Download provisioning profiles
-      #   uses: apple-actions/download-provisioning-profiles@v1
-      #   with:
-      #     bundle-id: ${{ env.APP_BUNDLE_ID }}
-      #     issuer-id: ${{ secrets.ASC_ISSUER_ID }}
-      #     api-key-id: ${{ secrets.ASC_KEY_ID }}
-      #     api-private-key: ${{ secrets.ASC_KEY_P8_BASE64 }}
+      # Make the signing keychain default so Xcode surely searches it
+      - name: Make signing keychain default
+        shell: bash
+        run: |
+          security default-keychain -s "${KEYCHAIN_NAME}.keychain"
+
+      # Download & install the App Store provisioning profile for com.gearup.app
+      - name: Download provisioning profile
+        uses: apple-actions/download-provisioning-profiles@v1
+        with:
+          bundle-id:        ${{ env.APP_BUNDLE_ID }}
+          issuer-id:        ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id:       ${{ secrets.ASC_KEY_ID }}
+          api-private-key:  ${{ secrets.ASC_KEY_P8_BASE64 }}
+          profile-type:     IOS_APP_STORE
+
+      # Create ExportOptions.plist on the fly to match your profile name
+      - name: Create ExportOptions.plist
+        shell: bash
+        run: |
+          cat > ios/ci_export_appstore.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.gearup.app</key><string>GearupAppStore</string>
+            </dict>
+            <key>uploadBitcode</key><false/>
+            <key>compileBitcode</key><true/>
+          </dict>
+          </plist>
+          PLIST
 
       - name: Build IPA (App Store)
         shell: bash
@@ -92,7 +115,6 @@ jobs:
           INCLUDE_LINE='#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"'
           FILE="ios/Flutter/Release.xcconfig"
           grep -Fq "$INCLUDE_LINE" "$FILE" || echo "$INCLUDE_LINE" >> "$FILE"
-
           flutter build ipa --release --export-options-plist=ios/ci_export_appstore.plist
 
       - name: Upload to TestFlight
