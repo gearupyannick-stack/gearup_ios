@@ -34,6 +34,21 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '16.1'  # You can also try '16' or '16.1' if available
+  
+      - name: Ensure iOS device platform is installed
+        run: |
+          set -euxo pipefail
+          # Show what we currently have
+          xcodebuild -showsdks || true
+          # Download the iOS device platform for this Xcode if it's missing
+          if ! xcodebuild -showsdks | grep -q 'iphoneos18'; then
+            sudo xcodebuild -downloadPlatform iOS
+          else
+            # Some images still need the platform even when the SDK shows up:
+            sudo xcodebuild -downloadPlatform iOS || true
+          fi
+          # One-time Xcode initialization on fresh images (safe to run always)
+          sudo xcodebuild -runFirstLaunch
 
       - name: Check Xcode version
         run: |
