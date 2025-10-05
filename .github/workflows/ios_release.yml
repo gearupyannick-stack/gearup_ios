@@ -87,6 +87,20 @@ jobs:
           api-private-key:  ${{ secrets.ASC_KEY_P8 }}
           profile-type:     IOS_APP_STORE
 
+      - name: Show installed signing identities
+        run: security find-identity -v -p codesigning "${KEYCHAIN_NAME}.keychain" || true
+
+      - name: Show downloaded provisioning profiles
+        run: |
+          ls -l ~/Library/MobileDevice/Provisioning\ Profiles
+          for f in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
+            echo "== $f ==" 
+            /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<<"$(/usr/bin/security cms -D -i "$f")"
+            /usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<<"$(/usr/bin/security cms -D -i "$f")"
+            /usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /dev/stdin <<<"$(/usr/bin/security cms -D -i "$f")"
+            /usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /dev/stdin <<<"$(/usr/bin/security cms -D -i "$f")"
+          done
+
       # Create ExportOptions.plist on the fly to match your profile name
       - name: Create ExportOptions.plist
         shell: bash
