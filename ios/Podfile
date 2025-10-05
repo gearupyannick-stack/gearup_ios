@@ -1,4 +1,4 @@
-platform :ios, '13.0'
+platform :ios, '14.0'  # or keep 17.0 if you want; 14.0 is broadly safe
 
 # Flutter helper (provided by Flutter SDK)
 require File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
@@ -7,19 +7,11 @@ target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
 
-  flutter_ios_podfile_setup
-
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
 post_install do |installer|
-  installer.pods_project.targets.each do |t|
-    t.build_configurations.each do |config|
-      # Recommended for Swift Plugins with Xcode 15/16
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
-    end
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)  # <-- correct signature
   end
-
-  flutter_additional_ios_build_settings(installer)
 end
