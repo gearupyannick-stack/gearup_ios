@@ -129,20 +129,55 @@ jobs:
           PLIST
           echo "ExportOptions ready with BN=$BN and PROFILE_NAME=${PROFILE_NAME}"
 
-      # 4) Build & sign IPA
-      - name: Build signed IPA
+      - name: Ensure Pods base config is included in Release.xcconfig (one-liner safe)
+        run: |
+          set -euo pipefail
+          FILE="ios/Flutter/Release.xcconfig"
+          LINE='#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"'
+          grep -Fq "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
+          echo "Ensured include in $FILE"
+
+      - name: Build (no codesign) with Flutter, then archive & export with xcodebuild (manual signing)
         env:
           BN: ${{ steps.prep.outputs.bn }}
         run: |
           set -euo pipefail
+
+          # 1) Generate iOS build files but DON'T code sign
           flutter clean
-          flutter build ipa \
-            --release \
-            --build-name "1.0.${BN}" \
-            --build-number "${BN}" \
-            --export-options-plist ios/ci_export_appstore.plist \
-            --no-tree-shake-icons
-          ls -lh build/ios/ipa
+          flutter build ios --release --no-codesign
+
+          # 2) Paths
+          WORKSPACE="ios/Runner.xcworkspace"
+          SCHEME="Runner"
+          CONFIG="Release"
+          ARCHIVE_PATH="$PWD/build/ios/archive/Runner.xcarchive"
+          EXPORT_PLIST="$PWD/ios/ci_export_appstore.plist"
+          IPA_DIR="$PWD/build/ios/ipa"
+
+          # 3) Archive with explicit signing settings
+          #    We force manual signing and point to your Team, Profile Name, Bundle Id and Identity.
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIG" \
+            -archivePath "$ARCHIVE_PATH" \
+            DEVELOPMENT_TEAM="${TEAM_ID}" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="${PROFILE_NAME}" \
+            PRODUCT_BUNDLE_IDENTIFIER="${APP_BUNDLE_ID}" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            clean archive | xcpretty
+
+          # 4) Export a signed IPA with your ExportOptions.plist (already created earlier)
+          mkdir -p "$IPA_DIR"
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportOptionsPlist "$EXPORT_PLIST" \
+            -exportPath "$IPA_DIR" | xcpretty
+
+          echo "IPA contents:"
+          ls -lh "$IPA_DIR"
 
       # 5) Upload TestFlight
       - name: Upload to TestFlight
