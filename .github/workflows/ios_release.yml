@@ -35,35 +35,39 @@ jobs:
           p12-file-base64: ${{ secrets.CERT_P12_BASE64 }}
           p12-password: ${{ secrets.CERT_P12_PASSWORD }}
 
-      - name: Install provisioning profile
-        id: prov
+      - name: Install provisioning profile (robust)
         shell: bash
         env:
           PROV_PROFILE_BASE64: ${{ secrets.PROV_PROFILE_BASE64 }}
-          PROFILE_NAME: ${{ env.PROV_PROFILE_NAME }}
         run: |
           set -euo pipefail
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
 
-          # decode robustly (strip whitespaces)
-          python3 - <<'PY'
-          import os, re, base64, pathlib
-          b64 = re.sub(r'\s+', '', os.environ['PROV_PROFILE_BASE64'])
-          raw = base64.b64decode(b64)
-          out = pathlib.Path(os.environ['RUNNER_TEMP']) / 'profile.mobileprovision'
-          out.write_bytes(raw)
-          print(out)
-          PY
+          echo "PROV_PROFILE_BASE64 length: ${#PROV_PROFILE_BASE64}"
 
-          PROFILE_PATH="$(cat)"
+          # Decode (strip all whitespace first; handle both BSD and GNU base64 flags)
+          if printf '%s' "$PROV_PROFILE_BASE64" | tr -d '\n\r\t ' | base64 -D > "$PROFILE_PATH" 2>/dev/null; then
+            :
+          else
+            printf '%s' "$PROV_PROFILE_BASE64" | tr -d '\n\r\t ' | base64 --decode > "$PROFILE_PATH"
+          fi
+
+          # Sanity checks
           [[ -s "$PROFILE_PATH" ]] || { echo "Decoded profile is empty"; exit 1; }
 
-          NAME=$(/usr/bin/security cms -D -i "$PROFILE_PATH" | /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin)
-          UUID=$(/usr/bin/security cms -D -i "$PROFILE_PATH" | /usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin)
+          /usr/bin/security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist" \
+            || { echo "security cms failed (corrupt profile?)"; exit 1; }
+
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+
+          [[ -n "$UUID" ]] || { echo "No UUID in profile (bad payload)"; exit 1; }
 
           cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
-          echo "PROFILE_NAME=$NAME"   >> $GITHUB_ENV
-          echo "PROFILE_UUID=$UUID"   >> $GITHUB_ENV
+
+          echo "PROFILE_NAME=$NAME" >> $GITHUB_ENV
+          echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
           echo "Installed profile: $NAME ($UUID)"
 
       - name: Write ASC API key to expected path
