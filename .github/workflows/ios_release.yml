@@ -146,6 +146,67 @@ jobs:
           # Force iOS-only by removing any accidental Mac Catalyst settings (safe to run).
           sed -i '' '/MACCATALYST/d' Runner.xcodeproj/project.pbxproj || true
 
+      - name: Force UTF-8 for Ruby/CocoaPods
+        run: |
+          echo "LANG=en_US.UTF-8" >> $GITHUB_ENV
+          echo "LC_ALL=en_US.UTF-8" >> $GITHUB_ENV
+          echo "RUBYOPT=-EUTF-8:UTF-8" >> $GITHUB_ENV
+
+      - name: Replace Podfile with clean ASCII (iOS-only)
+        working-directory: ios
+        run: |
+          cat > Podfile <<'RUBY'
+          platform :ios, '15.0'
+
+          flutter_root = ENV['FLUTTER_ROOT']
+          if flutter_root.nil? || !File.directory?(flutter_root)
+            generated = File.expand_path(File.join(__dir__, 'Flutter', 'Generated.xcconfig'))
+            if File.exist?(generated)
+              File.foreach(generated) do |line|
+                m = line.match(/^FLUTTER_ROOT=(.*)$/)
+                if m
+                  flutter_root = m[1].strip
+                  break
+                end
+              end
+            end
+          end
+          raise 'FLUTTER_ROOT is not set or invalid.' if flutter_root.nil? || !File.directory?(flutter_root)
+
+          require File.expand_path('Flutter/podhelper.rb', __dir__)
+
+          target 'Runner' do
+            use_frameworks! :linkage => :static
+            use_modular_headers!
+
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+          end
+
+          post_install do |installer|
+            installer.pods_project.targets.each do |t|
+              t.build_configurations.each do |config|
+                # Keeps the build happy with Firebase headers in newer SDKs
+                config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+              end
+            end
+          end
+          RUBY
+
+          # Strip any BOM or CRLF just in case
+          perl -i -pe 's/^\xEF\xBB\xBF//; s/\r$//' Podfile
+
+          echo "----- Podfile -----"
+          nl -ba Podfile | sed -n '1,200p'
+          echo "-------------------"
+
+      - name: CocoaPods (deintegrate & install fresh)
+        working-directory: ios
+        run: |
+          pod repo update
+          pod deintegrate || true
+          rm -rf Pods Podfile.lock
+          pod install --verbose
+
       - name: Pod install (explicit)
         working-directory: ios
         run: |
