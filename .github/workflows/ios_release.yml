@@ -39,7 +39,7 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      # (2) Certificat & Profil installés proprement
+      # (2) Certificat & Profil
       - name: Import signing cert (Apple p12)
         uses: apple-actions/import-codesign-certs@v2
         with:
@@ -51,35 +51,29 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Check que le secret n'est pas vide
+          # Petit diag: longueur du secret (ne logge pas le contenu)
           python3 - <<'PY'
-          import os, re, sys
-          v = os.environ.get('PROV_PROFILE_BASE64', '')
+          import os, re
+          v = os.environ.get('PROV_PROFILE_BASE64','')
           print(f"PROV_PROFILE_BASE64 length = {len(v)}")
-          if len(v.strip()) == 0:
-              print("ERROR: PROV_PROFILE_BASE64 is empty or not visible to this workflow.")
-              sys.exit(2)
-          else:
-              # On retire tous les espaces/sauts de ligne juste pour être safe
-              v = re.sub(r'\s+','', v)
-              os.environ['SANITIZED'] = v
-              open(os.environ['GITHUB_OUTPUT'],'a').write(f"len={len(v)}\n")
+          if not v.strip():
+              raise SystemExit("ERROR: PROV_PROFILE_BASE64 is empty or not visible.")
           PY
 
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
 
-          # Decode (robuste CR/LF)
-          python3 - <<'PY'
-          import os, base64, pathlib
-          b64 = os.environ['PROV_PROFILE_BASE64']
-          b64 = ''.join(b64.split())
+          # ⚠️ FIX: on capture la sortie du script Python dans la variable (et pas `cat`)
+          PROFILE_PATH=$(python3 - <<'PY'
+          import os, base64, re, pathlib
+          b64 = re.sub(r'\s+','', os.environ['PROV_PROFILE_BASE64'])
           raw = base64.b64decode(b64)
           pp = pathlib.Path(os.environ['RUNNER_TEMP'])/'profile.mobileprovision'
           pp.write_bytes(raw)
           print(pp)
           PY
+          )
 
-          PROFILE_PATH=$(cat)
+          echo "Decoded to: $PROFILE_PATH"
           if [[ ! -s "$PROFILE_PATH" ]]; then
             echo "Decoded profile is empty"; exit 1
           fi
@@ -91,38 +85,6 @@ jobs:
 
           cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
 
-          echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
-          echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
-          echo "Installed: $PROFILE_NAME ($PROFILE_UUID)"
-
-      - name: Install provisioning profile (from secret)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-
-          # Decode robuste (tolère CRLF/whitespaces)
-          python3 - <<'PY'
-          import os, sys, base64, re, pathlib
-          data = os.environ['PROV_PROFILE_BASE64']
-          data = re.sub(r'\s+', '', data)  # strip all whitespace just in case
-          raw = base64.b64decode(data)
-          pp = pathlib.Path(os.environ['RUNNER_TEMP'])/'profile.mobileprovision'
-          pp.write_bytes(raw)
-          print(pp)
-          PY
-
-          PROFILE_PATH=$(cat)
-          if [[ ! -s "$PROFILE_PATH" ]]; then
-            echo "Decoded profile is empty"; exit 1
-          fi
-
-          PROFILE_NAME=$(/usr/bin/security cms -D -i "$PROFILE_PATH" | \
-            /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin)
-          PROFILE_UUID=$(/usr/bin/security cms -D -i "$PROFILE_PATH" | \
-            /usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin)
-
-          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
           echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
           echo "Installed: $PROFILE_NAME ($PROFILE_UUID)"
@@ -134,7 +96,7 @@ jobs:
           pod repo update
           pod install
 
-      # (3) Génère ExportOptions + numéros de version
+      # (3) ExportOptions + build number
       - name: Compute build number & create ExportOptions.plist
         id: prep
         shell: bash
@@ -167,7 +129,7 @@ jobs:
           PLIST
           echo "ExportOptions ready with BN=$BN"
 
-      # (4) Build & Sign l’IPA avec Flutter (archive + export)
+      # (4) Build & Sign l’IPA
       - name: Build signed IPA
         env:
           BN: ${{ steps.prep.outputs.bn }}
@@ -182,12 +144,11 @@ jobs:
             --no-tree-shake-icons
           ls -lh build/ios/ipa
 
-      # (5) Upload TestFlight via iTMSTransporter (clé API)
+      # (5) Upload TestFlight
       - name: Upload to TestFlight
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.private_keys"
-          # Nettoie et décode la clé API
           python3 - <<'PY'
           import os, re, base64, pathlib
           b64 = re.sub(r'\s+','', os.environ['ASC_KEY_P8_BASE64'])

@@ -1,24 +1,15 @@
 # ios/Podfile
 platform :ios, '13.0'
-
-# Charge les helpers Flutter (obligatoire pour flutter_install_all_ios_pods)
 require File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
-
 flutter_ios_podfile_setup
-
 target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
-
   flutter_install_all_ios_pods(File.dirname(File.realpath(__FILE__)))
 end
-
 post_install do |installer|
   flutter_additional_ios_build_settings(installer)
   installer.pods_project.targets.each do |t|
-    t.build_configurations.each do |c|
-      # Bitcode déprécié
-      c.build_settings['ENABLE_BITCODE'] = 'NO'
-    end
+    t.build_configurations.each { |c| c.build_settings['ENABLE_BITCODE'] = 'NO' }
   end
 end
