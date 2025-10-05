@@ -9,8 +9,8 @@ jobs:
     runs-on: macos-14
     env:
       APP_BUNDLE_ID: com.gearup.app
-      KEYCHAIN_NAME: signing_${{ github.run_id }} # unique per run
-      PROFILE_NAME: GearupAppStore                # <-- exactly as in Developer portal
+      KEYCHAIN_NAME: signing_${{ github.run_id }}
+      PROFILE_NAME: GearupAppStore
 
     steps:
       - name: Checkout
@@ -28,6 +28,9 @@ jobs:
           channel: stable
           flutter-version: '3.35.5'
           architecture: arm64
+
+      - name: Ensure Xcode 15 selected
+        run: sudo xcode-select -s /Applications/Xcode_15.2.app
 
       - name: Precache iOS engine & write podhelper/xcconfig
         shell: bash
@@ -49,6 +52,9 @@ jobs:
           PACKAGE_CONFIG=.dart_tool/package_config.json
           EOF
 
+      - name: Clean Flutter build
+        run: flutter clean
+
       - name: flutter pub get
         run: flutter pub get
 
@@ -62,7 +68,6 @@ jobs:
           pod install
           popd
 
-      # Import your Apple Distribution .p12
       - name: Import code signing cert
         uses: apple-actions/import-codesign-certs@v2
         with:
@@ -71,13 +76,11 @@ jobs:
           keychain:        ${{ env.KEYCHAIN_NAME }}
           create-keychain: true
 
-      # Make the signing keychain default so Xcode surely searches it
       - name: Make signing keychain default
         shell: bash
         run: |
           security default-keychain -s "${KEYCHAIN_NAME}.keychain"
 
-      # Download & install the App Store provisioning profile for com.gearup.app
       - name: Download provisioning profile
         uses: apple-actions/download-provisioning-profiles@v1
         with:
@@ -101,7 +104,6 @@ jobs:
             /usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /dev/stdin <<<"$(/usr/bin/security cms -D -i "$f")"
           done
 
-      # Create ExportOptions.plist on the fly to match your profile name
       - name: Create ExportOptions.plist
         run: |
           cat > ios/ci_export_appstore.plist <<'PLIST'
