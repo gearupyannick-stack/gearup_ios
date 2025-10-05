@@ -1,4 +1,4 @@
-name: ios
+name: ios release
 
 on:
   workflow_dispatch:
@@ -13,46 +13,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Flutter SDK
+      - name: Install Flutter (stable arm64)
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: '3.35.5'
           architecture: arm64
 
-      - name: Setup Flutter (stable arm64)
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.35.5'
-          architecture: arm64
-
-      - name: Configure Flutter env for iOS
+      - name: Configure Flutter for iOS pods
         shell: bash
         run: |
           set -euo pipefail
+
+          # Resolve FLUTTER_ROOT from the flutter binary on the runner
           FLUTTER_BIN="$(which flutter)"
           FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd -P)"
           echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
 
-          # Precache the iOS engine so Flutter.xcframework exists
+          # Ensure iOS engine artifacts exist so podhelper can find Flutter.xcframework
           flutter precache --ios --no-universal --force
 
-          # Sanity check: this MUST exist after precache
-          test -d "$FLUTTER_ROOT/bin/cache/artifacts/engine/ios/Flutter.xcframework"
-          echo "Engine OK at: $FLUTTER_ROOT/bin/cache/artifacts/engine/ios/Flutter.xcframework"
-
-          # Minimal Generated.xcconfig so Podfile fallback can read FLUTTER_ROOT if env is missing
+          # Ensure the podhelper is present in your repo
           mkdir -p ios/Flutter
-          {
-            echo "FLUTTER_ROOT=$FLUTTER_ROOT"
-            echo "FLUTTER_APPLICATION_PATH=$GITHUB_WORKSPACE"
-          } > ios/Flutter/Generated.xcconfig
+          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
+
+          # Minimal Generated.xcconfig so podhelper.rb reads the correct FLUTTER_ROOT
+          cat > ios/Flutter/Generated.xcconfig <<'XC'
+          FLUTTER_ROOT=${FLUTTER_ROOT}
+          FLUTTER_APPLICATION_PATH=${GITHUB_WORKSPACE}
+          FLUTTER_TARGET=lib/main.dart
+          DART_OBFUSCATION=false
+          TRACK_WIDGET_CREATION=false
+          TREE_SHAKE_ICONS=true
+          PACKAGE_CONFIG=.dart_tool/package_config.json
+          XC
 
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: CocoaPods install
+      - name: Install CocoaPods
         shell: bash
         run: |
           set -euo pipefail
@@ -62,19 +61,38 @@ jobs:
           pod install
           popd
 
-      # 5) Build & export IPA
+      # Import your signing certificate into a temporary keychain
+      - name: Import code signing cert
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          # ✅ correct input names:
+          p12-file-base64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_CERT_P12_PASSWORD }}
+
+      # Download the provisioning profile(s) for your bundle id
+      - name: Download provisioning profiles
+        uses: apple-actions/download-provisioning-profiles@v1
+        with:
+          # ✅ do NOT use "profile-name" — use bundle id + API creds
+          bundle-id: com.gearup.app
+          profile-type: IOS_APP_STORE   # or IOS_APP_DEVELOPMENT / IOS_APP_ADHOC as needed
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id: ${{ secrets.ASC_KEY_ID }}
+          api-private-key: ${{ secrets.ASC_KEY_P8_BASE64 }}
+
       - name: Build IPA (App Store)
         shell: bash
-        env:
-          APP_BUNDLE_ID: com.gearup.app
         run: |
-          # Ensure Pods/ xconfigs are included (safety net)
+          set -euo pipefail
+
+          # Ensure the Pods xcconfig is included (some projects need this)
           INCLUDE_LINE='#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"'
           FILE="ios/Flutter/Release.xcconfig"
           grep -Fq "$INCLUDE_LINE" "$FILE" || echo "$INCLUDE_LINE" >> "$FILE"
+
+          # Build the IPA with your export options plist
           flutter build ipa --release --export-options-plist=ios/ci_export_appstore.plist
 
-      # 6) Upload to TestFlight (App Store Connect API key)
       - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v1
         with:
