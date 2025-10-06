@@ -84,7 +84,7 @@ jobs:
       # -------------------------------------------------------
       # 4️⃣ Build archive for App Store
       # -------------------------------------------------------
-$      - name: 🏗️ Build signed iOS IPA with Flutter
+      - name: 🏗️ Build signed iOS IPA with Flutter
         run: |
           set -euo pipefail
           flutter build ipa \
