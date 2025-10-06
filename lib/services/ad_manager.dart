@@ -5,8 +5,8 @@ class AdManager {
   static final AdManager instance = AdManager._internal();
 
   // → IDs de vos placements (interstitiel & rewarded)  
-  static const String _interstitialAdUnitId = 'ca-app-pub-3327975632345057/1921011749';
-  static const String _rewardedAdUnitId    = 'ca-app-pub-3327975632345057/7601547985';
+  static const String _interstitialAdUnitId = 'ca-app-pub-3327975632345057/7615269398';
+  static const String _rewardedAdUnitId    = 'ca-app-pub-3327975632345057/2190825974';
 
   InterstitialAd? _interstitialAd;
   RewardedAd?     _rewardedAd;
