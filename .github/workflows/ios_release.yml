@@ -102,7 +102,7 @@ jobs:
             "OTHER_CODE_SIGN_FLAGS=--deep" \
             PRODUCT_BUNDLE_IDENTIFIER=${{ env.APP_BUNDLE_ID }} \
             IPHONEOS_DEPLOYMENT_TARGET=17.0 \
-            TARGETED_DEVICE_FAMILY = 1 \
+            TARGETED_DEVICE_FAMILY=1 \
             -allowProvisioningUpdates \
             -verbose
 
@@ -125,7 +125,7 @@ jobs:
           set -euo pipefail
           echo "🔎 ls -R build:"
           ls -R build || true
-          
+
       # -------------------------------------------------------
       # 6️⃣ Upload to TestFlight
       # -------------------------------------------------------
