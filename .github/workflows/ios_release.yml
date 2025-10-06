@@ -119,6 +119,12 @@ jobs:
             -exportPath build/export
           echo "✅ IPA exported to build/export/Runner.ipa"
 
+      - name: 🗂️ List build outputs
+        run: |
+          set -euo pipefail
+          echo "🔎 ls -R build:"
+          ls -R build || true
+
       # -------------------------------------------------------
       # 6️⃣ Upload to TestFlight
       # -------------------------------------------------------
