@@ -114,19 +114,13 @@ jobs:
             -exportPath build/export
           echo "✅ IPA exported to build/export/Runner.ipa"
 
-      - name: 🗂️ List build outputs
-        run: |
-          set -euo pipefail
-          echo "🔎 ls -R build:"
-          ls -R build || true
-
       # -------------------------------------------------------
       # 6️⃣ Upload to TestFlight
       # -------------------------------------------------------
       - name: ☁️ Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v1
         with:
-          app-path: build/ios/ipa/Runner.ipa
+          app-path: build/ios/ipa/car_learning_app.ipa
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
           api-private-key: ${{ secrets.ASC_KEY_P8 }}
