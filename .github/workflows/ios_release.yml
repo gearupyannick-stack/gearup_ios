@@ -1,3 +1,4 @@
+
 name: iOS Build & Upload
 
 on:
@@ -42,18 +43,15 @@ jobs:
       - name: 🔧 Precache Flutter iOS artifacts
         run: |
           flutter precache --ios --no-universal --force
-
       - name: 🧹 Clean and get dependencies
         run: |
           flutter clean
           flutter pub get
-
       - name: 🍫 Install CocoaPods
         working-directory: ios
         run: |
           pod repo update
           pod install --verbose
-
       # -------------------------------------------------------
       # 3️⃣ Import certificates and profiles
       # -------------------------------------------------------
@@ -80,7 +78,6 @@ jobs:
       - name: 🧩 Ensure iOS platform installed
         run: |
           sudo xcodebuild -downloadPlatform iOS
-
       # -------------------------------------------------------
       # 4️⃣ Build archive for App Store
       # -------------------------------------------------------
@@ -88,7 +85,6 @@ jobs:
         run: |
           set -euo pipefail
           echo "🏗️ Archiving Runner with correct signing..."
-
           xcodebuild clean archive \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -104,7 +100,6 @@ jobs:
             IPHONEOS_DEPLOYMENT_TARGET=17.0 \
             -allowProvisioningUpdates \
             -verbose
-
       # -------------------------------------------------------
       # 5️⃣ Export IPA
       # -------------------------------------------------------
