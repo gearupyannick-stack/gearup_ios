@@ -30,11 +30,32 @@ jobs:
         with:
           xcode-version: '16.1'
 
-      - name: Ensure iOS device platform is installed
+      # 🔒 Robust iOS platform installer with retries + verification
+      - name: Ensure iOS device platform is installed (robust)
+        shell: bash
         run: |
-          set -euxo pipefail
-          sudo xcodebuild -downloadPlatform iOS || true
-          sudo xcodebuild -runFirstLaunch
+          set -euo pipefail
+          echo "Before:"
+          xcodebuild -showsdks || true
+
+          # Retry up to 4 times (network sometimes flakes)
+          for i in {1..4}; do
+            if xcodebuild -showsdks | grep -q 'iphoneos'; then
+              echo "✅ iPhoneOS platform already present"; break
+            fi
+            echo "Attempt $i: installing iOS platform…"
+            sudo xcodebuild -downloadPlatform iOS || true
+            sudo xcodebuild -runFirstLaunch || true
+            sleep 15
+          done
+
+          echo "After:"
+          xcodebuild -showsdks || true
+
+          echo "SDK version check:"
+          if ! xcrun --sdk iphoneos --show-sdk-version; then
+            echo "❌ iphoneos SDK still not available after retries"; exit 70
+          fi
 
       - name: Precache iOS engine + write Generated.xcconfig
         run: |
@@ -80,8 +101,7 @@ jobs:
             installer.pods_project.targets.each do |t|
               t.build_configurations.each do |config|
                 config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-                # iPhone only
-                config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
+                config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'  # iPhone only
               end
             end
           end
@@ -104,7 +124,7 @@ jobs:
           TARGETED_DEVICE_FAMILY=1
           EOF
 
-      - name: Install CocoaPods
+      - name: Install CocoaPods (fresh)
         working-directory: ios
         run: |
           pod deintegrate || true
@@ -150,6 +170,13 @@ jobs:
           </dict>
           </plist>
           PLIST
+
+      # Final guard before archive — fail fast if iphoneos is still missing
+      - name: Verify iphoneos SDK availability
+        run: |
+          set -euo pipefail
+          xcodebuild -showsdks
+          xcrun --sdk iphoneos --show-sdk-version >/dev/null
 
       - name: Archive (Release, iPhone)
         run: |
