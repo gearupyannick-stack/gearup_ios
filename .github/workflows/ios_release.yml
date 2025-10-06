@@ -1,5 +1,4 @@
 name: ios
-
 on:
   workflow_dispatch:
   push:
@@ -15,69 +14,20 @@ jobs:
       KEYCHAIN_NAME: signing_${{ github.run_id }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Flutter (stable 3.35.5 arm64)
-        uses: subosito/flutter-action@v2
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.1'
+
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: '3.35.5'
           architecture: arm64
 
-      - name: Select Xcode 16.1 (iOS 18 SDK)
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '16.1'
-
-      # 🔒 Robust iOS platform installer with retries + verification
-      - name: Ensure iOS device platform is installed (robust)
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Before:"
-          xcodebuild -showsdks || true
-
-          # Retry up to 4 times (network sometimes flakes)
-          for i in {1..4}; do
-            if xcodebuild -showsdks | grep -q 'iphoneos'; then
-              echo "✅ iPhoneOS platform already present"; break
-            fi
-            echo "Attempt $i: installing iOS platform…"
-            sudo xcodebuild -downloadPlatform iOS || true
-            sudo xcodebuild -runFirstLaunch || true
-            sleep 15
-          done
-
-          echo "After:"
-          xcodebuild -showsdks || true
-
-          echo "SDK version check:"
-          if ! xcrun --sdk iphoneos --show-sdk-version; then
-            echo "❌ iphoneos SDK still not available after retries"; exit 70
-          fi
-
-      - name: Precache iOS engine + write Generated.xcconfig
-        run: |
-          set -euo pipefail
-          flutter precache --ios --no-universal --force
-          FLUTTER_BIN="$(which flutter)"
-          FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd -P)"
-          echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
-          mkdir -p ios/Flutter
-          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
-          cat > ios/Flutter/Generated.xcconfig <<EOF
-          FLUTTER_ROOT=$FLUTTER_ROOT
-          FLUTTER_APPLICATION_PATH=$GITHUB_WORKSPACE
-          FLUTTER_TARGET=lib/main.dart
-          DART_OBFUSCATION=false
-          TRACK_WIDGET_CREATION=false
-          TREE_SHAKE_ICONS=true
-          PACKAGE_CONFIG=.dart_tool/package_config.json
-          EOF
-
-      # ⬇️ place AFTER "Select Xcode 16.1" and BEFORE "flutter clean"
-      - name: Precache iOS engine + write podhelper/Generated.xcconfig
+      # 1) Prepare Flutter iOS toolchain & files CocoaPods needs
+      - name: Prepare Flutter iOS files
         shell: bash
         run: |
           set -euo pipefail
@@ -97,15 +47,16 @@ jobs:
           PACKAGE_CONFIG=.dart_tool/package_config.json
           EOF
 
-      - name: Clean & pub get
-        run: |
-          flutter clean
-          flutter pub get
+      # 2) Clean & fetch Dart deps
+      - run: flutter clean
+      - run: flutter pub get
 
-      - name: Write minimal Podfile (ASCII, iPhone only)
-        working-directory: ios
+      # 3) Write Podfile (ASCII) and Release.xcconfig (Pods include FIRST)
+      - name: Write Podfile & Release.xcconfig
+        shell: bash
         run: |
-          cat > Podfile <<'RUBY'
+          set -euo pipefail
+          cat > ios/Podfile <<'RUBY'
           platform :ios, '15.0'
 
           flutter_root = ENV['FLUTTER_ROOT']
@@ -122,15 +73,12 @@ jobs:
             installer.pods_project.targets.each do |t|
               t.build_configurations.each do |config|
                 config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-                config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'  # iPhone only
+                config.build_settings['TARGETED_DEVICE_FAMILY'] = '1' # iPhone only
               end
             end
           end
           RUBY
 
-      # ⬇️ replace your current "Write Release.xcconfig" step with this (note line 1 include)
-      - name: Write Release.xcconfig (manual signing)
-        run: |
           cat > ios/Flutter/Release.xcconfig <<'EOF'
           #include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"
 
@@ -146,16 +94,16 @@ jobs:
           TARGETED_DEVICE_FAMILY=1
           EOF
 
-      # ⬇️ run CocoaPods *after* Podfile + xcconfig are written, before any archive/build
-      - name: Install CocoaPods (fresh)
+      # 4) Install Pods (this creates the .xcworkspace with Flutter + plugins)
+      - name: CocoaPods install
         working-directory: ios
         run: |
           pod deintegrate || true
           rm -rf Pods Podfile.lock
           pod install --verbose
 
-      - name: Import signing cert
-        uses: apple-actions/import-codesign-certs@v2
+      # 5) Import signing items
+      - uses: apple-actions/import-codesign-certs@v2
         with:
           p12-file-base64: ${{ secrets.IOS_CERT_P12_BASE64 }}
           p12-password:    ${{ secrets.IOS_CERT_P12_PASSWORD }}
@@ -165,8 +113,7 @@ jobs:
       - name: Make signing keychain default
         run: security default-keychain -s "${KEYCHAIN_NAME}.keychain"
 
-      - name: Download provisioning profile (App Store)
-        uses: apple-actions/download-provisioning-profiles@v1
+      - uses: apple-actions/download-provisioning-profiles@v1
         with:
           bundle-id:        ${{ env.APP_BUNDLE_ID }}
           issuer-id:        ${{ secrets.ASC_ISSUER_ID }}
@@ -174,7 +121,26 @@ jobs:
           api-private-key:  ${{ secrets.ASC_KEY_P8 }}
           profile-type:     IOS_APP_STORE
 
-      - name: ExportOptions.plist
+      # 6) Archive (no xcpretty so actual errors aren’t hidden)
+      - name: Archive (Release, iPhone)
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Runner.xcarchive \
+            DEVELOPMENT_TEAM=${TEAM_ID} \
+            PRODUCT_BUNDLE_IDENTIFIER=${APP_BUNDLE_ID} \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="${PROFILE_NAME}" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            archive
+
+      # 7) Export IPA
+      - name: Export IPA
         run: |
           cat > ios/ci_export_appstore.plist <<'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -194,38 +160,12 @@ jobs:
           </plist>
           PLIST
 
-      # Final guard before archive — fail fast if iphoneos is still missing
-      - name: Verify iphoneos SDK availability
-        run: |
-          set -euo pipefail
-          xcodebuild -showsdks
-          xcrun --sdk iphoneos --show-sdk-version >/dev/null
-
-      - name: Archive (Release, iPhone)
-        run: |
-          set -euo pipefail
-          xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath build/Runner.xcarchive \
-            DEVELOPMENT_TEAM=${{ env.TEAM_ID }} \
-            PRODUCT_BUNDLE_IDENTIFIER=${{ env.APP_BUNDLE_ID }} \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="${{ env.PROFILE_NAME }}" \
-            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
-            archive | xcpretty && exit ${PIPESTATUS[0]}
-
-      - name: Export IPA
-        run: |
-          set -euo pipefail
           xcodebuild -exportArchive \
             -archivePath build/Runner.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist ios/ci_export_appstore.plist | xcpretty && exit ${PIPESTATUS[0]}
-          ls -la build/export
+            -exportOptionsPlist ios/ci_export_appstore.plist
 
+      # 8) Upload
       - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v1
         with:
