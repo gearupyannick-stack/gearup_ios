@@ -1,121 +1,182 @@
-name: ios
+name: iOS Build & Upload
+
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
 
 jobs:
-  ios:
+  build-ios:
     runs-on: macos-15
+
     env:
       APP_BUNDLE_ID: com.gearup.app
       TEAM_ID: M282YL56RT
       PROFILE_NAME: GearupAppStore
       KEYCHAIN_NAME: signing_${{ github.run_id }}
+      FLUTTER_VERSION: 3.35.5
+      XCODE_VERSION: 16.1
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: maxim-lobanov/setup-xcode@v1
-        with: { xcode-version: '16.1' }
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.35.5'
-          architecture: arm64
+    # -------------------------------------------------------
+    # STEP 1: Checkout source code
+    # -------------------------------------------------------
+    - name: 📦 Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Prepare Flutter iOS files
-        run: |
-          set -euo pipefail
-          flutter precache --ios --no-universal --force
-          FLUTTER_BIN="$(which flutter)"
-          FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd -P)"
-          echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
-          mkdir -p ios/Flutter
-          cp "$FLUTTER_ROOT/packages/flutter_tools/bin/podhelper.rb" ios/Flutter/podhelper.rb
-          cat > ios/Flutter/Generated.xcconfig <<EOF
-          FLUTTER_ROOT=$FLUTTER_ROOT
-          FLUTTER_APPLICATION_PATH=$GITHUB_WORKSPACE
-          FLUTTER_TARGET=lib/main.dart
-          DART_OBFUSCATION=false
-          TRACK_WIDGET_CREATION=false
-          TREE_SHAKE_ICONS=true
-          PACKAGE_CONFIG=.dart_tool/package_config.json
-          EOF
+    # -------------------------------------------------------
+    # STEP 2: Setup Xcode
+    # -------------------------------------------------------
+    - name: 🧰 Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: ${{ env.XCODE_VERSION }}
 
-      - run: flutter clean
-      - run: flutter pub get
+    # -------------------------------------------------------
+    # STEP 3: Setup Flutter
+    # -------------------------------------------------------
+    - name: 🐦 Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: stable
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        architecture: arm64
 
-      - name: Write Podfile & Release.xcconfig
-        run: |
-          cat > ios/Podfile <<'RUBY'
-          # (paste the Podfile from above)
-          RUBY
+    # -------------------------------------------------------
+    # STEP 4: Precache & Prepare Flutter environment
+    # -------------------------------------------------------
+    - name: 🔧 Precache Flutter iOS artifacts
+      run: |
+        set -euo pipefail
+        flutter precache --ios --no-universal --force
+        FLUTTER_BIN="$(which flutter)"
+        FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd -P)"
+        echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
+        echo "✅ Flutter root set to $FLUTTER_ROOT"
 
-          cat > ios/Flutter/Release.xcconfig <<'EOF'
-          # (paste the Release.xcconfig from above)
-          EOF
+    - name: 📁 Generate Flutter iOS xcconfig
+      run: |
+        mkdir -p ios/Flutter
+        cat > ios/Flutter/Generated.xcconfig <<EOF
+        FLUTTER_ROOT=$FLUTTER_ROOT
+        FLUTTER_APPLICATION_PATH=$GITHUB_WORKSPACE
+        FLUTTER_TARGET=lib/main.dart
+        DART_OBFUSCATION=false
+        TRACK_WIDGET_CREATION=false
+        TREE_SHAKE_ICONS=true
+        PACKAGE_CONFIG=.dart_tool/package_config.json
+        EOF
+        echo "✅ Generated.xcconfig created"
 
-      - name: Install CocoaPods
-        working-directory: ios
-        run: |
-          pod deintegrate || true
-          rm -rf Pods Podfile.lock
-          pod install --verbose
+    # -------------------------------------------------------
+    # STEP 5: Clean and install dependencies
+    # -------------------------------------------------------
+    - name: 🧹 Flutter clean
+      run: flutter clean
 
-      - uses: apple-actions/import-codesign-certs@v2
-        with:
-          p12-file-base64: ${{ secrets.IOS_CERT_P12_BASE64 }}
-          p12-password:    ${{ secrets.IOS_CERT_P12_PASSWORD }}
-          keychain:        ${{ env.KEYCHAIN_NAME }}
-          create-keychain: true
+    - name: 📦 Get Dart & Flutter packages
+      run: flutter pub get
 
-      - name: Make signing keychain default
-        run: security default-keychain -s "${KEYCHAIN_NAME}.keychain"
+    - name: 🍫 Install CocoaPods
+      working-directory: ios
+      run: |
+        set -e
+        pod repo update
+        pod deintegrate || true
+        rm -rf Pods Podfile.lock
+        pod install --verbose
 
-      - uses: apple-actions/download-provisioning-profiles@v1
-        with:
-          bundle-id:        ${{ env.APP_BUNDLE_ID }}
-          issuer-id:        ${{ secrets.ASC_ISSUER_ID }}
-          api-key-id:       ${{ secrets.ASC_KEY_ID }}
-          api-private-key:  ${{ secrets.ASC_KEY_P8 }}
-          profile-type:     IOS_APP_STORE
+    # -------------------------------------------------------
+    # STEP 6: Import Certificates & Provisioning Profile
+    # -------------------------------------------------------
+    - name: 🔐 Import signing certificates
+      uses: apple-actions/import-codesign-certs@v2
+      with:
+        p12-file-base64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+        p12-password:    ${{ secrets.IOS_CERT_P12_PASSWORD }}
+        keychain:        ${{ env.KEYCHAIN_NAME }}
+        create-keychain: true
 
-      - name: Archive (Release, iPhone)
-        run: |
-          set -euo pipefail
-          xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath build/Runner.xcarchive \
-            archive
+    - name: 🗝️ Make keychain default
+      run: security default-keychain -s "${KEYCHAIN_NAME}.keychain"
 
-      - name: Export IPA
-        run: |
-          cat > ios/ci_export_appstore.plist <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
+    - name: 📲 Download provisioning profile
+      uses: apple-actions/download-provisioning-profiles@v1
+      with:
+        bundle-id:        ${{ env.APP_BUNDLE_ID }}
+        issuer-id:        ${{ secrets.ASC_ISSUER_ID }}
+        api-key-id:       ${{ secrets.ASC_KEY_ID }}
+        api-private-key:  ${{ secrets.ASC_KEY_P8 }}
+        profile-type:     IOS_APP_STORE
+
+    # -------------------------------------------------------
+    # STEP 7: Build archive
+    # -------------------------------------------------------
+    - name: 🏗️ Build iOS Archive (Release)
+      run: |
+        set -euo pipefail
+        xcodebuild -workspace ios/Runner.xcworkspace \
+          -scheme Runner \
+          -configuration Release \
+          -destination 'generic/platform=iOS' \
+          -archivePath build/Runner.xcarchive \
+          clean archive \
+          DEVELOPMENT_TEAM=${{ env.TEAM_ID }} \
+          PRODUCT_BUNDLE_IDENTIFIER=${{ env.APP_BUNDLE_ID }}
+        echo "✅ Archive built successfully"
+
+    # -------------------------------------------------------
+    # STEP 8: Export IPA
+    # -------------------------------------------------------
+    - name: 📦 Export IPA for App Store
+      run: |
+        set -euo pipefail
+        mkdir -p build/export
+        cat > ios/ci_export_appstore.plist <<'PLIST'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+          <dict>
             <key>method</key><string>app-store</string>
             <key>teamID</key><string>M282YL56RT</string>
             <key>signingStyle</key><string>manual</string>
-            <key>provisioningProfiles</key><dict>
-              <key>com.gearup.app</key><string>GearupAppStore</string>
-            </dict>
-            <key>compileBitcode</key><true/>
-            <key>uploadBitcode</key><false/>
-          </dict></plist>
-          PLIST
+            <key>provisioningProfiles</key>
+              <dict>
+                <key>com.gearup.app</key><string>GearupAppStore</string>
+              </dict>
+            <key>uploadSymbols</key><true/>
+            <key>compileBitcode</key><false/>
+            <key>stripSwiftSymbols</key><true/>
+          </dict>
+        </plist>
+        PLIST
 
-          xcodebuild -exportArchive \
-            -archivePath build/Runner.xcarchive \
-            -exportPath build/export \
-            -exportOptionsPlist ios/ci_export_appstore.plist
+        xcodebuild -exportArchive \
+          -archivePath build/Runner.xcarchive \
+          -exportPath build/export \
+          -exportOptionsPlist ios/ci_export_appstore.plist
+        echo "✅ IPA exported to build/export/Runner.ipa"
 
-      - name: Upload to TestFlight
-        uses: apple-actions/upload-testflight-build@v1
-        with:
-          app-path: build/export/Runner.ipa
-          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
-          api-key-id: ${{ secrets.ASC_KEY_ID }}
-          api-private-key: ${{ secrets.ASC_KEY_P8 }}
+    # -------------------------------------------------------
+    # STEP 9: Upload to TestFlight
+    # -------------------------------------------------------
+    - name: ☁️ Upload build to TestFlight
+      uses: apple-actions/upload-testflight-build@v1
+      with:
+        app-path: build/export/Runner.ipa
+        issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+        api-key-id: ${{ secrets.ASC_KEY_ID }}
+        api-private-key: ${{ secrets.ASC_KEY_P8 }}
+      continue-on-error: false
+
+    # -------------------------------------------------------
+    # STEP 10: Save artifacts (optional for debugging)
+    # -------------------------------------------------------
+    - name: 🧾 Upload build artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-build-artifacts
+        path: |
+          build/Runner.xcarchive
+          build/export
