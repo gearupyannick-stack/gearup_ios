@@ -213,6 +213,15 @@ jobs:
           pod repo update
           pod install --verbose
 
+      - name: Install iOS device platform (required for Flutter device builds)
+        run: |
+          set -euxo pipefail
+          xcodebuild -showsdks || true
+          sudo xcodebuild -downloadPlatform iOS
+          sudo xcodebuild -runFirstLaunch
+          # sanity
+          xcodebuild -showsdks
+      
       - name: Build iOS artifacts (no codesign)
         run: flutter build ios --release --no-codesign
 
