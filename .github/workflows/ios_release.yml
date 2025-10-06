@@ -112,7 +112,7 @@ jobs:
             -archivePath build/Runner.xcarchive \
             -exportOptionsPlist build/ci_export_appstore.plist \
             -exportPath build/export
-          echo "✅ IPA exported to build/export/Runner.ipa"
+          echo "✅ IPA exported to build/export/car_learning_app.ipa"
 
       # -------------------------------------------------------
       # 6️⃣ Upload to TestFlight
