@@ -84,18 +84,13 @@ jobs:
       # -------------------------------------------------------
       # 4️⃣ Build archive for App Store
       # -------------------------------------------------------
-      - name: 🏗️ Build signed iOS IPA with Flutter
+$      - name: 🏗️ Build signed iOS IPA with Flutter
         run: |
           set -euo pipefail
-          echo "🏗️ Building and signing iOS IPA via Flutter..."
-
           flutter build ipa \
             --release \
             --export-options-plist=ios/ci_export_appstore.plist \
-            --build-number=${{ github.run_number }} \
-            --no-tree-shake-icons
-
-          echo "✅ Flutter build complete"
+            --build-number=${{ github.run_number }}
 
       # -------------------------------------------------------
       # 5️⃣ Export IPA
