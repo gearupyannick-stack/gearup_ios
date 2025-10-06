@@ -77,6 +77,10 @@ jobs:
           api-private-key:  ${{ secrets.ASC_KEY_P8 }}
           profile-type:     IOS_APP_STORE
 
+      - name: 🧩 Ensure iOS platform installed
+        run: |
+          sudo xcodebuild -downloadPlatform iOS
+
       # -------------------------------------------------------
       # 4️⃣ Build archive for App Store
       # -------------------------------------------------------
