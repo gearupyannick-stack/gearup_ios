@@ -86,9 +86,6 @@ jobs:
           echo "🏗️ Building iOS release IPA via Flutter..."
 
           flutter build ipa \
-            --release \
-            --export-options-plist=ios/ci_export_appstore.plist \
-            --no-codesign
 
           echo "✅ Flutter build complete, IPA is in build/ios/ipa/"
 
