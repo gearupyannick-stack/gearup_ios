@@ -80,15 +80,10 @@ jobs:
       # -------------------------------------------------------
       # 4️⃣ Build archive for App Store
       # -------------------------------------------------------
-      - name: 🏗️ Build iOS archive
+      - name: 🏗️ Build iOS archive (real fix)
         run: |
           set -euo pipefail
-          echo "📍 Xcode version:"
-          xcodebuild -version
-          echo "📍 Available SDKs:"
-          xcodebuild -showsdks
-          echo "📍 Available destinations:"
-          xcodebuild -showdestinations -workspace ios/Runner.xcworkspace -scheme Runner || true
+          echo "🏗️ Starting Xcode archive..."
 
           xcodebuild clean archive \
             -workspace ios/Runner.xcworkspace \
@@ -96,13 +91,14 @@ jobs:
             -sdk iphoneos \
             -configuration Release \
             -archivePath build/Runner.xcarchive \
-            -destination 'generic/platform=iOS' \
+            -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
+            -skipUnavailableDestinations YES \
             DEVELOPMENT_TEAM=${{ env.TEAM_ID }} \
             PRODUCT_BUNDLE_IDENTIFIER=${{ env.APP_BUNDLE_ID }} \
             CODE_SIGN_STYLE=Manual \
             PROVISIONING_PROFILE_SPECIFIER=${{ env.PROFILE_NAME }} \
-            -allowProvisioningUpdates
-        shell: bash
+            IPHONEOS_DEPLOYMENT_TARGET=17.0
 
       # -------------------------------------------------------
       # 5️⃣ Export IPA
