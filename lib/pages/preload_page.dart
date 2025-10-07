@@ -5,11 +5,10 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../main.dart';
 import '../storage/lives_storage.dart';
 import '../services/image_service_cache.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PreloadPage extends StatefulWidget {
   // Optional so it works from ProfilePage and from app start.
@@ -327,34 +326,25 @@ class _PreloadPageState extends State<PreloadPage> {
   }
 
   // ---------------- Finish / teardown ----------------
-
   Future<void> _finish() async {
+    _running = false;
+
+    // ✅ Mark preload as done so next launch skips it
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('areImagesLoaded', true);
 
-    _running = false;
+    if (!mounted) return;
 
-    if (widget.initialLives != null && widget.livesStorage != null) {
-      if (!mounted) return;
-      // 👇 Replace pushReplacement with pushAndRemoveUntil
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MainPage(
-            initialLives: widget.initialLives!,
-            livesStorage: widget.livesStorage!,
-          ),
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MainPage(
+          initialLives: widget.initialLives ?? 5,
+          livesStorage: widget.livesStorage ?? LivesStorage(),
         ),
-        (route) => false, // remove all previous routes
-      );
-    } else {
-      if (!mounted) return;
-      Navigator.of(context).pop(<String, int>{
-        'downloaded': _downloaded,
-        'cached': _already,
-        'failed': _failed,
-      });
-    }
+      ),
+      (route) => false,
+    );
   }
 
   @override
@@ -429,8 +419,8 @@ class _PreloadPageState extends State<PreloadPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _stat('Total', _total),
-                  _stat('Done', done),
+                  _stat('Total ', _total),
+                  _stat('Done ', done),
                 ],
               ),
               const SizedBox(height: 12),

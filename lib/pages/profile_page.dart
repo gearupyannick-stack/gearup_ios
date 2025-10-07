@@ -172,17 +172,36 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      username = prefs.getString('username') ?? 'N/A';
+      // Username default changed to the requested "unamed_carenthusiast"
+      final storedUsername = prefs.getString('username');
+      username = (storedUsername == null || storedUsername.isEmpty || storedUsername == 'N/A')
+          ? 'unamed_carenthusiast'
+          : storedUsername;
+
       favoriteBrand = prefs.getString('favoriteBrand') ?? 'N/A';
       favoriteModel = prefs.getString('favoriteModel') ?? 'N/A';
+
       profilePicIndex = prefs.getInt('profilePictureIndex') ??
           Random().nextInt(6)
             ..let((i) => prefs.setInt('profilePictureIndex', i));
+
       createdAt = prefs.getString('createdAt') ??
           DateTime.now().toLocal().toIso8601String().split('T').first
             ..let((d) => prefs.setString('createdAt', d));
+
       _isDataLoaded = true;
     });
+
+    // Ensure username is persisted if we just defaulted it
+    if (prefs.getString('username') == null ||
+        prefs.getString('username')!.isEmpty ||
+        prefs.getString('username') == 'N/A') {
+      await prefs.setString('username', username);
+    }
+
+    // If car data already loaded, try to fill random brand/model if missing
+    await _ensureRandomProfileIfMissing();
+
     _loadProgressData();
   }
 
@@ -355,8 +374,49 @@ class _ProfilePageState extends State<ProfilePage> {
         _brandToModels = {for (var b in _brandOptions) b: (map[b] ?? {}).toList()..sort()};
         _isCarDataLoaded = true;
       });
+
+      // Now that car data is available, ensure random brand/model if missing
+      await _ensureRandomProfileIfMissing();
     } catch (_) {
       setState(() => _isCarDataLoaded = false);
+    }
+  }
+
+  /// Ensures we have a random favoriteBrand/favoriteModel when none is set.
+  /// Also ensures username default is saved if it was missing.
+  Future<void> _ensureRandomProfileIfMissing() async {
+    if (!_isCarDataLoaded) return;
+    final prefs = await SharedPreferences.getInstance();
+
+    // Username persistence (already defaulted). Save if necessary.
+    if (prefs.getString('username') == null ||
+        prefs.getString('username')!.isEmpty ||
+        prefs.getString('username') == 'N/A') {
+      await prefs.setString('username', username.isEmpty ? 'unamed_carenthusiast' : username);
+    }
+
+    // If favorites are missing, pick a random brand and model once and persist
+    final needsRandom =
+        (favoriteBrand.isEmpty || favoriteBrand == 'N/A') ||
+        (favoriteModel.isEmpty || favoriteModel == 'N/A');
+
+    if (needsRandom && _brandOptions.isNotEmpty) {
+      // Use a seeded RNG per install for reproducibility across app restarts for a given user
+      final savedSeed = prefs.getInt('installSeed') ??
+          DateTime.now().millisecondsSinceEpoch..let((s) => prefs.setInt('installSeed', s));
+      final rng = Random(savedSeed);
+
+      final randBrand = _brandOptions[rng.nextInt(_brandOptions.length)];
+      final models = _brandToModels[randBrand] ?? const <String>[];
+      if (models.isNotEmpty) {
+        final randModel = models[rng.nextInt(models.length)];
+        await prefs.setString('favoriteBrand', randBrand);
+        await prefs.setString('favoriteModel', randModel);
+        setState(() {
+          favoriteBrand = randBrand;
+          favoriteModel = randModel;
+        });
+      }
     }
   }
 
@@ -560,6 +620,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     return Scaffold(
+      // NEW: App bar with top-right edit button
       body: Column(
         children: [
           Expanded(
@@ -568,27 +629,54 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
                   Center(
                     child: Column(
                       children: [
-                        avatarWidget,
+                        // Avatar with overlaid edit button
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            avatarWidget, // your existing CircleAvatar (100x100)
+
+                            Positioned(
+                              top: -6, // nudge outward a bit; adjust to taste
+                              right: -6,
+                              child: Material(
+                                color: Colors.black.withOpacity(0.05), // optional subtle bg
+                                shape: const CircleBorder(),
+                                child: IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.edit, size: 18),
+                                  tooltip: 'Edit profile',
+                                  onPressed: _showEditProfileDialog,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
                         const SizedBox(height: 10),
                         Text(username, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Text('Member since: $memSince', style: const TextStyle(fontSize: 14, color: Colors.grey)),
                         const SizedBox(height: 8),
+
+                        // Flame + streak on the same line (you already had this)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.local_fire_department, color: Colors.orange),
-                            SizedBox(width: 5),
+                          children: [
+                            const Icon(Icons.local_fire_department, color: Colors.orange),
+                            const SizedBox(width: 6),
+                            Text('Streak: $dailyStreak Days', style: const TextStyle(fontSize: 16)),
                           ],
                         ),
-                        Text('Streak: $dailyStreak Days', style: const TextStyle(fontSize: 16)),
                       ],
                     ),
                   ),
+                  
                   const SizedBox(height: 20),
                   Text(
                     'Track $_currentTrack, Level ${_sessionsCompleted + 1}, '

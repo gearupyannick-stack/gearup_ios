@@ -1,12 +1,16 @@
+// main.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'pages/welcome_page.dart';
+
+// REMOVED: import 'pages/welcome_page.dart';
 import 'pages/home_page.dart';
 import 'pages/training_page.dart';
 import 'pages/library_page.dart';
 import 'pages/profile_page.dart';
+import 'pages/preload_page.dart'; // ✅ first-launch data loader
+
 import 'storage/lives_storage.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -18,33 +22,36 @@ final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<Scaffol
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  bool hasProfile = prefs.getBool('hasProfile') ?? false;
+  final prefs = await SharedPreferences.getInstance();
+  final bool areImagesLoaded = prefs.getBool('areImagesLoaded') ?? false;
+  final bool shouldPreload = !areImagesLoaded;
 
-  LivesStorage livesStorage = LivesStorage();
-  int savedLives = await livesStorage.readLives();
+  final livesStorage = LivesStorage();
+  final int savedLives = await livesStorage.readLives();
 
   runApp(CarLearningApp(
-    hasProfile: hasProfile,
+    shouldPreload: shouldPreload,
     initialLives: savedLives,
     livesStorage: livesStorage,
   ));
 }
 
 class CarLearningApp extends StatelessWidget {
-  final bool hasProfile;
+  final bool shouldPreload; // <── add this
   final int initialLives;
   final LivesStorage livesStorage;
 
-  CarLearningApp({
-    required this.hasProfile,
+  const CarLearningApp({
+    Key? key,
+    required this.shouldPreload,
     required this.initialLives,
     required this.livesStorage,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -87,12 +94,81 @@ class CarLearningApp extends StatelessWidget {
           bodyMedium: TextStyle(fontSize: 16, color: Colors.white70),
         ),
       ),
-      home: hasProfile
-          ? MainPage(
-              initialLives: initialLives,
-              livesStorage: livesStorage,
-            )
-          : WelcomePage(),
+
+      // ✅ use shouldPreload here
+      home: shouldPreload
+      ? PreloadPage(
+          initialLives: initialLives,
+          livesStorage: livesStorage,
+        )
+      : MainPage(
+          initialLives: initialLives,
+          livesStorage: livesStorage,
+        ),
+    );
+  }
+}
+
+/// Shows PreloadPage on first-ever launch, then future launches go straight to MainPage.
+/// We mark `isFirstLaunch=false` immediately so the second app start bypasses preload.
+class FirstLaunchGate extends StatefulWidget {
+  final int initialLives;
+  final LivesStorage livesStorage;
+
+  const FirstLaunchGate({
+    Key? key,
+    required this.initialLives,
+    required this.livesStorage,
+  }) : super(key: key);
+
+  @override
+  State<FirstLaunchGate> createState() => _FirstLaunchGateState();
+}
+
+class _FirstLaunchGateState extends State<FirstLaunchGate> {
+  @override
+  void initState() {
+    super.initState();
+    _markNotFirstAndShowPreload();
+  }
+
+  Future<void> _markNotFirstAndShowPreload() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isFirstLaunch', false);
+
+    // We navigate directly to PreloadPage. Typical pattern inside PreloadPage:
+    // when loading completes, call:
+    //   Navigator.pushReplacement(
+    //     context,
+    //     MaterialPageRoute(
+    //       builder: (_) => MainPage(
+    //         initialLives: widget.initialLives,
+    //         livesStorage: widget.livesStorage,
+    //       ),
+    //     ),
+    //   );
+    //
+    // If your current PreloadPage already navigates somewhere else,
+    // adjust it to pushReplacement to the MainPage above.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PreloadPage(
+            initialLives: widget.initialLives,
+            livesStorage: widget.livesStorage,
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Minimal splash while we route into PreloadPage
+    return const Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(child: CircularProgressIndicator(color: Colors.red)),
     );
   }
 }
@@ -102,9 +178,10 @@ class MainPage extends StatefulWidget {
   final LivesStorage livesStorage;
 
   const MainPage({
+    Key? key,
     required this.initialLives,
     required this.livesStorage,
-  });
+  }) : super(key: key);
 
   @override
   _MainPageState createState() => _MainPageState();
@@ -250,7 +327,7 @@ class _MainPageState extends State<MainPage> {
         if (lives < _maxLives) {
           // schedule next
           DateTime nextDue = DateTime.now()
-              .add(Duration(seconds: _refillInterval));
+              .add(const Duration(seconds: _refillInterval));
           await prefs.setString(
             'nextLifeDueTime',
             nextDue.toIso8601String(),
@@ -280,17 +357,10 @@ class _MainPageState extends State<MainPage> {
     // 2) If we’ve dropped below max, schedule the next life *relative to now*
     if (lives < _maxLives) {
       final prefs = await SharedPreferences.getInstance();
-      // Compute exactly when the next life is due
-      final nextDue = DateTime.now().add(Duration(seconds: _refillInterval));
-      // Persist that timestamp
-      await prefs.setString(
-        'nextLifeDueTime',
-        nextDue.toIso8601String(),
-      );
-      // Reset our on-screen countdown
+      final nextDue = DateTime.now().add(const Duration(seconds: _refillInterval));
+      await prefs.setString('nextLifeDueTime', nextDue.toIso8601String());
       _lifeTimerRemaining.value = nextDue.difference(DateTime.now()).inSeconds;
 
-      // (Re)start the in‐memory ticker if it isn’t already running
       if (_lifeTimer == null) {
         _startLifeTimer();
       }
@@ -322,12 +392,12 @@ class _MainPageState extends State<MainPage> {
                     // refill immediately
                     setState(() => lives = _maxLives);
                     await widget.livesStorage.writeLives(lives);
-                    // remove pending due time so we don't auto-add extra lives
                     final prefs = await SharedPreferences.getInstance();
                     prefs.remove('nextLifeDueTime');
 
                     Navigator.of(ctx).pop();
                     final uri = Uri.parse(
+                      // NOTE: keep your existing Android package here.
                       'https://play.google.com/store/apps/details?id=com.gearup.app'
                     );
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -382,7 +452,7 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               alignment: Alignment.center,
-              child: Text(
+              child: const Text(
                 "Here you earn gears as you complete levels!",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 18),
@@ -404,7 +474,7 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               alignment: Alignment.center,
-              child: Text(
+              child: const Text(
                 "This is your daily streak—complete 5 challenges to keep it going!",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 18),
@@ -426,7 +496,7 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               alignment: Alignment.center,
-              child: Text(
+              child: const Text(
                 "Tap here to see how many lives you have left, and when you’ll get the next one.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 18),
@@ -448,7 +518,7 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               alignment: Alignment.center,
-              child: Text(
+              child: const Text(
                 "Tap this first flag to start your race!",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 18),
@@ -470,7 +540,7 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               alignment: Alignment.center,
-              child: Text(
+              child: const Text(
                 "Go here to race on the Track and collect flags!",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 18),
@@ -492,7 +562,7 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               alignment: Alignment.center,
-              child: Text(
+              child: const Text(
                 "Visit Training to practice and earn extra lives.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 18),
@@ -514,7 +584,7 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               alignment: Alignment.center,
-              child: Text(
+              child: const Text(
                 "Browse all cars and learn their specs here.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 18),
@@ -536,7 +606,7 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               alignment: Alignment.center,
-              child: Text(
+              child: const Text(
                 "Check your achievements and stats in your profile.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 18),
@@ -551,9 +621,9 @@ class _MainPageState extends State<MainPage> {
       targets: targets,
       colorShadow: Colors.black87,
       textSkip: "SKIP",
-      textStyleSkip: TextStyle(color: Colors.white),
+      textStyleSkip: const TextStyle(color: Colors.white),
       // Move SKIP to center + skipYOffset down
-      alignSkip: Alignment(0, skipYOffset),
+      alignSkip: Alignment(0, (50 / MediaQuery.of(context).size.height) * 2.0),
       showSkipInLastTarget: false,
       paddingFocus: 10,
       onFinish: () => print("Tutorial finished"),
@@ -563,9 +633,9 @@ class _MainPageState extends State<MainPage> {
         return true;
       },
     )..show(
-      context: context,
-      rootOverlay: true,
-    );
+        context: context,
+        rootOverlay: true,
+      );
   }
 
   String _getStreakTitle(int streak) {
@@ -591,7 +661,7 @@ class _MainPageState extends State<MainPage> {
     scaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(
         content: Text("🏆 Achievement Unlocked: $title"),
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         backgroundColor: Colors.black87,
       ),
@@ -631,7 +701,7 @@ class _MainPageState extends State<MainPage> {
       scaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(
           content: Text("🎁 $streak-Day Streak! Bonus awarded!"),
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.deepOrangeAccent,
         ),
@@ -641,7 +711,7 @@ class _MainPageState extends State<MainPage> {
 
   void _playStreakAnimation() {
     scaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Text("🔥 Streak Up! Keep it going!"),
         duration: Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
@@ -728,7 +798,7 @@ class _MainPageState extends State<MainPage> {
   }
 
   Future<void> _showLivesPopup() async {
-    // Recharge le nombre de vies au moment du popup
+    // Refresh lives when opening popup
     lives = await widget.livesStorage.readLives();
 
     return showDialog(
@@ -736,50 +806,48 @@ class _MainPageState extends State<MainPage> {
       builder: (context) {
         if (lives >= _maxLives) {
           return AlertDialog(
-            title: Text('Your Lives'),
-            content: Text('Lives are full'),
+            title: const Text('Your Lives'),
+            content: const Text('Lives are full'),
             actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('OK')),
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
             ],
           );
         } else {
           return AlertDialog(
-            title: Text('Your Lives'),
+            title: const Text('Your Lives'),
             content: ValueListenableBuilder<int>(
               valueListenable: _lifeTimerRemaining,
               builder: (context, remaining, child) {
-                // minutes et secondes restantes
                 final minutes = remaining ~/ 60;
                 final seconds = remaining % 60;
-                // PROGRESSION : de 0 (juste déclenché) à 1 (vie disponible)
                 final progress = 1 - (remaining / _refillInterval);
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text("You have $lives / $_maxLives lives remaining."),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text("Next life in $minutes min $seconds sec"),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     LinearProgressIndicator(
                       value: progress.clamp(0.0, 1.0),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).pop();
                         setState(() {
-                          _currentIndex = 1; // Aller à l’onglet Training
+                          _currentIndex = 1; // Go to Training tab
                         });
                       },
-                      child: Text("Train for life"),
+                      child: const Text("Train for life"),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                   ],
                 );
               },
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('OK')),
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
             ],
           );
         }
@@ -794,7 +862,7 @@ class _MainPageState extends State<MainPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text("Play Calendar"),
+        title: const Text("Play Calendar"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -802,13 +870,13 @@ class _MainPageState extends State<MainPage> {
               dailyCounts: dailyCounts.cast<String,int>(),
             ),
             const SizedBox(height: 12),
-            Text("Complete 5 flag challenges to do your streak",
+            const Text("Complete 5 flag challenges to do your streak",
                   style: TextStyle(fontSize:11, color:Colors.grey)),
             const SizedBox(height: 6),
             LinearProgressIndicator(value: (dailyCounts[DateTime.now().toIso8601String().split('T').first] ?? 0).clamp(0,5)/5),
           ],
         ),
-        actions: [ TextButton(onPressed: () => Navigator.pop(context), child: Text("Close")) ],
+        actions: [ TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")) ],
       ),
     );
   }
@@ -826,8 +894,8 @@ class _MainPageState extends State<MainPage> {
               key: _gearKey,
               children: [
                 Image.asset('assets/icons/gear.png', height: 24),
-                SizedBox(width: 4),
-                Text('$gearCount', style: TextStyle(fontSize: 18)),
+                const SizedBox(width: 4),
+                Text('$gearCount', style: const TextStyle(fontSize: 18)),
               ],
             ),
             // Daily streak
@@ -836,14 +904,14 @@ class _MainPageState extends State<MainPage> {
               children: [
                 Icon(Icons.local_fire_department,
                     color: challengesCompletedToday ? Colors.orange : Colors.grey),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 GestureDetector(
                   onTap: _showCalendarPopup,
                   child: Container(
-                    padding: EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: Text(
                       '$dayStreak 🔥 $streakTitle',
-                      style: TextStyle(
+                      style: const TextStyle(
                           fontSize: 16, decoration: TextDecoration.underline),
                     ),
                   ),
@@ -857,8 +925,8 @@ class _MainPageState extends State<MainPage> {
               child: Row(
                 children: [
                   Image.asset(_heartImagePath, height: 24),
-                  SizedBox(width: 8),
-                  Text('$lives', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Text('$lives', style: const TextStyle(fontSize: 18)),
                 ],
               ),
             ),
@@ -874,23 +942,23 @@ class _MainPageState extends State<MainPage> {
         onTap: _onTabTapped,
         items: [
           BottomNavigationBarItem(
-            icon: Container(key: _tabHomeKey, child: Icon(Icons.home)),
+            icon: Container(key: _tabHomeKey, child: const Icon(Icons.home)),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Container(key: _tabTrainingKey, child: Icon(Icons.fitness_center)),
+            icon: Container(key: _tabTrainingKey, child: const Icon(Icons.fitness_center)),
             label: 'Training',
           ),
-              BottomNavigationBarItem(
-            icon: Container(key: _tabRaceKey, child: Icon(Icons.flag)),
+          BottomNavigationBarItem(
+            icon: Container(key: _tabRaceKey, child: const Icon(Icons.flag)),
             label: 'Race',
           ),
           BottomNavigationBarItem(
-            icon: Container(key: _tabLibraryKey, child: Icon(Icons.library_books)),
+            icon: Container(key: _tabLibraryKey, child: const Icon(Icons.library_books)),
             label: 'Library',
           ),
           BottomNavigationBarItem(
-            icon: Container(key: _tabProfileKey, child: Icon(Icons.person)),
+            icon: Container(key: _tabProfileKey, child: const Icon(Icons.person)),
             label: 'Profile',
           ),
         ],
@@ -1009,7 +1077,7 @@ class _PlayCalendarWidgetState extends State<PlayCalendarWidget> {
         children: weekDays
             .map((wd) => Center(
                   child: Text(wd,
-                      style: TextStyle(
+                      style: const TextStyle(
                           fontSize: 10, fontWeight: FontWeight.bold)),
                 ))
             .toList(),
@@ -1034,15 +1102,15 @@ class _PlayCalendarWidgetState extends State<PlayCalendarWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
-              icon: Icon(Icons.arrow_left, size: 20),
+              icon: const Icon(Icons.arrow_left, size: 20),
               onPressed: _previousMonth,
             ),
             Text(
               "${monthNames[currentMonth - 1]} $currentYear",
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             IconButton(
-              icon: Icon(Icons.arrow_right, size: 20),
+              icon: const Icon(Icons.arrow_right, size: 20),
               onPressed: _nextMonth,
             ),
           ],
@@ -1059,7 +1127,7 @@ class _PlayCalendarWidgetState extends State<PlayCalendarWidget> {
     return Container(
       decoration:
           BoxDecoration(color: bg, borderRadius: BorderRadius.circular(4)),
-      padding: EdgeInsets.all(4),
+      padding: const EdgeInsets.all(4),
       child: Center(
         child: Text(
           day.toString(),
