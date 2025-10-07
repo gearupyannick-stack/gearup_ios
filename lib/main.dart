@@ -13,13 +13,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/race_page.dart';
-import 'services/ad_manager.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AdManager.instance.init();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -776,18 +774,6 @@ class _MainPageState extends State<MainPage> {
                       child: Text("Train for life"),
                     ),
                     SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        AdManager.instance.showRewardedAd(onEarned: () async {
-                          if (lives < _maxLives) {
-                            setState(() => lives++);
-                            await widget.livesStorage.writeLives(lives);
-                          }
-                        });
-                      },
-                      child: Text("Gain a life for free"),
-                    ),
                   ],
                 );
               },

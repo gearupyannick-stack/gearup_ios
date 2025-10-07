@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/ad_manager.dart';
 import '../storage/lives_storage.dart';
 import 'challenges/brand_challenge_page.dart';
 import 'challenges/models_by_brand_challenge_page.dart';
@@ -91,10 +90,6 @@ class _TrainingPageState extends State<TrainingPage> {
             MaterialPageRoute(builder: (_) => page),
           );
 
-          if (result is String) {
-            widget.recordChallengeCompletion?.call();
-            AdManager.instance.notifyTrainingCompleted(); // 👈 Count 1 more training completed
-          }
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

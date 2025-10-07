@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/image_service_cache.dart';
-import '../services/ad_manager.dart';
 
 /// Raw track point definitions for tracks 2 & 3.
 final Map<int, List<Offset>> _tracks = {
@@ -459,23 +458,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         title: Text('Feeling stuck?'),
         content: Text('Pass this flag for free by watching an ad.'),
         actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              AdManager.instance.showRewardedAd(onEarned: () {
-                // Considérer le flag comme passé
-                setState(() {
-                  _flagStatus[flagIndex] = 'green';
-                  _challengeColors[_challengeNumberForFlag(flagIndex)] = 'green';
-                  _consecutiveFails = 0;
-                  _retryButtonActive = false;
-                });
-                widget.onGearUpdate(_gearCount);
-                _animateToNextPoint();
-              });
-            },
-            child: Text('Pass this flag for free'),
-          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text('Cancel'),
@@ -705,7 +687,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   void _onFlagTap(int flagIndex) async {
     // Compte cette tentative Home (success ou échec)
-   AdManager.instance.notifyHomeAttempt();
 
     // ignore: unused_local_variable
     bool lostLife = false;
