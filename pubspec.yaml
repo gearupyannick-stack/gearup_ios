@@ -1,7 +1,7 @@
 name: car_learning_app
 description: A Flutter app to help users learn about cars and their specifications.
 publish_to: "none"
-version: 1.0.1+5
+version: 1.0.1+6
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -16,7 +16,6 @@ dependencies:
   tutorial_coach_mark: ^1.3.0
 
   # ↓ Downgraded Firebase libs to match Google Mobile Ads (<11)
-  google_mobile_ads: ^6.0.0
   firebase_core: ^4.0.0
   firebase_storage: ^13.0.0
   firebase_analytics: ^12.0.0
