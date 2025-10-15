@@ -514,14 +514,6 @@ class _PreloadPageState extends State<PreloadPage> {
                     _stat('Failed', _failed),
                   ],
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    child: const Text('Skip download for now'),
-                  ),
-                ),
               ] else ...[
                 // While running, show real-time breakdown
                 _stat('Downloaded', _downloaded),

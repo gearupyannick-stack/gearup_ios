@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- core -->
+    <string name="google_app_id">1:947361107260:android:d96311d73e344e03e2a239</string>
+    <string name="gcm_defaultSenderId">947361107260</string>
+
+    <!-- API key from your JSON -->
+    <string name="google_api_key">AIzaSyCYAJbWqy94oiFZNmOn6oLIqNd4ORAkj3Y</string>
+
+    <!-- optional fields (fill with values from your JSON/project) -->
+    <string name="google_storage_bucket">gearup-ceeb0.firebasestorage.app</string>
+    <string name="project_id">gearup-ceeb0</string>
+    <string name="firebase_database_url"></string>
+    <string name="ga_trackingId"></string>
+</resources>

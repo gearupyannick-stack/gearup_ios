@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "947361107260",
+    "project_id": "gearup-ceeb0",
+    "storage_bucket": "gearup-ceeb0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:947361107260:android:d96311d73e344e03e2a239",
+        "android_client_info": {
+          "package_name": "com.gearup.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "947361107260-bij2k79laobhpgg3rfeg8itsa99hv78j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gearup.app",
+            "certificate_hash": "09d7c31523a37de598b297399f8f5b32f3087f29"
+          }
+        },
+        {
+          "client_id": "947361107260-3kt4jkrmo6ti3pkmpr849ihshgmg18nq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYAJbWqy94oiFZNmOn6oLIqNd4ORAkj3Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "947361107260-3kt4jkrmo6ti3pkmpr849ihshgmg18nq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
