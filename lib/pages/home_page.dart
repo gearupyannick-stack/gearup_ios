@@ -72,6 +72,7 @@ class HomePage extends StatefulWidget {
   final VoidCallback onChallengeFail;
   final ValueChanged<int> onGearUpdate;
   final VoidCallback? recordChallengeCompletion;
+  final GlobalKey? levelProgressKey;
 
   const HomePage({
     Key? key,
@@ -82,6 +83,7 @@ class HomePage extends StatefulWidget {
     required this.onGearUpdate,
     this.recordChallengeCompletion,
     this.firstFlagKey,
+    this.levelProgressKey,
   }) : super(key: key);
 
   @override
@@ -1624,6 +1626,7 @@ Future<void> _loadConsecutiveFails() async {
             right: levelRight,
             left:  levelLeft,
             child: GestureDetector(
+              key: widget.levelProgressKey,
               onTap: _showTrackPopup,
               child: Column(
                 mainAxisSize: MainAxisSize.min,

@@ -10,7 +10,8 @@ import '../services/image_service_cache.dart';
 import 'preload_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  final VoidCallback? onReplayTutorial;
+  const ProfilePage({Key? key, this.onReplayTutorial}) : super(key: key);
 
   @override
   _ProfilePageState createState() => _ProfilePageState();

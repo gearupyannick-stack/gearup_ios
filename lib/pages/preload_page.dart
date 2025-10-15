@@ -28,8 +28,8 @@ class PreloadPage extends StatefulWidget {
 class _PreloadPageState extends State<PreloadPage> {
   // ---- Data & UI model ----
   final List<String> _allFiles = [];
-  final List<String> _thumbPool = [];         // cached files ready to show
-  late final List<String?> _gridImages;       // visible grid (filenames or null)
+  final List<String> _thumbPool = []; // cached files ready to show
+  late final List<String?> _gridImages; // visible grid (filenames or null)
   static const int _gridSlots = 30;
 
   // ---- Progress ----
@@ -37,12 +37,17 @@ class _PreloadPageState extends State<PreloadPage> {
   int _already = 0;
   int _downloaded = 0;
   int _failed = 0;
-  bool _running = true;                       // stay on page until done
+  bool _running = false; // now false by default; becomes true when user taps Download
+
+  // ---- Estimated size ----
+  // This is an *estimate* per-file. Actual download size may vary depending on image encoding.
+  static const int _kEstimatedPerFileBytes = 100 * 1024; // 100 KB per image estimate
+  int get _estimatedBytes => _total * _kEstimatedPerFileBytes;
 
   // ---- Timers / monitors ----
-  Timer? _ticker;                             // throttled repaint during work
-  Timer? _shuffler;                           // rotates thumbnails every 5s
-  Timer? _watchdog;                           // detects stalls
+  Timer? _ticker; // throttled repaint during work
+  Timer? _shuffler; // rotates thumbnails every 5s
+  Timer? _watchdog; // detects stalls
 
   // Stall detection
   int _lastObservedDone = 0;
@@ -55,23 +60,20 @@ class _PreloadPageState extends State<PreloadPage> {
   static const _kWorkers = 10;
   static const _kUiThrottleMs = 200;
   static const _kShuffleSeconds = 5;
-  static const _kStallSeconds = 12;          // if no progress for >= this, verify connectivity
-  static const _kPerFileTimeout = Duration(seconds: 10); // avoid hanging fetches
+  static const _kStallSeconds = 12; // if no progress for >= this, verify connectivity
+  static const _kPerFileTimeout =
+      Duration(seconds: 10); // avoid hanging fetches
 
   @override
   void initState() {
     super.initState();
     _gridImages = List<String?>.filled(_gridSlots, null, growable: false);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _prepareList();        // build filenames + seed UI with cached
+      await _prepareList(); // build filenames + seed UI with cached
       if (!mounted) return;
-      _startShuffler();            // animate the grid
-      _startWatchdog();            // monitor for stalls
-      await _ensureConnectivity(); // require network before starting
-      if (!mounted) return;
-      await _startCaching();       // fetch missing
-      if (!mounted) return;
-      await _finish();             // exit or pop summary
+      _startShuffler(); // animate the grid (preview cached)
+      // NOTE: Do NOT start connectivity check or caching here.
+      // Caching will start only when user taps "Download all images".
     });
   }
 
@@ -86,8 +88,8 @@ class _PreloadPageState extends State<PreloadPage> {
     } catch (_) {}
     // Fallback to a general host
     try {
-      final res = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 3));
+      final res =
+          await InternetAddress.lookup('google.com').timeout(const Duration(seconds: 3));
       if (res.isNotEmpty && res.first.rawAddress.isNotEmpty) return true;
     } catch (_) {}
     return false;
@@ -188,7 +190,13 @@ class _PreloadPageState extends State<PreloadPage> {
       if (!cached) queue.add(f);
     }
 
-    if (queue.isEmpty) return;
+    if (queue.isEmpty) {
+      // Nothing to download — finish immediately
+      if (mounted) {
+        await _finish();
+      }
+      return;
+    }
 
     // Throttle UI updates
     _ticker = Timer.periodic(const Duration(milliseconds: _kUiThrottleMs), (_) {
@@ -314,7 +322,7 @@ class _PreloadPageState extends State<PreloadPage> {
   void _startShuffler() {
     _shuffler?.cancel();
     _shuffler = Timer.periodic(const Duration(seconds: _kShuffleSeconds), (_) {
-      if (!_running || _thumbPool.isEmpty || !mounted) return;
+      if (!_thumbPool.isNotEmpty || !mounted) return;
       final replacements = min(6, _gridImages.length);
       for (int k = 0; k < replacements; k++) {
         final slot = _rand.nextInt(_gridImages.length);
@@ -356,6 +364,32 @@ class _PreloadPageState extends State<PreloadPage> {
     super.dispose();
   }
 
+  // ---------------- User actions ----------------
+
+  /// Called when the user taps "Download all images".
+  Future<void> _onDownloadPressed() async {
+    if (_running) return;
+    setState(() {
+      _running = true;
+    });
+    // Start watchdog to monitor for stalls during the download
+    _startWatchdog();
+
+    // Ensure connectivity (will show blocking dialog if offline)
+    await _ensureConnectivity();
+
+    // Start caching missing images (this will await all workers)
+    await _startCaching();
+
+    // When done, finish will be invoked by _startCaching (if there were items),
+    // otherwise we call _finish() above.
+    if (mounted && !_running) return; // already finished
+    if (mounted) {
+      // If caching completed without navigating (e.g., no missing files), finish now.
+      await _finish();
+    }
+  }
+
   // ---------------- Build ----------------
 
   @override
@@ -364,8 +398,22 @@ class _PreloadPageState extends State<PreloadPage> {
     final total = _total == 0 ? 1 : _total;
     final progress = done / total;
 
+    // Format estimated size nicely
+    String estimatedSizeText;
+    if (_total == 0) {
+      estimatedSizeText = 'Calculating size...';
+    } else {
+      final kb = (_estimatedBytes / 1024);
+      final mb = kb / 1024;
+      if (mb >= 1.0) {
+        estimatedSizeText = '${mb.toStringAsFixed(1)} MB (estimated)';
+      } else {
+        estimatedSizeText = '${kb.toStringAsFixed(0)} KB (estimated)';
+      }
+    }
+
     return WillPopScope(
-      onWillPop: () async => !_running, // do not quit until complete
+      onWillPop: () async => !_running, // allow leaving when not downloading
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Caching Images'),
@@ -375,10 +423,52 @@ class _PreloadPageState extends State<PreloadPage> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              // Explanatory text and download button (user requested)
               const Text(
-                'Loading images, do not quit',
+                'These images are required for the app to display car pictures and for some features to function correctly.',
                 style: TextStyle(fontSize: 16),
               ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Images to download: $_total\nEstimated download size: $estimatedSizeText',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Download button or progress indicator
+              if (!_running)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _total > 0 ? _onDownloadPressed : null,
+                    child: const Text('Download all images'),
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(child: Text('Downloading images...')),
+                        Text('${(progress * 100).toStringAsFixed(0)}%'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(value: progress),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _stat('Total ', _total),
+                        _stat('Done ', done),
+                      ],
+                    ),
+                  ],
+                ),
+
               const SizedBox(height: 12),
 
               // Animated thumbnail grid
@@ -413,30 +503,34 @@ class _PreloadPageState extends State<PreloadPage> {
               ),
 
               const SizedBox(height: 8),
-              LinearProgressIndicator(value: progress),
-              const SizedBox(height: 12),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _stat('Total ', _total),
-                  _stat('Done ', done),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _stat('Downloaded', _downloaded),
-              _stat('Already cached', _already),
-              _stat('Failed', _failed),
-
-              const SizedBox(height: 12),
-              if (!_running)
+              // Stats shown even when not running
+              if (!_running) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _stat('Downloaded', _downloaded),
+                    _stat('Already cached', _already),
+                    _stat('Failed', _failed),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: TextButton(
                     onPressed: () => Navigator.of(context).maybePop(),
-                    child: const Text('Close'),
+                    child: const Text('Skip download for now'),
                   ),
                 ),
+              ] else ...[
+                // While running, show real-time breakdown
+                _stat('Downloaded', _downloaded),
+                _stat('Already cached', _already),
+                _stat('Failed', _failed),
+                const SizedBox(height: 12),
+              ],
+
+              const SizedBox(height: 8),
             ],
           ),
         ),

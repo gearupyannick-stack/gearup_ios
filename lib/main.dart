@@ -17,6 +17,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/race_page.dart';
+import 'package:flutter/foundation.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -61,9 +62,9 @@ class CarLearningApp extends StatelessWidget {
       scaffoldMessengerKey: scaffoldMessengerKey,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: Color(0xFF121212),
-        primaryColor: Color(0xFF3D0000),
-        appBarTheme: AppBarTheme(
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        primaryColor: const Color(0xFF3D0000),
+        appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF3D0000),
           titleTextStyle: TextStyle(
             fontSize: 22,
@@ -74,22 +75,22 @@ class CarLearningApp extends StatelessWidget {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFF3D0000),
+            backgroundColor: const Color(0xFF3D0000),
             foregroundColor: Colors.white,
-            textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            minimumSize: Size(double.infinity, 50),
+            minimumSize: const Size(double.infinity, 50),
           ),
         ),
-        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color(0xFF1E1E1E),
           selectedItemColor: Colors.redAccent,
           unselectedItemColor: Colors.white70,
         ),
-        cardColor: Color(0xFF1E1E1E),
-        textTheme: TextTheme(
+        cardColor: const Color(0xFF1E1E1E),
+        textTheme: const TextTheme(
           titleLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
           bodyMedium: TextStyle(fontSize: 16, color: Colors.white70),
         ),
@@ -97,14 +98,14 @@ class CarLearningApp extends StatelessWidget {
 
       // ✅ use shouldPreload here
       home: shouldPreload
-      ? PreloadPage(
-          initialLives: initialLives,
-          livesStorage: livesStorage,
-        )
-      : MainPage(
-          initialLives: initialLives,
-          livesStorage: livesStorage,
-        ),
+          ? PreloadPage(
+              initialLives: initialLives,
+              livesStorage: livesStorage,
+            )
+          : MainPage(
+              initialLives: initialLives,
+              livesStorage: livesStorage,
+            ),
     );
   }
 }
@@ -210,6 +211,7 @@ class _MainPageState extends State<MainPage> {
   final GlobalKey _tabRaceKey     = GlobalKey(); 
   final GlobalKey _tabLibraryKey  = GlobalKey();
   final GlobalKey _tabProfileKey  = GlobalKey();
+  final GlobalKey _levelProgressKey = GlobalKey();
   final List<Widget> _pages = [];
 
   // ── STREAK & DAILY ─────────────────────────────────
@@ -236,6 +238,7 @@ class _MainPageState extends State<MainPage> {
         onGearUpdate: (c) => setState(() => gearCount = c),
         recordChallengeCompletion: recordChallengeCompletion,
         firstFlagKey: _firstFlagKey,
+        levelProgressKey: _levelProgressKey,
       ),
       TrainingPage(
         onLifeWon: () async {
@@ -246,7 +249,7 @@ class _MainPageState extends State<MainPage> {
       ),
       const RacePage(), 
       const LibraryPage(),
-      const ProfilePage(),
+      ProfilePage(onReplayTutorial: () => _maybeShowTutorial(force: true)),
     ]);
     // 4) other inits
     _loadDayStreak();
@@ -423,12 +426,29 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
-  Future<void> _maybeShowTutorial() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('hasSeenTutorial') ?? false) return;
+  Future<void> _maybeShowTutorial({bool force = false}) async {
+    // Show the tutorial only when:
+    //  - force == true  (replay request from profile), OR
+    //  - there is no 'hasSeenTutorial' flag in SharedPreferences yet.
+    //
+    // When we decide to show it, we immediately set the flag to true so it
+    // won't reappear on subsequent app launches.
 
-    _showTutorial();
-    await prefs.setBool('hasSeenTutorial', true);
+    final prefs = await SharedPreferences.getInstance();
+    final bool hasSeen = prefs.getBool('hasSeenTutorial') ?? false;
+
+    if (force) {
+      // Replay requested from profile: always show, and persist that user has seen it.
+      await prefs.setBool('hasSeenTutorial', true);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showTutorial());
+      return;
+    }
+
+    // Normal behaviour: if not seen before, mark seen and show once.
+    if (!hasSeen) {
+      await prefs.setBool('hasSeenTutorial', true);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showTutorial());
+    }
   }
 
   void _showTutorial() {
@@ -436,9 +456,21 @@ class _MainPageState extends State<MainPage> {
     final size = MediaQuery.of(context).size;
     final middleTop = size.height * 0.5 - 50;
     final sidePadding = size.width * 0.1;
-    final skipYOffset = (50 / size.height) * 2.0; // Alignment y goes from -1 to 1
+    // you already changed this value — keep it
+    final skipYOffset = (50 / size.height) * 15.0; // Alignment y goes from -1 to 1
+
+    // local reference to the coach mark so our Continue buttons can call next()/finish()
+    late TutorialCoachMark tutorialCoachMark;
+
+    // small reusable style for the textual content
+    const TextStyle tutorialTextStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.w500,
+    );
 
     final targets = <TargetFocus>[
+      // 1) Gear
       TargetFocus(
         identify: "Gear",
         keyTarget: _gearKey,
@@ -450,17 +482,36 @@ class _MainPageState extends State<MainPage> {
               left: sidePadding,
               right: sidePadding,
             ),
-            child: Container(
-              alignment: Alignment.center,
-              child: const Text(
-                "Here you earn gears as you complete levels!",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Here you earn Gears as you complete levels!",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.next(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Continue"),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+
+      // 2) Streak
       TargetFocus(
         identify: "Streak",
         keyTarget: _streakKey,
@@ -472,17 +523,36 @@ class _MainPageState extends State<MainPage> {
               left: sidePadding,
               right: sidePadding,
             ),
-            child: Container(
-              alignment: Alignment.center,
-              child: const Text(
-                "This is your daily streak—complete 5 challenges to keep it going!",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "This is your daily streak — complete 5 challenges to keep it going!",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.next(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Continue"),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+
+      // 3) Lives
       TargetFocus(
         identify: "Lives",
         keyTarget: _livesKey,
@@ -494,20 +564,40 @@ class _MainPageState extends State<MainPage> {
               left: sidePadding,
               right: sidePadding,
             ),
-            child: Container(
-              alignment: Alignment.center,
-              child: const Text(
-                "Tap here to see how many lives you have left, and when you’ll get the next one.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Tap here to see how many lives you have left, and when you’ll get the next one.",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.next(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Continue"),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+
+      // 4) Level progress bar / Map (NEW)
+      // NOTE: declare and attach _levelProgressKey to the actual progress/map widget in home_page.dart
       TargetFocus(
-        identify: "FirstFlag",
-        keyTarget: _firstFlagKey,
+        identify: "LevelProgress",
+        keyTarget: _levelProgressKey,
         contents: [
           TargetContent(
             align: ContentAlign.custom,
@@ -516,17 +606,42 @@ class _MainPageState extends State<MainPage> {
               left: sidePadding,
               right: sidePadding,
             ),
-            child: Container(
-              alignment: Alignment.center,
-              child: const Text(
-                "Tap this first flag to start your race!",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "This bar shows your current level and the map ahead — swipe or tap to explore future levels and maps.",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Tip: Unlock stages to reveal new map routes!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.next(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Continue"),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+
+      // 5) Home tab
       TargetFocus(
         identify: "HomeTab",
         keyTarget: _tabHomeKey,
@@ -538,17 +653,36 @@ class _MainPageState extends State<MainPage> {
               left: sidePadding,
               right: sidePadding,
             ),
-            child: Container(
-              alignment: Alignment.center,
-              child: const Text(
-                "Go here to race on the Track and collect flags!",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Go here to race on the Track and collect flags!",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.next(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Continue"),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+
+      // 6) Training tab
       TargetFocus(
         identify: "TrainingTab",
         keyTarget: _tabTrainingKey,
@@ -560,17 +694,83 @@ class _MainPageState extends State<MainPage> {
               left: sidePadding,
               right: sidePadding,
             ),
-            child: Container(
-              alignment: Alignment.center,
-              child: const Text(
-                "Visit Training to practice and earn extra lives.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Visit Training to practice and earn extra lives.",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.next(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Continue"),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+
+      // Multiplayer / Race (NEW)
+      TargetFocus(
+        identify: "Multiplayer",
+        keyTarget: _tabRaceKey, // reuses existing Race tab key
+        contents: [
+          TargetContent(
+            align: ContentAlign.custom,
+            customPosition: CustomTargetContentPosition(
+              top: middleTop,
+              left: sidePadding,
+              right: sidePadding,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Multiplayer Races let you compete against other players in real-time — tap the Race tab to join or create matches.",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Tip: Use quick matches to jump in fast, or create a private room to play with friends.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.next(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Continue"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+
+      // 7) Library tab
       TargetFocus(
         identify: "LibraryTab",
         keyTarget: _tabLibraryKey,
@@ -582,17 +782,36 @@ class _MainPageState extends State<MainPage> {
               left: sidePadding,
               right: sidePadding,
             ),
-            child: Container(
-              alignment: Alignment.center,
-              child: const Text(
-                "Browse all cars and learn their specs here.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Browse all cars and learn their specs here.",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.next(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Continue"),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+
+      // 8) Profile tab (mention Replay)
       TargetFocus(
         identify: "ProfileTab",
         keyTarget: _tabProfileKey,
@@ -604,26 +823,85 @@ class _MainPageState extends State<MainPage> {
               left: sidePadding,
               right: sidePadding,
             ),
-            child: Container(
-              alignment: Alignment.center,
-              child: const Text(
-                "Check your achievements and stats in your profile.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Check your achievements and stats in your profile. Replay this intro anytime from your profile settings.",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.next(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Continue"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+
+      // 9) FirstFlag (FINAL)
+      TargetFocus(
+        identify: "FirstFlag",
+        keyTarget: _firstFlagKey,
+        contents: [
+          TargetContent(
+            align: ContentAlign.custom,
+            customPosition: CustomTargetContentPosition(
+              top: middleTop,
+              left: sidePadding,
+              right: sidePadding,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Tap this first flag to start your race!",
+                  textAlign: TextAlign.center,
+                  style: tutorialTextStyle,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => tutorialCoachMark.finish(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text("Finish"),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     ];
 
-    TutorialCoachMark(
+    // build and show
+    tutorialCoachMark = TutorialCoachMark(
       targets: targets,
       colorShadow: Colors.black87,
       textSkip: "SKIP",
       textStyleSkip: const TextStyle(color: Colors.white),
       // Move SKIP to center + skipYOffset down
-      alignSkip: Alignment(0, (50 / MediaQuery.of(context).size.height) * 2.0),
+      alignSkip: Alignment(0, skipYOffset),
       showSkipInLastTarget: false,
       paddingFocus: 10,
       onFinish: () => print("Tutorial finished"),
@@ -632,10 +910,12 @@ class _MainPageState extends State<MainPage> {
         print("Tutorial skipped");
         return true;
       },
-    )..show(
-        context: context,
-        rootOverlay: true,
-      );
+    );
+
+    tutorialCoachMark.show(
+      context: context,
+      rootOverlay: true,
+    );
   }
 
   String _getStreakTitle(int streak) {

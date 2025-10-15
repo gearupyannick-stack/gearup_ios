@@ -35,7 +35,20 @@ class _ModelsByBrandChallengePageState
         _carData.add({'brand': parts[0].trim(), 'model': parts[1].trim()});
       }
     }
-    _brands = _carData.map((e) => e['brand']!).toSet().toList();
+    // Build per-brand model sets (deduped), then keep only brands with ≥ 4 models
+    final Map<String, Set<String>> byBrand = {};
+    for (final row in _carData) {
+      final b = row['brand']!;
+      final m = row['model']!;
+      byBrand.putIfAbsent(b, () => <String>{}).add(m);
+    }
+
+    _brands = byBrand.entries
+        .where((e) => e.value.length >= 4) // ← only brands with 4+ models
+        .map((e) => e.key)
+        .toList()
+      ..sort();
+
     setState(() {});
   }
 
