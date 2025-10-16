@@ -281,10 +281,10 @@ Mercedes,AMG GT63 S E Performance,Hybrid hyper-sedan with peak AMG performance,V
 Mercedes,AMG PureSpeed,Concept hypercar with F1-derived hybrid technology,V8 Hybrid,350 km/h,2.7 seconds,1000 HP,Concept,2025,Made in Germany,F1 tech
 Mercedes,Maybach SL,Ultra-luxury convertible with V8 power and plush interior,V8,260 km/h,4.4 seconds,503 HP,250000-300000,2025,Made in Germany,Plush interior
 Mercedes,AMG 4-Door EV,Concept electric sedan with solid-state battery tech,Electric,250 km/h,3.5 seconds,751 HP,Concept,2025,Made in Germany,Solid-state batteries
-Alpine,A110,Two-seater lightweight sports coupe with racing heritage,I4,250 km/h,4.5 seconds,252 HP,65000-75000 €,2025,Made in France,Aluminium chassis :contentReference[oaicite:0]{index=0}
-Alpine,A110 Pure,Focused performance variant with reduced weight and minimal trim,I4,250 km/h,4.5 seconds,252 HP,68000-78000 €,2025,Made in France,Minimalist interior :contentReference[oaicite:1]{index=1}
-Alpine,A110 Legende,Comfort-oriented model with bespoke Alcantara upholstery,I4,250 km/h,4.5 seconds,252 HP,70000-80000 €,2025,Made in France,Alcantara trim :contentReference[oaicite:2]{index=2}
-Alpine,A110 GT,GT-focused variant with enhanced suspension and front-lift system,I4,250 km/h,4.5 seconds,252 HP,75000-85000 €,2025,Made in France,Front-lift system :contentReference[oaicite:3]{index=3}
+Alpine,A110,Two-seater lightweight sports coupe with racing heritage,I4,250 km/h,4.5 seconds,252 HP,65000-75000 €,2025,Made in France,Aluminium chassis
+Alpine,A110 Pure,Focused performance variant with reduced weight and minimal trim,I4,250 km/h,4.5 seconds,252 HP,68000-78000 €,2025,Made in France,Minimalist interior
+Alpine,A110 Legende,Comfort-oriented model with bespoke Alcantara upholstery,I4,250 km/h,4.5 seconds,252 HP,70000-80000 €,2025,Made in France,Alcantara trim
+Alpine,A110 GT,GT-focused variant with enhanced suspension and front-lift system,I4,250 km/h,4.5 seconds,252 HP,75000-85000 €,2025,Made in France,Front-lift system
 Chevrolet,Corvette Stingray,Mid-engine American sports car with removable roof panel,V8,312 km/h,2.9 seconds,495 HP,62000-70000 USD,2025,Made in USA,Removable roof panel
 Chevrolet,Corvette Z06,Race-inspired track-focused variant with wide-body aerodynamics,V8,315 km/h,2.6 seconds,670 HP,105000-120000 USD,2025,Made in USA,Carbon-ceramic brakes
 Chevrolet,Camaro SS,Classic muscle car with modern performance and Brembo brakes,V8,250 km/h,4.0 seconds,455 HP,38000-45000 USD,2025,Made in USA,Brembo brakes
@@ -349,7 +349,7 @@ Citroen,e-C3 Aircross,Electric compact SUV with spacious interior and comfort,El
 Citroen,e-C4,Electric hatchback offering smooth ride and modern tech,Electric,150 km/h,9.7 seconds,136 HP,28000-35000 €,2025,Made in Spain,Citroën Advanced Comfort suspension
 Citroen,e-C4 X,Electric saloon combining elegance with practicality,Electric,150 km/h,9.5 seconds,136 HP,29000-36000 €,2025,Made in Spain,Fast charging capability
 Citroen,e-C5 Aircross,Flagship electric SUV with long-range and luxury,Electric,170 km/h,8.5 seconds,180 HP,35000-45000 €,2025,Made in France,97 kWh battery with 422 miles range
-Citroen,Ami,Ultra-compact electric quadricycle for urban mobility,Electric,45 km/h,No data,8 HP,8000-10000 €,2025,Made in France,Two-seater with 46-mile range can you complete it with these cars
+Citroen,Ami,Ultra-compact electric quadricycle for urban mobility,Electric,45 km/h,10 seconds,8 HP,8000-10000 €,2025,Made in France,Two-seater with 46-mile range can you complete it with these cars
 Volkswagen,Golf,Compact hatchback with sporty handling and advanced digital cockpit,I4 1.5 TSI,230 km/h,7.2 seconds,150 HP,25000–30000,2025,Made in Germany,Digital cockpit
 Volkswagen,Polo,Subcompact hatch with efficient engine and flexible interior,I4 1.0 TSI,180 km/h,9.5 seconds,95 HP,18000–22000,2025,Made in Germany,Flexible seating
 Volkswagen,Passat,Executive sedan/estate combining comfort with performance,I4 2.0 TSI,235 km/h,7.5 seconds,190 HP,35000–45000,2025,Made in Germany,Spacious interior

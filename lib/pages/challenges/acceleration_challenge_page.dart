@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
+import '../../services/audio_feedback.dart'; // centralized audio router
 
 class AccelerationChallengePage extends StatefulWidget {
   @override
@@ -37,9 +38,17 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
   bool _answered = false;
   String? _selectedAcceleration;
 
+  // simple streak tracker for streak audio
+  int _streak = 0;
+
   @override
   void initState() {
     super.initState();
+    // Notify audio layer that page opened
+    try {
+      AudioFeedback.instance.playEvent(SoundEvent.pageOpen);
+    } catch (_) {}
+
     _loadCsv();
 
     // Start overall quiz timer
@@ -57,6 +66,11 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
 
   @override
   void dispose() {
+    // Notify audio layer that page closed
+    try {
+      AudioFeedback.instance.playEvent(SoundEvent.pageClose);
+    } catch (_) {}
+
     _quizTimer?.cancel();
     _frameTimer?.cancel();
     super.dispose();
@@ -102,21 +116,68 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
     setState(() {
       _options = opts.toList()..shuffle();
     });
+
+    // signal a "page flip" / new question event to audio layer
+    try {
+      AudioFeedback.instance.playEvent(SoundEvent.pageFlip);
+    } catch (_) {}
   }
 
   void _onTap(String accel) {
     if (_answered) return;
+
+    // play tap immediately (non-blocking)
+    try {
+      AudioFeedback.instance.playEvent(SoundEvent.tap);
+    } catch (_) {}
+
     setState(() {
       _answered = true;
       _selectedAcceleration = accel;
-      if (accel == _correctAcceleration) _correctAnswers++;
+      if (accel == _correctAcceleration) {
+        _correctAnswers++;
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    // Feedback sounds for correct / incorrect
+    if (accel == _correctAcceleration) {
+      try {
+        AudioFeedback.instance.playEvent(SoundEvent.answerCorrect);
+        // streak milestone audio
+        if (_streak == 3 || _streak == 5 || _streak == 10) {
+          AudioFeedback.instance.playEvent(SoundEvent.streak);
+        }
+      } catch (_) {}
+    } else {
+      try {
+        AudioFeedback.instance.playEvent(SoundEvent.answerWrong);
+      } catch (_) {}
+    }
+
+    // move to next question after a short delay (preserves existing UX)
     Future.delayed(const Duration(seconds: 1), _nextQuestion);
   }
 
   void _finishQuiz() {
     _quizTimer?.cancel();
     _frameTimer?.cancel();
+
+    // determine a simple star rating from correctAnswers (tunable)
+    final int stars = (_correctAnswers >= 16)
+        ? 3
+        : (_correctAnswers >= 10)
+            ? 2
+            : 1;
+
+    // Play challenge-complete fanfare for computed stars
+    try {
+      AudioFeedback.instance.playEvent(SoundEvent.challengeComplete,
+          meta: {'stars': stars});
+    } catch (_) {}
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -224,8 +285,7 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
                                         : Colors.grey[800]!))
                                 : Colors.grey[800],
                             child: InkWell(
-                              onTap:
-                                  _answered ? null : () => _onTap(accel),
+                              onTap: _answered ? null : () => _onTap(accel),
                               child: Center(
                                 child: Text(
                                   accel,

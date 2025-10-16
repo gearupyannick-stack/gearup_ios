@@ -2,6 +2,7 @@
 // ignore_for_file: unused_element, deprecated_member_use, unused_field
 
 import 'dart:math';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,6 +43,16 @@ class _ProfilePageState extends State<ProfilePage> {
   int _requiredGearsForCurrentLevel = 0;
   int _currentLevelGears = 0;
   double _progressValue = 0.0;
+
+  // Google-related flags (kept for display/backwards compatibility)
+  bool _googleSignedIn = false;
+  String? _googleDisplayName;
+  String? _googleEmail;
+  String? _googlePhotoUrl;
+  bool _useGoogleName = true; // if true, show Google name instead of local username
+
+  // guest detection
+  bool _isGuest = false;
 
   // For the edit dialog
   List<String> _brandOptions = [];
@@ -172,28 +183,73 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // Read Google-related prefs (your Google sign-in flow should set these keys)
+    final googleSigned = prefs.getBool('google_signed_in') ?? false;
+    final googleName = prefs.getString('google_displayName');
+    final googleEmail = prefs.getString('google_email');
+    final googlePhoto = prefs.getString('google_photoUrl');
+    final useGoogleNamePref = prefs.getBool('use_google_name') ?? true;
+
+    // Read stored username and other profile fields
+    final storedUsername = prefs.getString('username');
+    final storedFavoriteBrand = prefs.getString('favoriteBrand') ?? 'N/A';
+    final storedFavoriteModel = prefs.getString('favoriteModel') ?? 'N/A';
+    final storedCreatedAt = prefs.getString('createdAt');
+    final storedPicIndex = prefs.getInt('profilePictureIndex');
+
+    // Decide guest status (fallback heuristic)
+    final guestPref = prefs.getBool('is_guest');
+    final isGuestDetermined = guestPref ??
+        (storedUsername == null ||
+            storedUsername.isEmpty ||
+            storedUsername == 'N/A' ||
+            storedUsername.startsWith('unamed'));
+
+    // Compute profilePicIndex and createdAt (persist if missing)
+    int resolvedPicIndex;
+    if (storedPicIndex == null) {
+      resolvedPicIndex = Random().nextInt(6);
+      await prefs.setInt('profilePictureIndex', resolvedPicIndex);
+    } else {
+      resolvedPicIndex = storedPicIndex;
+    }
+
+    final resolvedCreatedAt =
+        storedCreatedAt ?? DateTime.now().toLocal().toIso8601String().split('T').first;
+    if (storedCreatedAt == null) {
+      await prefs.setString('createdAt', resolvedCreatedAt);
+    }
+
+    // Decide username: prefer persisted username, but allow Google name when signed in & opted-in
+    String resolvedUsername =
+        (storedUsername == null || storedUsername.isEmpty || storedUsername == 'N/A')
+            ? 'unamed_carenthusiast'
+            : storedUsername;
+
+    if (googleSigned && useGoogleNamePref && (googleName != null && googleName.isNotEmpty)) {
+      resolvedUsername = googleName;
+    }
+
+    // Finally apply to state
     setState(() {
-      // Username default changed to the requested "unamed_carenthusiast"
-      final storedUsername = prefs.getString('username');
-      username = (storedUsername == null || storedUsername.isEmpty || storedUsername == 'N/A')
-          ? 'unamed_carenthusiast'
-          : storedUsername;
+      _googleSignedIn = googleSigned;
+      _googleDisplayName = googleName;
+      _googleEmail = googleEmail;
+      _googlePhotoUrl = googlePhoto;
+      _useGoogleName = useGoogleNamePref;
 
-      favoriteBrand = prefs.getString('favoriteBrand') ?? 'N/A';
-      favoriteModel = prefs.getString('favoriteModel') ?? 'N/A';
+      _isGuest = isGuestDetermined;
 
-      profilePicIndex = prefs.getInt('profilePictureIndex') ??
-          Random().nextInt(6)
-            ..let((i) => prefs.setInt('profilePictureIndex', i));
-
-      createdAt = prefs.getString('createdAt') ??
-          DateTime.now().toLocal().toIso8601String().split('T').first
-            ..let((d) => prefs.setString('createdAt', d));
-
+      username = resolvedUsername;
+      favoriteBrand = storedFavoriteBrand;
+      favoriteModel = storedFavoriteModel;
+      profilePicIndex = resolvedPicIndex;
+      createdAt = resolvedCreatedAt;
       _isDataLoaded = true;
     });
 
-    // Ensure username is persisted if we just defaulted it
+    // Persist username if missing in prefs (keep behavior you had)
     if (prefs.getString('username') == null ||
         prefs.getString('username')!.isEmpty ||
         prefs.getString('username') == 'N/A') {
@@ -203,7 +259,107 @@ class _ProfilePageState extends State<ProfilePage> {
     // If car data already loaded, try to fill random brand/model if missing
     await _ensureRandomProfileIfMissing();
 
+    // Load progress that depends on prefs
     _loadProgressData();
+  }
+
+  Widget _buildAvatarHeader(String memSince) {
+    final fileBase = _formatImageName(favoriteBrand, favoriteModel);
+
+    final Widget avatarImage = ClipOval(
+      child: _googleSignedIn && _googlePhotoUrl != null && _useGoogleName
+          ? Image.network(
+              _googlePhotoUrl!,
+              width: 100,
+              height: 100,
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) => Image.asset(
+                'assets/profile/avatar.png',
+                width: 100,
+                height: 100,
+                fit: BoxFit.cover,
+              ),
+            )
+          : Image(
+              image: ImageCacheService.instance.imageProvider('${fileBase}${profilePicIndex}.webp'),
+              width: 100,
+              height: 100,
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) => Image.asset(
+                'assets/profile/avatar.png',
+                width: 100,
+                height: 100,
+              ),
+            ),
+    );
+
+    final displayName = (_googleSignedIn && _useGoogleName && (_googleDisplayName?.isNotEmpty ?? false))
+        ? _googleDisplayName!
+        : username;
+
+    // indicator (small badge) showing signed-in status
+    final statusChip = _googleSignedIn
+        ? Chip(label: Text(_googleEmail ?? 'Google'), avatar: const Icon(Icons.check_circle, size: 16))
+        : (_isGuest ? const Chip(label: Text('Guest')) : const SizedBox.shrink());
+
+    return Center(
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: _showAccountDialog,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.transparent,
+                  child: avatarImage,
+                ),
+                Positioned(
+                  top: -6,
+                  right: -6,
+                  child: Material(
+                    color: Colors.black.withOpacity(0.05),
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.edit, size: 18),
+                      tooltip: 'Edit profile',
+                      onPressed: _showEditProfileDialog,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: _showAccountDialog,
+            child: Column(
+              children: [
+                Text(displayName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text('Member since: $memSince', style: const TextStyle(fontSize: 14, color: Colors.grey)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          statusChip,
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.local_fire_department, color: Colors.orange),
+              const SizedBox(width: 6),
+              Text('Streak: $dailyStreak Days', style: const TextStyle(fontSize: 16)),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadDailyStreak() async {
@@ -383,6 +539,60 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // --- START: adapted Google sign-in flow (no UI buttons will call this on iOS)
+  Future<void> _startGoogleSignInFlow({BuildContext? dialogContext}) async {
+    // For this iOS-targeted branch we don't run any Google SDK calls.
+    // Keep a clear, safe behavior: notify the user that Google sign-in isn't active here.
+    if (dialogContext != null) {
+      try {
+        Navigator.of(dialogContext).pop();
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Google sign-in is not enabled in this build. Apple ID will replace it later.')),
+    );
+    return;
+  }
+  // --- END adapted flow
+
+  // --- START: account dialog (simplified, no Google disconnect button)
+  void _showAccountDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Account'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_googlePhotoUrl != null && _googlePhotoUrl!.isNotEmpty)
+                CircleAvatar(radius: 36, backgroundImage: NetworkImage(_googlePhotoUrl!))
+              else
+                const CircleAvatar(radius: 36, child: Icon(Icons.person)),
+              const SizedBox(height: 12),
+              Text(_googleDisplayName ?? username, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(_googleEmail ?? '', style: const TextStyle(color: Colors.grey)),
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                _googleSignedIn ? 'Signed in with Google' : (_isGuest ? 'Guest account' : 'Local profile'),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+          actions: [
+            // Removed Google disconnect button entirely to have a clear ground for Apple ID integration.
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
+          ],
+        );
+      },
+    );
+  }
+  // --- END account dialog
+
   /// Ensures we have a random favoriteBrand/favoriteModel when none is set.
   /// Also ensures username default is saved if it was missing.
   Future<void> _ensureRandomProfileIfMissing() async {
@@ -494,63 +704,130 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // Clean, safe disconnect helper that only clears local prefs/state; no SDK calls.
+  Future<void> _disconnectGoogleAccount(BuildContext dialogContext) async {
+    showDialog(
+      context: dialogContext,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    // Clear persisted flags/tokens in SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('google_signed_in', false);
+    await prefs.remove('google_displayName');
+    await prefs.remove('google_email');
+    await prefs.remove('google_photoUrl');
+    await prefs.setBool('use_google_name', false);
+    await prefs.setBool('is_guest', true);
+
+    if (!mounted) {
+      Navigator.of(dialogContext).pop();
+      return;
+    }
+
+    setState(() {
+      _googleSignedIn = false;
+      _googleDisplayName = null;
+      _googleEmail = null;
+      _googlePhotoUrl = null;
+      _useGoogleName = false;
+      _isGuest = true;
+      username = prefs.getString('username') ?? 'unamed_carenthusiast';
+    });
+
+    // Close progress + dialog
+    Navigator.of(dialogContext).pop();
+    try {
+      Navigator.of(dialogContext).pop();
+    } catch (_) {}
+  }
+
   void _showEditProfileDialog() {
     String u = username;
     if (!_isCarDataLoaded) return;
     String fb = favoriteBrand != 'N/A' && favoriteBrand.isNotEmpty ? favoriteBrand : _brandOptions.first;
     String fm = favoriteModel != 'N/A' && favoriteModel.isNotEmpty ? favoriteModel : _brandToModels[fb]!.first;
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          title: const Text('Edit Profile'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: TextEditingController(text: u),
-                  decoration: const InputDecoration(labelText: 'Username'),
-                  onChanged: (v) => u = v,
-                ),
-                DropdownButtonFormField<String>(
-                  value: fb,
-                  decoration: const InputDecoration(labelText: 'Favorite Brand'),
-                  items: _brandOptions.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) {
-                    setSt(() {
-                      fb = v!;
-                      fm = _brandToModels[fb]!.first;
-                    });
-                  },
-                ),
-                DropdownButtonFormField<String>(
-                  value: fm,
-                  decoration: const InputDecoration(labelText: 'Favorite Model'),
-                  items: _brandToModels[fb]!.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setSt(() => fm = v!),
-                ),
-              ],
+        builder: (ctx, setSt) {
+          // Local copies inside dialog
+          bool localUseGoogleName = _useGoogleName;
+
+          return AlertDialog(
+            title: const Text('Edit Profile'),
+            content: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Username field
+                  TextField(
+                    controller: TextEditingController(text: u),
+                    decoration: const InputDecoration(labelText: 'Username'),
+                    onChanged: (v) => u = v,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Favorite Brand dropdown
+                  DropdownButtonFormField<String>(
+                    value: fb,
+                    decoration: const InputDecoration(labelText: 'Favorite Brand'),
+                    items: _brandOptions.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                    onChanged: (v) {
+                      setSt(() {
+                        fb = v!;
+                        fm = _brandToModels[fb]!.first;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Favorite Model dropdown
+                  DropdownButtonFormField<String>(
+                    value: fm,
+                    decoration: const InputDecoration(labelText: 'Favorite Model'),
+                    items: _brandToModels[fb]!.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                    onChanged: (v) => setSt(() => fm = v!),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // NOTE: Google-related UI removed here to provide a clean ground for Apple ID integration.
+                  // We still keep the localUseGoogleName toggle variable so user's preference persists if present,
+                  // but we don't show Connect/Disconnect Google buttons in this dialog.
+                  const SizedBox(height: 4),
+                  Text('Account type: ${_googleSignedIn ? 'Google (signed)' : (_isGuest ? 'Guest' : 'Local')}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('username', u);
-                await prefs.setString('favoriteBrand', fb);
-                await prefs.setString('favoriteModel', fm);
-                setState(() {
-                  username = u;
-                  favoriteBrand = fb;
-                  favoriteModel = fm;
-                });
-                Navigator.pop(ctx);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
+            actions: [
+              ElevatedButton(
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  // Persist choices
+                  await prefs.setString('username', u);
+                  await prefs.setString('favoriteBrand', fb);
+                  await prefs.setString('favoriteModel', fm);
+                  await prefs.setBool('use_google_name', localUseGoogleName);
+
+                  if (!mounted) return;
+                  setState(() {
+                    // If user wants to use Google name and is signed-in, prefer the Google display name
+                    _useGoogleName = localUseGoogleName;
+                    username = (_googleSignedIn && _useGoogleName && _googleDisplayName != null)
+                        ? _googleDisplayName!
+                        : u;
+                    favoriteBrand = fb;
+                    favoriteModel = fm;
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Save'),
+              ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ],
+          );
+        },
       ),
     );
   }
@@ -597,31 +874,7 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     }
 
-    final fileBase = _formatImageName(favoriteBrand, favoriteModel);
-
-    Widget avatarWidget = CircleAvatar(
-      radius: 50,
-      backgroundColor: Colors.transparent,
-      child: ClipOval(
-        child: Image(
-          image: ImageCacheService.instance.imageProvider(
-            '${fileBase}${profilePicIndex}.webp',
-          ),
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-          errorBuilder: (ctx, error, st) => Image.asset(
-            'assets/profile/avatar.png',
-            width: 100,
-            height: 100,
-            fit: BoxFit.cover,
-          ),
-        ),
-      ),
-    );
-
     return Scaffold(
-      // NEW: App bar with top-right edit button
       body: Column(
         children: [
           Expanded(
@@ -631,54 +884,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
-                  Center(
-                    child: Column(
-                      children: [
-                        // Avatar with overlaid edit button
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            avatarWidget, // your existing CircleAvatar (100x100)
 
-                            Positioned(
-                              top: -6, // nudge outward a bit; adjust to taste
-                              right: -6,
-                              child: Material(
-                                color: Colors.black.withOpacity(0.05), // optional subtle bg
-                                shape: const CircleBorder(),
-                                child: IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                  padding: EdgeInsets.zero,
-                                  icon: const Icon(Icons.edit, size: 18),
-                                  tooltip: 'Edit profile',
-                                  onPressed: _showEditProfileDialog,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                  // <-- replaced avatar block with the helper
+                  _buildAvatarHeader(memSince),
 
-                        const SizedBox(height: 10),
-                        Text(username, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Text('Member since: $memSince', style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                        const SizedBox(height: 8),
-
-                        // Flame + streak on the same line (you already had this)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.local_fire_department, color: Colors.orange),
-                            const SizedBox(width: 6),
-                            Text('Streak: $dailyStreak Days', style: const TextStyle(fontSize: 16)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  
                   const SizedBox(height: 20),
+
                   Text(
                     'Track $_currentTrack, Level ${_sessionsCompleted + 1}, '
                     '${_currentLevelGears}/$_requiredGearsForCurrentLevel gear',
@@ -709,6 +920,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 24),
                   const Text('Achievements', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
+
                   if (unlocked.isNotEmpty)
                     GridView.count(
                       crossAxisCount: 3,
@@ -754,6 +966,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         );
                       }),
                     ),
+
                   GridView.count(
                     crossAxisCount: 3,
                     shrinkWrap: true,
@@ -802,6 +1015,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ),
+
           // Open PreloadPage with no arguments
           Padding(
             padding: const EdgeInsets.all(16.0),

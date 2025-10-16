@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../../services/audio_feedback.dart';
+
 import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
 
 class BrandChallengePage extends StatefulWidget {
@@ -258,7 +260,8 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                                           : Colors.grey[800]!))
                                   : Colors.grey[800],
                               child: InkWell(
-                                onTap: () => _onBrandTap(b),
+                                onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
+                              _onBrandTap(b); },
                                 child: Center(
                                   child: Text(
                                     b,
@@ -307,7 +310,8 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                             child: Material(
                               color: Colors.grey[900],
                               child: InkWell(
-                                onTap: () => _onModelTap(m['model']!),
+                                onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
+                              _onModelTap(m['model']!); },
                                 child: AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 500),
                                   transitionBuilder:
@@ -353,7 +357,9 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
   }
 
   void _onBrandTap(String brand) {
-    if (_answered) return;
+    
+    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
+if (_answered) return;
     setState(() {
       _selectedBrand = brand;
       _answered = true;
@@ -363,7 +369,9 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
   }
 
   void _onModelTap(String model) {
-    if (_answered) return;
+    
+    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
+if (_answered) return;
     setState(() {
       _selectedModel = model;
       _answered = true;

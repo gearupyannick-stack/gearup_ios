@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../../services/audio_feedback.dart';
+
 import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
 
 class ModelChallengePage extends StatefulWidget {
@@ -172,7 +174,9 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
   }
 
   void _onTap(String selection) {
-    if (_answered) return;
+    
+    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
+if (_answered) return;
     setState(() {
       _answered = true;
       _selectedAnswer = selection;
@@ -247,7 +251,8 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
                                           : Colors.grey[800]!))
                                   : Colors.grey[800],
                               child: InkWell(
-                                onTap: () => _onTap(opt['model']!),
+                                onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
+                              _onTap(opt['model']!); },
                                 child: Center(
                                   child: Text(
                                     opt['model']!,
@@ -288,8 +293,8 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
                         final isSelected =
                             '${opt['brand']} ${opt['model']}' == _selectedAnswer;
                         return GestureDetector(
-                          onTap: () =>
-                              _onTap('${opt['brand']} ${opt['model']}'),
+                          onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
+                              _onTap('${opt['brand']} ${opt['model']}'); },
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: AnimatedSwitcher(

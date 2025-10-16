@@ -10,6 +10,8 @@ import 'challenges/max_speed_challenge_page.dart';
 import 'challenges/acceleration_challenge_page.dart';
 import 'challenges/power_challenge_page.dart';
 import 'challenges/special_feature_challenge_page.dart';
+import '../services/audio_feedback.dart';
+
 
 class TrainingPage extends StatefulWidget {
   final VoidCallback? onLifeWon;
@@ -39,7 +41,10 @@ class _TrainingPageState extends State<TrainingPage> {
   @override
   void initState() {
     super.initState();
-    _loadBestResults();
+    
+    // audio: page open
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
+_loadBestResults();
   }
 
   Future<void> _loadBestResults() async {
@@ -62,7 +67,9 @@ class _TrainingPageState extends State<TrainingPage> {
           alignment: Alignment.centerLeft,
         ),
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
+          
+                              try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
+ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Coming soon'),
               duration: Duration(seconds: 1),

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../services/image_service_cache.dart';
+import '../services/audio_feedback.dart';
+
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({Key? key}) : super(key: key);
@@ -17,6 +19,9 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
+    
+    // audio: page open
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     _loadCsvData();
   }
 
@@ -88,7 +93,12 @@ class _LibraryPageState extends State<LibraryPage> {
                   final models = _getModelsForBrand(brand);
                   final firstModel = models.isNotEmpty ? models[0]['model']! : '';
                   return GestureDetector(
-                    onTap: () => setState(() => selectedBrand = brand),
+                    onTap: () {
+                      try {
+                        AudioFeedback.instance.playEvent(SoundEvent.tap);
+                      } catch (_) {}
+                      setState(() => selectedBrand = brand);
+                    },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Stack(
@@ -117,6 +127,9 @@ class _LibraryPageState extends State<LibraryPage> {
                 // More brands coming soon
                 GestureDetector(
                   onTap: () {
+                    try {
+                      AudioFeedback.instance.playEvent(SoundEvent.tap);
+                    } catch (_) {}
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('More brands coming soon'),
@@ -149,7 +162,12 @@ class _LibraryPageState extends State<LibraryPage> {
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: ElevatedButton(
-                    onPressed: () => setState(() => selectedBrand = null),
+                    onPressed: () {
+                      try {
+                        AudioFeedback.instance.playEvent(SoundEvent.tap);
+                      } catch (_) {}
+                      setState(() => selectedBrand = null);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey,
                       minimumSize: const Size(double.infinity, 48),
@@ -163,11 +181,16 @@ class _LibraryPageState extends State<LibraryPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
-                    children:
-                        _getModelsForBrand(selectedBrand!).map((model) {
+                    // ensure children is a List<Widget>
+                    children: _getModelsForBrand(selectedBrand!).map((model) {
                       final modelName = model['model']!;
                       return GestureDetector(
-                        onTap: () => _showModelDetails(context, model),
+                        onTap: () {
+                          try {
+                            AudioFeedback.instance.playEvent(SoundEvent.tap);
+                          } catch (_) {}
+                          _showModelDetails(context, model);
+                        },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: Stack(
@@ -191,7 +214,7 @@ class _LibraryPageState extends State<LibraryPage> {
                           ),
                         ),
                       );
-                    }).toList(),
+                    }).toList(), // <- important .toList()
                   ),
                 ),
               ],

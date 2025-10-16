@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/image_service_cache.dart';
+import '../services/audio_feedback.dart';
 
 /// Raw track point definitions for tracks 2 & 3.
 final Map<int, List<Offset>> _tracks = {
@@ -90,7 +91,90 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+// --- Audio + streak mixin used by many question State classes ---
+mixin AudioAnswerMixin<T extends StatefulWidget> on State<T> {
+  // streak local to each State instance
+  int _streak = 0;
+
+  void _audioPlayTap() {
+    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
+  }
+
+  void _audioPlayAnswerCorrect() {
+    try { AudioFeedback.instance.playEvent(SoundEvent.answerCorrect); } catch (_) {}
+  }
+
+  void _audioPlayAnswerWrong() {
+    try { AudioFeedback.instance.playEvent(SoundEvent.answerWrong); } catch (_) {}
+  }
+
+  void _audioPlayStreak({int? milestone}) {
+    try {
+      if (milestone != null) {
+        AudioFeedback.instance.playEvent(SoundEvent.streak, meta: {'milestone': milestone});
+      } else {
+        AudioFeedback.instance.playEvent(SoundEvent.streak);
+      }
+    } catch (_) {}
+  }
+
+  void _audioPlayPageFlip() {
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageFlip); } catch (_) {}
+  }
+
+  /// Helper generic pour uniformiser le traitement des réponses (optionnel).
+  /// Utilise-le si tu veux centraliser la logique au lieu de dupliquer.
+  void _handleAnswer({
+    required dynamic picked,
+    dynamic expected,
+    bool popResult = true,
+    Duration delay = const Duration(seconds: 1),
+    void Function(bool correct)? onResult,
+  }) {
+    // certaines classes définissent déjà _answered/_selectedBrand; _handleAnswer suppose
+    // que ces champs existent dans la State. Si une classe n'a pas ces champs, n'utilise pas ce helper direct.
+    try { _audioPlayTap(); } catch (_) {}
+
+    final dynamic toCompare = expected ?? (mounted ? (widget as dynamic).correctAnswer : null);
+    final bool correct = toCompare != null ? toCompare == picked : false;
+
+    // best-effort: update local fields if présents
+    try {
+      setState(() {
+        // si la classe a un _answered et _selectedBrand, on les met à jour
+        if ((this as dynamic)._answered != null) (this as dynamic)._answered = true;
+        if ((this as dynamic)._selectedBrand != null && picked is String) (this as dynamic)._selectedBrand = picked;
+        if (correct) {
+          _streak += 1;
+        } else {
+          _streak = 0;
+        }
+      });
+    } catch (_) {
+      // ignore si la State ne possède pas ces champs
+    }
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) _audioPlayStreak(milestone: _streak);
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
+    Future.delayed(delay, () {
+      _audioPlayPageFlip();
+      if (popResult) {
+        try {
+          Navigator.of(context).pop(correct);
+          return;
+        } catch (_) {}
+      }
+      if (onResult != null) onResult(correct);
+    });
+  }
+}
+
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin, AudioAnswerMixin {
   bool _didInitDependencies = false;
   int _consecutiveFails = 0;
 
@@ -243,6 +327,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   // ignore: unused_field
   bool _gateOpen                      = false;
   int _currentTrack = 1; // 1, 2, or 3.
+  // petit tracker de séries (comme dans acceleration)
+  int _streak = 0;
 
   /// Number of questions this level uses.
   int getQuizQuestionCount() {
@@ -335,6 +421,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    // play page open sound
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -420,6 +508,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     await prefs.setInt('gearCountBeforeLevel', _gearCountBeforeLevel);
   }
 
+
   Future<void> _loadGearCount() async {
     final prefs = await SharedPreferences.getInstance();
     _gearCount = prefs.getInt('gearCount') ?? 0;
@@ -451,6 +540,37 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     setState(() {
       _flagIndices = Set<int>.from(_flagIndicesSorted);
     });
+  }
+
+  // Audio helper wrappers — place-les dans _HomePageState
+  void _audioPlayTap() {
+    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
+  }
+
+  void _audioPlayAnswerCorrect() {
+    try { AudioFeedback.instance.playEvent(SoundEvent.answerCorrect); } catch (_) {}
+  }
+
+  void _audioPlayAnswerWrong() {
+    try { AudioFeedback.instance.playEvent(SoundEvent.answerWrong); } catch (_) {}
+  }
+
+  void _audioPlayStreak({int? milestone}) {
+    try {
+      if (milestone != null) {
+        AudioFeedback.instance.playEvent(SoundEvent.streak, meta: {'milestone': milestone});
+      } else {
+        AudioFeedback.instance.playEvent(SoundEvent.streak);
+      }
+    } catch (_) {}
+  }
+
+  void _audioPlayPageFlip() {
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageFlip); } catch (_) {}
+  }
+
+  void _audioPlayChallengeComplete(int stars) {
+    try { AudioFeedback.instance.playEvent(SoundEvent.challengeComplete, meta: {'stars': stars}); } catch (_) {}
   }
 
   void _showStuckPopup(int flagIndex) {
@@ -1494,8 +1614,8 @@ Future<void> _loadConsecutiveFails() async {
 
   @override
   void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
@@ -1818,18 +1938,39 @@ class _RandomModelBrandQuestionContent extends StatefulWidget {
 }
 
 class _RandomModelBrandQuestionContentState
-    extends State<_RandomModelBrandQuestionContent> {
+    extends State<_RandomModelBrandQuestionContent> with AudioAnswerMixin {
   bool _answered = false;
   String? _selectedBrand;
 
   void _onTap(String brand) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = brand == widget.correctAnswer;
+
     setState(() {
       _answered = true;
       _selectedBrand = brand;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(brand == widget.correctAnswer);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -1936,18 +2077,39 @@ class _ModelNameToBrandQuestionContent extends StatefulWidget {
 }
 
 class _ModelNameToBrandQuestionContentState
-    extends State<_ModelNameToBrandQuestionContent> {
+    extends State<_ModelNameToBrandQuestionContent> with AudioAnswerMixin {
   bool _answered = false;
   String? _selectedBrand;
 
   void _onTap(String brand) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = brand == widget.correctBrand;
+
     setState(() {
       _answered = true;
       _selectedBrand = brand;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
-    Future.delayed(Duration(seconds: 1), () {
-      Navigator.of(context).pop(brand == widget.correctBrand);
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
+    Future.delayed(const Duration(seconds: 1), () {
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -2038,18 +2200,39 @@ class _DescriptionSlideshowQuestionContent extends StatefulWidget {
 }
 
 class _DescriptionSlideshowQuestionContentState
-    extends State<_DescriptionSlideshowQuestionContent> {
+    extends State<_DescriptionSlideshowQuestionContent> with AudioAnswerMixin {
   bool _answered = false;
   String? _selectedDescription;
 
-  void _onTap(String desc) {
+  void _onTap(String description) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = description == widget.correctDescription;
+
     setState(() {
       _answered = true;
-      _selectedDescription = desc;
+      _selectedDescription = description;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(desc == widget.correctDescription);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -2153,7 +2336,7 @@ class _HorsepowerQuestionContent extends StatefulWidget {
 }
 
 class _HorsepowerQuestionContentState
-    extends State<_HorsepowerQuestionContent> {
+    extends State<_HorsepowerQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
   Timer? _frameTimer;
   bool _answered = false;
@@ -2162,6 +2345,8 @@ class _HorsepowerQuestionContentState
   @override
   void initState() {
     super.initState();
+    // play page open sound
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle frames every 2 seconds
     _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       setState(() {
@@ -2172,18 +2357,40 @@ class _HorsepowerQuestionContentState
 
   @override
   void dispose() {
-    _frameTimer?.cancel();
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
-  void _onTap(String val) {
+  void _onTap(String answer) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = answer == widget.correctAnswer;
+
     setState(() {
       _answered = true;
-      _selectedAnswer = val;
+      _selectedAnswer = answer;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(val == widget.correctAnswer);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -2293,7 +2500,7 @@ class _AccelerationQuestionContent extends StatefulWidget {
 }
 
 class _AccelerationQuestionContentState
-    extends State<_AccelerationQuestionContent> {
+    extends State<_AccelerationQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
   Timer? _frameTimer;
   bool _answered = false;
@@ -2302,6 +2509,8 @@ class _AccelerationQuestionContentState
   @override
   void initState() {
     super.initState();
+    // play page open sound
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle the image every 2 seconds
     _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       setState(() {
@@ -2312,18 +2521,40 @@ class _AccelerationQuestionContentState
 
   @override
   void dispose() {
-    _frameTimer?.cancel();
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
-  void _onTap(String accel) {
+  void _onTap(String answer) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = answer == widget.correctAcceleration;
+
     setState(() {
       _answered = true;
-      _selectedAnswer = accel;
+      _selectedAnswer = answer;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(accel == widget.correctAcceleration);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -2436,7 +2667,7 @@ class _MaxSpeedQuestionContent extends StatefulWidget {
 }
 
 class _MaxSpeedQuestionContentState
-    extends State<_MaxSpeedQuestionContent> {
+    extends State<_MaxSpeedQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
   Timer? _frameTimer;
   bool _answered = false;
@@ -2445,6 +2676,8 @@ class _MaxSpeedQuestionContentState
   @override
   void initState() {
     super.initState();
+    // play page open sound
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle frames every 2 seconds
     _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       setState(() {
@@ -2455,18 +2688,40 @@ class _MaxSpeedQuestionContentState
 
   @override
   void dispose() {
-    _frameTimer?.cancel();
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
   void _onTap(String speed) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = speed == widget.correctSpeed;
+
     setState(() {
       _answered = true;
       _selectedSpeed = speed;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(speed == widget.correctSpeed);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -2578,7 +2833,7 @@ class _SpecialFeatureQuestionContent extends StatefulWidget {
 }
 
 class _SpecialFeatureQuestionContentState
-    extends State<_SpecialFeatureQuestionContent> {
+    extends State<_SpecialFeatureQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
   Timer? _frameTimer;
   bool _answered = false;
@@ -2587,6 +2842,8 @@ class _SpecialFeatureQuestionContentState
   @override
   void initState() {
     super.initState();
+    // play page open sound
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle the image every 2 seconds
     _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       setState(() {
@@ -2597,18 +2854,40 @@ class _SpecialFeatureQuestionContentState
 
   @override
   void dispose() {
-    _frameTimer?.cancel();
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
   void _onTap(String feature) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = feature == widget.correctFeature;
+
     setState(() {
       _answered = true;
       _selectedFeature = feature;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(feature == widget.correctFeature);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -2716,7 +2995,7 @@ class _DescriptionToCarImageQuestionContent extends StatefulWidget {
 }
 
 class _DescriptionToCarImageQuestionContentState
-    extends State<_DescriptionToCarImageQuestionContent> {
+    extends State<_DescriptionToCarImageQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
   Timer? _frameTimer;
   bool _answered = false;
@@ -2725,6 +3004,8 @@ class _DescriptionToCarImageQuestionContentState
   @override
   void initState() {
     super.initState();
+    // play page open sound
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle frames every 2 seconds
     _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       setState(() => _frameIndex = (_frameIndex + 1) % 6);
@@ -2733,18 +3014,40 @@ class _DescriptionToCarImageQuestionContentState
 
   @override
   void dispose() {
-    _frameTimer?.cancel();
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
   void _onTap(int index) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = index == widget.correctIndex;
+
     setState(() {
       _answered = true;
       _selectedIndex = index;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(index == widget.correctIndex);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -2851,7 +3154,7 @@ class _BrandImageChoiceQuestionContent extends StatefulWidget {
 }
 
 class _BrandImageChoiceQuestionContentState
-    extends State<_BrandImageChoiceQuestionContent> {
+    extends State<_BrandImageChoiceQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
   Timer? _frameTimer;
   bool _answered = false;
@@ -2860,6 +3163,8 @@ class _BrandImageChoiceQuestionContentState
   @override
   void initState() {
     super.initState();
+    // play page open sound
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle through frames every 2 seconds
     _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       setState(() => _frameIndex = (_frameIndex + 1) % 6);
@@ -2868,18 +3173,40 @@ class _BrandImageChoiceQuestionContentState
 
   @override
   void dispose() {
-    _frameTimer?.cancel();
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
   void _onTap(String brand) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = brand == widget.correctBrand;
+
     setState(() {
       _answered = true;
       _selectedBrand = brand;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(brand == widget.correctBrand);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -2987,7 +3314,7 @@ class _OriginCountryQuestionContent extends StatefulWidget {
 }
 
 class _OriginCountryQuestionContentState
-    extends State<_OriginCountryQuestionContent> {
+    extends State<_OriginCountryQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
   Timer? _frameTimer;
   bool _answered = false;
@@ -2996,6 +3323,8 @@ class _OriginCountryQuestionContentState
   @override
   void initState() {
     super.initState();
+    // play page open sound
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle frames every 2 seconds
     _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       setState(() => _frameIndex = (_frameIndex + 1) % 6);
@@ -3004,18 +3333,40 @@ class _OriginCountryQuestionContentState
 
   @override
   void dispose() {
-    _frameTimer?.cancel();
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
-  void _onTap(String originOption) {
+  void _onTap(String origin) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = origin == widget.origin;
+
     setState(() {
       _answered = true;
-      _selectedOrigin = originOption;
+      _selectedOrigin = origin;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(originOption == widget.origin);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -3124,7 +3475,7 @@ class _ModelOnlyImageQuestionContent extends StatefulWidget {
 }
 
 class _ModelOnlyImageQuestionContentState
-    extends State<_ModelOnlyImageQuestionContent> {
+    extends State<_ModelOnlyImageQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
   Timer? _frameTimer;
   bool _answered = false;
@@ -3133,6 +3484,8 @@ class _ModelOnlyImageQuestionContentState
   @override
   void initState() {
     super.initState();
+    // play page open sound
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Alterner les frames toutes les 2 secondes
     _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       setState(() => _frameIndex = (_frameIndex + 1) % 6);
@@ -3141,18 +3494,40 @@ class _ModelOnlyImageQuestionContentState
 
   @override
   void dispose() {
-    _frameTimer?.cancel();
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
   void _onTap(String model) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = model == widget.correctModel;
+
     setState(() {
       _answered = true;
       _selectedModel = model;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(model == widget.correctModel);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 
@@ -3255,18 +3630,39 @@ class _RandomCarImageQuestionContent extends StatefulWidget {
 }
 
 class _RandomCarImageQuestionContentState
-    extends State<_RandomCarImageQuestionContent> {
+    extends State<_RandomCarImageQuestionContent> with AudioAnswerMixin {
   bool _answered = false;
   String? _selectedBrand;
 
   void _onTap(String brand) {
     if (_answered) return;
+
+    _audioPlayTap();
+
+    final bool correct = brand == widget.correctAnswer;
+
     setState(() {
       _answered = true;
       _selectedBrand = brand;
+      if (correct) {
+        _streak += 1;
+      } else {
+        _streak = 0;
+      }
     });
+
+    if (correct) {
+      _audioPlayAnswerCorrect();
+      if (_streak > 0 && _streak % 3 == 0) {
+        _audioPlayStreak(milestone: _streak);
+      }
+    } else {
+      _audioPlayAnswerWrong();
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(brand == widget.correctAnswer);
+      _audioPlayPageFlip();
+      Navigator.of(context).pop(correct);
     });
   }
 

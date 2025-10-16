@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../../services/audio_feedback.dart'; // added by audio patch
+
 import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
 
 class PowerChallengePage extends StatefulWidget {
@@ -39,7 +41,10 @@ class _PowerChallengePageState extends State<PowerChallengePage> {
   @override
   void initState() {
     super.initState();
-    _loadCsv();
+    
+    // audio: page open
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
+_loadCsv();
 
     // overall timer
     _quizTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -58,7 +63,10 @@ class _PowerChallengePageState extends State<PowerChallengePage> {
   void dispose() {
     _quizTimer?.cancel();
     _frameTimer?.cancel();
-    super.dispose();
+        // audio: page close
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+
+super.dispose();
   }
 
   Future<void> _loadCsv() async {
@@ -103,7 +111,9 @@ class _PowerChallengePageState extends State<PowerChallengePage> {
   }
 
   void _onTap(String selection) {
-    if (_answered) return;
+    
+    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
+if (_answered) return;
     setState(() {
       _answered = true;
       _selectedPower = selection;
@@ -111,7 +121,13 @@ class _PowerChallengePageState extends State<PowerChallengePage> {
         _correctAnswers++;
       }
     });
-    Future.delayed(const Duration(seconds: 1), _nextQuestion);
+    
+    // audio: answer feedback
+    try {
+      if (_selectedPower == _correctPower) { AudioFeedback.instance.playEvent(SoundEvent.answerCorrect); } else { AudioFeedback.instance.playEvent(SoundEvent.answerWrong); }
+      try { if (true) { /* streak logic handled centrally if needed */ } } catch (_) {}
+    } catch (_) {}
+Future.delayed(const Duration(seconds: 1), _nextQuestion);
   }
 
   void _finishQuiz() {

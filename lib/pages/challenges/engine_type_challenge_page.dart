@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../../services/audio_feedback.dart'; // added by audio patch
+
 import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
 
 class EngineTypeChallengePage extends StatefulWidget {
@@ -39,7 +41,10 @@ class _EngineTypeChallengePageState extends State<EngineTypeChallengePage> {
   @override
   void initState() {
     super.initState();
-    _loadCsv();
+    
+    // audio: page open
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
+_loadCsv();
 
     // overall quiz timer
     _quizTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -58,7 +63,10 @@ class _EngineTypeChallengePageState extends State<EngineTypeChallengePage> {
   void dispose() {
     _quizTimer?.cancel();
     _frameTimer?.cancel();
-    super.dispose();
+        // audio: page close
+    try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
+
+super.dispose();
   }
 
   Future<void> _loadCsv() async {
@@ -105,7 +113,9 @@ class _EngineTypeChallengePageState extends State<EngineTypeChallengePage> {
   }
 
   void _onTap(String selection) {
-    if (_answered) return;
+    
+    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
+if (_answered) return;
     setState(() {
       _answered = true;
       _selectedEngineType = selection;
@@ -113,7 +123,13 @@ class _EngineTypeChallengePageState extends State<EngineTypeChallengePage> {
         _correctAnswers++;
       }
     });
-    // wait 1s showing highlights, then advance
+    
+    // audio: answer feedback
+    try {
+      if (_selectedEngineType == _correctEngineType) { AudioFeedback.instance.playEvent(SoundEvent.answerCorrect); } else { AudioFeedback.instance.playEvent(SoundEvent.answerWrong); }
+      try { if (true) { /* streak logic handled centrally if needed */ } } catch (_) {}
+    } catch (_) {}
+// wait 1s showing highlights, then advance
     Future.delayed(const Duration(seconds: 1), _nextQuestion);
   }
 

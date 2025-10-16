@@ -5,6 +5,8 @@ import 'dart:convert';               // for LineSplitter
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../../services/audio_feedback.dart';
+
 import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
 
 class ModelsByBrandChallengePage extends StatefulWidget {
@@ -305,7 +307,9 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
   }
 
   void _onOptionTap(String selection) {
-    if (_answered) return;
+    
+    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
+if (_answered) return;
     setState(() {
       _answered = true;
       _selectedModel = selection;
@@ -377,7 +381,8 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
                                     : Colors.grey[800]!))
                             : Colors.grey[800],
                         child: InkWell(
-                          onTap: () => _onOptionTap(m),
+                          onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
+                              _onOptionTap(m); },
                           child: Center(
                             child: Text(
                               m,
@@ -417,7 +422,8 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
                   final isSelected = model == _selectedModel;
 
                   return GestureDetector(
-                    onTap: () => _onOptionTap(model),
+                    onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
+                              _onOptionTap(model); },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Material(
