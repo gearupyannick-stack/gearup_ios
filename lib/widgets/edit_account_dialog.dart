@@ -54,37 +54,22 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
 
     setState(() => _loadingConnect = true);
     try {
-      UserCredential cred;
-
-      // Use a concrete AuthService instance (some versions of auth_service.dart expose a singleton,
-      // some expose instance methods via the class constructor). Creating a local instance avoids
-      // relying on a static `instance` getter.
+      // Utilise la méthode qui retourne un UserCredential (compatible avec ton code)
       final auth = AuthService();
+      final UserCredential cred = await auth.signInWithAppleCredential();
 
-      // Primary attempt: use the AuthService implementation if it provides signInWithApple.
-      // If that method doesn't exist or throws, fall back to the older helper (if present).
-      try {
-        cred = await auth.signInWithApple();
-      } catch (ePrimary) {
-        // Fallback: call the helper if available in your auth_service.dart or elsewhere.
-        // If signInWithAppleIOSOnly is not present in your codebase, this will throw and be
-        // caught by the outer catch block below.
-        try {
-          cred = await signInWithAppleIOSOnly(FirebaseAuth.instance);
-        } catch (eFallback) {
-          // rethrow to be handled by the outer catch
-          rethrow;
-        }
-      }
-
-      // Update UI fields after successful sign-in
+      // Sécurité : récupère l'utilisateur soit depuis le credential soit le currentUser
       final user = cred.user ?? FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        _displayNameController.text = user.displayName ?? _displayNameController.text;
-        _emailController.text = user.email ?? _emailController.text;
+      if (user == null) {
+        throw 'Apple sign-in returned no user.';
       }
+
+      // Met à jour les champs affichés si Apple fournit des infos
+      _displayNameController.text = user.displayName ?? _displayNameController.text;
+      _emailController.text = user.email ?? _emailController.text;
+
       _showSnack('Connected with Apple.');
-      setState(() {}); // refresh _isLinkedWithApple
+      setState(() {}); // force refresh du UI (notamment _isLinkedWithApple)
     } on FirebaseAuthException catch (e) {
       _showSnack('Apple error: ${e.message ?? e.code}');
     } catch (e) {

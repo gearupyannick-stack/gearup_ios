@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../services/auth_service.dart';
 import '../main.dart';
 import '../storage/lives_storage.dart';
@@ -45,6 +46,8 @@ class _WelcomePageState extends State<WelcomePage> {
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
+      currentPage = next;
+      setState(() {});
     });
   }
 
@@ -70,10 +73,7 @@ class _WelcomePageState extends State<WelcomePage> {
       currentLives = 5;
     }
 
-    // simple synchronous getter expected by HomePage
-    int getLives() => currentLives;
-
-    // Navigate directly to HomePage, providing the required named arguments
+    // Navigate directly to MainPage, providing the required named arguments
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => MainPage(
@@ -101,16 +101,16 @@ class _WelcomePageState extends State<WelcomePage> {
     }
   }
 
-  Future<void> _continueWithGoogle() async {
+  Future<void> _continueWithApple() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      if (!Platform.isAndroid) {
-        // Only Android for now (as requested)
-        throw 'Google sign-in is only enabled on Android for now.';
+      if (!Platform.isIOS) {
+        // Build iOS only, but on the off chance this runs elsewhere:
+        throw 'Apple Sign-In is only available on iOS.';
       }
       final auth = AuthService();
-      final user = await auth.signInWithGoogle();
+      final user = await auth.signInWithApple();
       if (user == null) {
         throw 'Sign-in cancelled.';
       }
@@ -119,7 +119,7 @@ class _WelcomePageState extends State<WelcomePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text('Apple sign-in failed: $e')),
         );
       }
     } finally {
@@ -210,7 +210,7 @@ class _WelcomePageState extends State<WelcomePage> {
             ),
           ),
 
-          // Bottom buttons
+          // Bottom buttons (iOS only view)
           Positioned(
             left: 16,
             right: 16,
@@ -218,32 +218,12 @@ class _WelcomePageState extends State<WelcomePage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Continue with Google (Android only)
-                if (Platform.isAndroid)
-                  SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    onPressed: _busy ? null : _continueWithGoogle,
-                    label: const Text(
-                      "Continue with Apple ID",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white70),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      backgroundColor: Colors.white10,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Join as a guest (primary)
+                // Continue with Apple (primary for iOS)
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _busy ? null : _continueAsGuest,
+                    onPressed: _busy ? null : _continueWithApple,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 50),
                       backgroundColor: Colors.white,
@@ -251,6 +231,33 @@ class _WelcomePageState extends State<WelcomePage> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      elevation: 2,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.apple, size: 22),
+                        SizedBox(width: 10),
+                        Text(
+                          "Continue with Apple",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Join as a guest (secondary)
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton(
+                    onPressed: _busy ? null : _continueAsGuest,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white70),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor: Colors.white10,
                     ),
                     child: const Text(
                       "Join as a guest",

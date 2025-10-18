@@ -1,136 +1,87 @@
+// lib/services/auth_service.dart
+import 'dart:io' show Platform;
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
-// auth_service.dart — STUB for iOS: Google Sign-In & FirebaseAuth removed.
-// Keeps the same API shape but does not depend on firebase_auth/google_sign_in.
-import 'dart:io' show Platform;
-
-// Replace the existing AuthService class with this block.
-
 class AuthService {
-  // singleton factory (keeps the same API shape you already used)
-  AuthService._internal();
-  static final AuthService _instance = AuthService._internal();
-  factory AuthService() => _instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Attempts to sign in with Google. On iOS this intentionally throws (disabled).
-  Future<Map<String, String>?> signInWithGoogle() async {
-    if (!Platform.isAndroid) {
-      // Keep behavior consistent with your earlier stub.
-      throw UnsupportedError('Google Sign-In disabled on iOS. Use Apple Sign-In instead.');
+  /// Sign in and return the full UserCredential (Firebase)
+  /// Use this if your callers expect a UserCredential variable.
+  Future<UserCredential> signInWithAppleCredential() async {
+    if (!Platform.isIOS) {
+      throw 'Apple Sign-In is only available on iOS.';
     }
-    // If you re-enable Android Google sign-in later, implement it here.
-    return null;
+
+    // secure nonce generation for Firebase compatibility
+    final rawNonce = _generateNonce();
+    final nonce = _sha256ofString(rawNonce);
+
+    final appleCred = await SignInWithApple.getAppleIDCredential(
+      scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+      nonce: nonce,
+    );
+
+    final oauthCredential = OAuthProvider('apple.com').credential(
+      idToken: appleCred.identityToken,
+      rawNonce: rawNonce,
+    );
+
+    final userCred = await _auth.signInWithCredential(oauthCredential);
+
+    // Optional: populate displayName on first sign-in if provided by Apple
+    if (userCred.additionalUserInfo?.isNewUser == true) {
+      final givenName = appleCred.givenName ?? '';
+      final familyName = appleCred.familyName ?? '';
+      final displayName = [givenName, familyName].where((s) => s.isNotEmpty).join(' ').trim();
+      if (displayName.isNotEmpty) {
+        try {
+          await userCred.user?.updateDisplayName(displayName);
+        } catch (_) {}
+      }
+    }
+
+    return userCred;
   }
 
-  /// Sign out (no-op stub for now to preserve interface)
+  /// Simple helper returning only the User object (or null)
+  Future<User?> signInWithApple() async {
+    final cred = await signInWithAppleCredential();
+    return cred.user;
+  }
+
+  /// Backwards-compatibility alias for code that calls signInWithAppleIOSOnly()
+  Future<UserCredential> signInWithAppleIOSOnly() async {
+    return signInWithAppleCredential();
+  }
+
+  /// Anonymous sign-in (guest)
+  Future<User?> signInAnonymously() async {
+    final cred = await _auth.signInAnonymously();
+    return cred.user;
+  }
+
+  /// Sign out
   Future<void> signOut() async {
-    // No real sign-out implementation in this iOS-focused branch.
-    return;
+    await _auth.signOut();
   }
 
-  /// Returns a simple map describing a current user or `null` when no backend auth is present.
-  Map<String, String>? get currentUser => null;
+  User? get currentUser => _auth.currentUser;
 
-  // ---------------- Apple wrappers (exposed API for UI) ----------------
+  /* -------------------- Helpers -------------------- */
 
-  /// UI-friendly wrapper: signs in with Apple and returns the Firebase UserCredential.
-  /// Throws UnsupportedError on non-iOS builds.
-  Future<UserCredential> signInWithApple() async {
-    if (!Platform.isIOS) {
-      throw UnsupportedError('signInWithApple is only supported on iOS in this build.');
-    }
-    // Delegates to the helper defined elsewhere in this file
-    return await signInWithAppleIOSOnly(FirebaseAuth.instance);
+  String _generateNonce([int length = 32]) {
+    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final rand = Random.secure();
+    return List.generate(length, (_) => charset[rand.nextInt(charset.length)]).join();
   }
 
-  /// UI-friendly wrapper: links the currently-signed-in Firebase user with Apple credentials.
-  Future<UserCredential> linkWithApple() async {
-    if (!Platform.isIOS) {
-      throw UnsupportedError('linkWithApple is only supported on iOS in this build.');
-    }
-    return await linkCurrentUserWithAppleIOSOnly(FirebaseAuth.instance);
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 }
-
-// === Apple Sign-In helpers (iOS only) ===
-
-String _generateNonce([int length = 32]) {
-  const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
-  final random = Random.secure();
-  return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
-}
-
-String _sha256ofString(String input) {
-  final bytes = utf8.encode(input);
-  final digest = sha256.convert(bytes);
-  return digest.toString();
-}
-
-/// Convenience wrapper used by UI/dialogs to sign in with Apple.
-/// Delegates to the platform helper that performs the OAuth flow and signs into Firebase.
-Future<UserCredential> signInWithApple() async {
-  // On non-iOS platforms you should not call this; keep for safety.
-  if (!Platform.isIOS) {
-    throw UnsupportedError('signInWithApple is only supported on iOS in this build.');
-  }
-  return await signInWithAppleIOSOnly(FirebaseAuth.instance);
-}
-
-/// Convenience wrapper to link the currently signed-in Firebase user with Apple credentials.
-Future<UserCredential> linkWithApple() async {
-  if (!Platform.isIOS) {
-    throw UnsupportedError('linkWithApple is only supported on iOS in this build.');
-  }
-  return await linkCurrentUserWithAppleIOSOnly(FirebaseAuth.instance);
-}
-
-Future<UserCredential> signInWithAppleIOSOnly(FirebaseAuth auth) async {
-  final rawNonce = _generateNonce();
-  final nonce = _sha256ofString(rawNonce);
-
-  final appleCred = await SignInWithApple.getAppleIDCredential(
-    scopes: const [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
-    nonce: nonce,
-  );
-
-  final oauthCred = OAuthProvider('apple.com').credential(
-    idToken: appleCred.identityToken,
-    rawNonce: rawNonce,
-  );
-
-  final userCred = await auth.signInWithCredential(oauthCred);
-  final fullName = appleCred.givenName == null && appleCred.familyName == null
-      ? null
-      : '${appleCred.givenName ?? ''} ${appleCred.familyName ?? ''}'.trim();
-  if (fullName != null && fullName.isNotEmpty) {
-    await userCred.user?.updateDisplayName(fullName);
-  }
-  return userCred;
-}
-
-Future<UserCredential> linkCurrentUserWithAppleIOSOnly(FirebaseAuth auth) async {
-  final user = auth.currentUser;
-  if (user == null) {
-    throw FirebaseAuthException(code: 'no-current-user', message: 'No current user to link.');
-  }
-
-  final rawNonce = _generateNonce();
-  final nonce = _sha256ofString(rawNonce);
-
-  final appleCred = await SignInWithApple.getAppleIDCredential(
-    scopes: const [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
-    nonce: nonce,
-  );
-
-  final oauthCred = OAuthProvider('apple.com').credential(
-    idToken: appleCred.identityToken,
-    rawNonce: rawNonce,
-  );
-
-  return await user.linkWithCredential(oauthCred);
-}
-
