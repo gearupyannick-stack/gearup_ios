@@ -55,27 +55,36 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
     setState(() => _loadingConnect = true);
     try {
       UserCredential cred;
-      // Try the "official" AuthService method if available
+
+      // Use a concrete AuthService instance (some versions of auth_service.dart expose a singleton,
+      // some expose instance methods via the class constructor). Creating a local instance avoids
+      // relying on a static `instance` getter.
+      final auth = AuthService();
+
+      // Primary attempt: use the AuthService implementation if it provides signInWithApple.
+      // If that method doesn't exist or throws, fall back to the older helper (if present).
       try {
-        cred = await AuthService.instance.signInWithApple();
-      } catch (e) {
-        // Fallback: try helper function signInWithAppleIOSOnly if present in your auth_service.dart
-        // (this function name exists in some patches; if not present, the call will fail and land in outer catch)
+        cred = await auth.signInWithApple();
+      } catch (ePrimary) {
+        // Fallback: call the helper if available in your auth_service.dart or elsewhere.
+        // If signInWithAppleIOSOnly is not present in your codebase, this will throw and be
+        // caught by the outer catch block below.
         try {
           cred = await signInWithAppleIOSOnly(FirebaseAuth.instance);
-        } catch (_) {
+        } catch (eFallback) {
+          // rethrow to be handled by the outer catch
           rethrow;
         }
       }
 
-      // Success: update UI fields
+      // Update UI fields after successful sign-in
       final user = cred.user ?? FirebaseAuth.instance.currentUser;
       if (user != null) {
         _displayNameController.text = user.displayName ?? _displayNameController.text;
         _emailController.text = user.email ?? _emailController.text;
       }
       _showSnack('Connected with Apple.');
-      setState(() {}); // refresh isLinked
+      setState(() {}); // refresh _isLinkedWithApple
     } on FirebaseAuthException catch (e) {
       _showSnack('Apple error: ${e.message ?? e.code}');
     } catch (e) {

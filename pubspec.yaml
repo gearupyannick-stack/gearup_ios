@@ -1,14 +1,12 @@
 name: car_learning_app
 description: A Flutter app to help users learn about cars and their specifications.
 publish_to: "none"
-version: 1.0.1+9
+version: 1.1.251018+10
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
 
 dependencies:
-  crypto: ^3.0.3
-  sign_in_with_apple: ^6.1.4
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
@@ -21,6 +19,7 @@ dependencies:
   firebase_core: ^4.2.0
   firebase_storage: ^13.0.3
   firebase_analytics: ^12.0.3
+  sign_in_with_apple: ^7.0.1
 
   dio: ^5.4.0
   url_launcher: ^6.3.2
@@ -47,3 +46,5 @@ flutter:
     - assets/home/
     - assets/icons/
     - assets/images/
+    - assets/sounds/
+    - assets/model/

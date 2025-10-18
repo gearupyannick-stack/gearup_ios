@@ -9,7 +9,6 @@ import 'pages/home_page.dart';
 import 'pages/training_page.dart';
 import 'pages/library_page.dart';
 import 'pages/profile_page.dart';
-import 'pages/preload_page.dart'; // ✅ first-launch data loader
 import 'pages/welcome_page.dart';
 import 'services/sound_manager.dart';
 
@@ -19,7 +18,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/race_page.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -43,6 +41,7 @@ void main() async {
   // AndroidProvider.playIntegrity for production builds.
   try {
     await FirebaseAppCheck.instance.activate(
+      // ignore: deprecated_member_use
       androidProvider: AndroidProvider.debug,
       // iosProvider: AppleProvider.debug, // uncomment if you also run local iOS debug builds
     );
@@ -137,15 +136,11 @@ class CarLearningApp extends StatelessWidget {
             return const WelcomePage();
           }
           // ✅ After onboarding: keep your existing preload vs. main logic
-          return shouldPreload
-              ? PreloadPage(
-                  initialLives: initialLives,
-                  livesStorage: livesStorage,
-                )
-              : MainPage(
-                  initialLives: initialLives,
-                  livesStorage: livesStorage,
-                );
+          // After onboarding: always go straight to MainPage (assets are local now)
+          return MainPage(
+            initialLives: initialLives,
+            livesStorage: livesStorage,
+          );
         },
       ),
     );
@@ -197,7 +192,7 @@ class _FirstLaunchGateState extends State<FirstLaunchGate> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => PreloadPage(
+          builder: (_) => MainPage(
             initialLives: widget.initialLives,
             livesStorage: widget.livesStorage,
           ),

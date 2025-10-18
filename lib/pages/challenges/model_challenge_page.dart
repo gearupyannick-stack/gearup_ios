@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../../services/audio_feedback.dart';
 
-import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
-
 class ModelChallengePage extends StatefulWidget {
   @override
   _ModelChallengePageState createState() => _ModelChallengePageState();
@@ -151,25 +149,72 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
         .join();
   }
 
-  /// Displays the i-th static frame for the current model via cache.
+  /// Displays the i-th static frame for the current model (from assets/model).
   Widget _buildStaticModelImage(int i) {
     final base = _formatImageName(_currentBrand!, _currentModel!);
     final fileName = '$base$i.webp';
-    return Image(
-      image: ImageCacheService.instance.imageProvider(fileName),
+    final assetPath = 'assets/model/$fileName';
+
+    return Image.asset(
+      assetPath,
+      key: ValueKey<int>(i),
       height: 160,
       width: double.infinity,
       fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        // Helpful debug fallback when an asset is missing on device (esp. iOS case sensitivity)
+        return Container(
+          height: 160,
+          width: double.infinity,
+          color: Colors.grey[900],
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.directions_car, color: Colors.white54, size: 28),
+                const SizedBox(height: 6),
+                Text(
+                  fileName,
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  /// Displays the animated frame for a given option via cache.
+  /// Displays the animated/current frame for a given option (from assets/model).
   Widget _buildOptionImage(Map<String, String> opt) {
     final base = _formatImageName(opt['brand']!, opt['model']!);
     final fileName = '$base$_frameIndex.webp';
-    return Image(
-      image: ImageCacheService.instance.imageProvider(fileName),
+    final assetPath = 'assets/model/$fileName';
+
+    return Image.asset(
+      assetPath,
+      key: ValueKey<int>(_frameIndex),
       fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey[900],
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.directions_car, color: Colors.white54, size: 28),
+                const SizedBox(height: 6),
+                Text(
+                  fileName,
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

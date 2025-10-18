@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
 import '../../services/audio_feedback.dart'; // centralized audio router
 
 class AccelerationChallengePage extends StatefulWidget {
@@ -213,16 +212,41 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
         .join();
   }
 
-  /// Displays the current frame image from cache instead of FutureBuilder.
+  /// Displays the current frame image directly from assets/model (no service).
   Widget _buildFrameImage() {
+    // build the filename exactly as in your assets folder, e.g. "Porsche9110.webp"
     final base = _fileBase(_currentBrand!, _currentModel!);
     final fileName = '$base$_frameIndex.webp';
-    return Image(
+    final assetPath = 'assets/model/$fileName';
+
+    return Image.asset(
+      assetPath,
       key: ValueKey<int>(_frameIndex),
-      image: ImageCacheService.instance.imageProvider(fileName),
       height: 200,
       width: double.infinity,
       fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        // Fallback UI if an asset is missing — useful for debugging on iOS
+        return Container(
+          height: 200,
+          width: double.infinity,
+          color: Colors.grey[900],
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.directions_car, color: Colors.white54, size: 36),
+                const SizedBox(height: 8),
+                Text(
+                  'Image not found:\n$fileName',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

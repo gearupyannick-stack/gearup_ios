@@ -4,7 +4,8 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
-import 'preload_page.dart'; // or your first page (HomePage), keep what you use today
+import '../main.dart';
+import '../storage/lives_storage.dart';
 
 class Slide {
   final String imagePath;
@@ -55,12 +56,31 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   Future<void> _markOnboardedAndEnter() async {
+    // mark onboarded in prefs
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isOnboarded', true);
     if (!mounted) return;
-    // If you normally start with PreloadPage on first launch, keep that here.
+
+    // prepare the LivesStorage and read the current lives (defaults to 5 if missing/errors)
+    final livesStorage = LivesStorage();
+    int currentLives;
+    try {
+      currentLives = await livesStorage.readLives();
+    } catch (_) {
+      currentLives = 5;
+    }
+
+    // simple synchronous getter expected by HomePage
+    int getLives() => currentLives;
+
+    // Navigate directly to HomePage, providing the required named arguments
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const PreloadPage()),
+      MaterialPageRoute(
+        builder: (_) => MainPage(
+          initialLives: currentLives,
+          livesStorage: livesStorage,
+        ),
+      ),
     );
   }
 

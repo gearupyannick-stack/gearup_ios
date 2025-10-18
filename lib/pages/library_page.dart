@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import '../services/image_service_cache.dart';
 import '../services/audio_feedback.dart';
 
 
@@ -65,12 +64,34 @@ class _LibraryPageState extends State<LibraryPage> {
         .join();
   }
 
+  /// Build a single representative image from assets/model for the given brand/model.
   Widget _buildImage(String brand, String model) {
     final fileBase = _formatFileName(brand, model);
     final fileName = '${fileBase}4.webp';
-    return Image(
-      image: ImageCacheService.instance.imageProvider(fileName),
+    final assetPath = 'assets/model/$fileName';
+
+    return Image.asset(
+      assetPath,
       fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey[900],
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.directions_car, color: Colors.white54, size: 28),
+                const SizedBox(height: 6),
+                Text(
+                  fileName,
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -222,8 +243,7 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  void _showModelDetails(
-      BuildContext context, Map<String, String> model) {
+  void _showModelDetails(BuildContext context, Map<String, String> model) {
     final brand = model['brand']!;
     final modelName = model['model']!;
     final fileBase = _formatFileName(brand, modelName);
@@ -238,8 +258,7 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               Text(
                 '$brand – $modelName',
-                style: const TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               Text('Description: ${model['description']}'),
@@ -254,20 +273,39 @@ class _LibraryPageState extends State<LibraryPage> {
               const SizedBox(height: 16),
               const Text(
                 'Photos:',
-                style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               ...List.generate(6, (index) {
                 final imageFileName = '$fileBase$index.webp';
+                final assetPath = 'assets/model/$imageFileName';
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image(
-                      image: ImageCacheService.instance
-                          .imageProvider(imageFileName),
+                    child: Image.asset(
+                      assetPath,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 160,
+                          color: Colors.grey[900],
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.directions_car, color: Colors.white54, size: 28),
+                                const SizedBox(height: 6),
+                                Text(
+                                  imageFileName,
+                                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 );

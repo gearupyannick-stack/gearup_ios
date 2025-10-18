@@ -92,7 +92,7 @@ ScaffoldMessenger.of(context).showSnackBar(
           alignment: Alignment.centerLeft,
         ),
         onPressed: () async {
-          final result = await Navigator.push(
+          await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => page),
           );

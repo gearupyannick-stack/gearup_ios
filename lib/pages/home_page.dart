@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/image_service_cache.dart';
 import '../services/audio_feedback.dart';
 
 /// Raw track point definitions for tracks 2 & 3.
@@ -65,6 +64,13 @@ final List<int> _easyQuestions   = [1, 2, 3, 6];
 final List<int> _mediumQuestions = [4, 5, 11, 12];
 final List<int> _hardQuestions   = [7, 8, 9, 10];
 
+// Simple fallback helper to return an AssetImage for our assets/model/ images.
+// If the passed name is already a full assets/... path we keep it as-is.
+ImageProvider _assetImageProvider(String name) {
+  final assetPath = name.startsWith('assets/') ? name : 'assets/model/$name';
+  return AssetImage(assetPath);
+}
+
 class HomePage extends StatefulWidget {
   final GlobalKey? firstFlagKey;
   final int currentLives;
@@ -122,58 +128,7 @@ mixin AudioAnswerMixin<T extends StatefulWidget> on State<T> {
     try { AudioFeedback.instance.playEvent(SoundEvent.pageFlip); } catch (_) {}
   }
 
-  /// Helper generic pour uniformiser le traitement des réponses (optionnel).
-  /// Utilise-le si tu veux centraliser la logique au lieu de dupliquer.
-  void _handleAnswer({
-    required dynamic picked,
-    dynamic expected,
-    bool popResult = true,
-    Duration delay = const Duration(seconds: 1),
-    void Function(bool correct)? onResult,
-  }) {
-    // certaines classes définissent déjà _answered/_selectedBrand; _handleAnswer suppose
-    // que ces champs existent dans la State. Si une classe n'a pas ces champs, n'utilise pas ce helper direct.
-    try { _audioPlayTap(); } catch (_) {}
-
-    final dynamic toCompare = expected ?? (mounted ? (widget as dynamic).correctAnswer : null);
-    final bool correct = toCompare != null ? toCompare == picked : false;
-
-    // best-effort: update local fields if présents
-    try {
-      setState(() {
-        // si la classe a un _answered et _selectedBrand, on les met à jour
-        if ((this as dynamic)._answered != null) (this as dynamic)._answered = true;
-        if ((this as dynamic)._selectedBrand != null && picked is String) (this as dynamic)._selectedBrand = picked;
-        if (correct) {
-          _streak += 1;
-        } else {
-          _streak = 0;
-        }
-      });
-    } catch (_) {
-      // ignore si la State ne possède pas ces champs
-    }
-
-    if (correct) {
-      _audioPlayAnswerCorrect();
-      if (_streak > 0 && _streak % 3 == 0) _audioPlayStreak(milestone: _streak);
-    } else {
-      _audioPlayAnswerWrong();
-    }
-
-    Future.delayed(delay, () {
-      _audioPlayPageFlip();
-      if (popResult) {
-        try {
-          Navigator.of(context).pop(correct);
-          return;
-        } catch (_) {}
-      }
-      if (onResult != null) onResult(correct);
-    });
-  }
 }
-
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin, AudioAnswerMixin {
   bool _didInitDependencies = false;
   int _consecutiveFails = 0;
@@ -569,9 +524,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     try { AudioFeedback.instance.playEvent(SoundEvent.pageFlip); } catch (_) {}
   }
 
-  void _audioPlayChallengeComplete(int stars) {
-    try { AudioFeedback.instance.playEvent(SoundEvent.challengeComplete, meta: {'stars': stars}); } catch (_) {}
-  }
 
   void _showStuckPopup(int flagIndex) {
     showDialog(
@@ -2002,8 +1954,7 @@ class _RandomModelBrandQuestionContentState
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image(
-                  image: ImageCacheService.instance
-                      .imageProvider('${widget.fileBase}$i.webp'),
+                  image: _assetImageProvider('${widget.fileBase}$i.webp'),
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -2265,8 +2216,7 @@ class _DescriptionSlideshowQuestionContentState
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image(
-                  image: ImageCacheService.instance
-                      .imageProvider('${widget.fileBase}$i.webp'),
+                  image: _assetImageProvider('${widget.fileBase}$i.webp'),
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -2338,7 +2288,6 @@ class _HorsepowerQuestionContent extends StatefulWidget {
 class _HorsepowerQuestionContentState
     extends State<_HorsepowerQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
-  Timer? _frameTimer;
   bool _answered = false;
   String? _selectedAnswer;
 
@@ -2348,11 +2297,6 @@ class _HorsepowerQuestionContentState
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle frames every 2 seconds
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() {
-        _frameIndex = (_frameIndex + 1) % 6;
-      });
-    });
   }
 
   @override
@@ -2422,8 +2366,7 @@ class _HorsepowerQuestionContentState
                   FadeTransition(opacity: anim, child: child),
               child: Image(
                 key: ValueKey<int>(_frameIndex),
-                image: ImageCacheService.instance
-                    .imageProvider('${widget.fileBase}$_frameIndex.webp'),
+                image: _assetImageProvider('${widget.fileBase}$_frameIndex.webp'),
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -2502,7 +2445,6 @@ class _AccelerationQuestionContent extends StatefulWidget {
 class _AccelerationQuestionContentState
     extends State<_AccelerationQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
-  Timer? _frameTimer;
   bool _answered = false;
   String? _selectedAnswer;
 
@@ -2512,11 +2454,6 @@ class _AccelerationQuestionContentState
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle the image every 2 seconds
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() {
-        _frameIndex = (_frameIndex + 1) % 6;
-      });
-    });
   }
 
   @override
@@ -2588,8 +2525,7 @@ class _AccelerationQuestionContentState
                   FadeTransition(opacity: anim, child: child),
               child: Image(
                 key: ValueKey<int>(_frameIndex),
-                image: ImageCacheService.instance
-                    .imageProvider('${widget.fileBase}$_frameIndex.webp'),
+                image: _assetImageProvider('${widget.fileBase}$_frameIndex.webp'),
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -2669,7 +2605,6 @@ class _MaxSpeedQuestionContent extends StatefulWidget {
 class _MaxSpeedQuestionContentState
     extends State<_MaxSpeedQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
-  Timer? _frameTimer;
   bool _answered = false;
   String? _selectedSpeed;
 
@@ -2679,11 +2614,6 @@ class _MaxSpeedQuestionContentState
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle frames every 2 seconds
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() {
-        _frameIndex = (_frameIndex + 1) % 6;
-      });
-    });
   }
 
   @override
@@ -2755,8 +2685,7 @@ class _MaxSpeedQuestionContentState
                   FadeTransition(opacity: anim, child: child),
               child: Image(
                 key: ValueKey<int>(_frameIndex),
-                image: ImageCacheService.instance
-                    .imageProvider('${widget.fileBase}$_frameIndex.webp'),
+                image: _assetImageProvider('${widget.fileBase}$_frameIndex.webp'),
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -2835,7 +2764,6 @@ class _SpecialFeatureQuestionContent extends StatefulWidget {
 class _SpecialFeatureQuestionContentState
     extends State<_SpecialFeatureQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
-  Timer? _frameTimer;
   bool _answered = false;
   String? _selectedFeature;
 
@@ -2845,11 +2773,6 @@ class _SpecialFeatureQuestionContentState
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle the image every 2 seconds
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() {
-        _frameIndex = (_frameIndex + 1) % 6;
-      });
-    });
   }
 
   @override
@@ -2921,8 +2844,7 @@ class _SpecialFeatureQuestionContentState
                   FadeTransition(opacity: anim, child: child),
               child: Image(
                 key: ValueKey<int>(_frameIndex),
-                image: ImageCacheService.instance
-                    .imageProvider('${widget.fileBase}$_frameIndex.webp'),
+                image: _assetImageProvider('${widget.fileBase}$_frameIndex.webp'),
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -2997,7 +2919,6 @@ class _DescriptionToCarImageQuestionContent extends StatefulWidget {
 class _DescriptionToCarImageQuestionContentState
     extends State<_DescriptionToCarImageQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
-  Timer? _frameTimer;
   bool _answered = false;
   int? _selectedIndex;
 
@@ -3007,9 +2928,6 @@ class _DescriptionToCarImageQuestionContentState
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle frames every 2 seconds
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() => _frameIndex = (_frameIndex + 1) % 6);
-    });
   }
 
   @override
@@ -3103,7 +3021,7 @@ class _DescriptionToCarImageQuestionContentState
                             FadeTransition(opacity: anim, child: child),
                         child: Image(
                           key: ValueKey<String>(assetName),
-                          image: ImageCacheService.instance.imageProvider(assetName),
+                          image: _assetImageProvider(assetName),
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -3156,7 +3074,6 @@ class _BrandImageChoiceQuestionContent extends StatefulWidget {
 class _BrandImageChoiceQuestionContentState
     extends State<_BrandImageChoiceQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
-  Timer? _frameTimer;
   bool _answered = false;
   String? _selectedBrand;
 
@@ -3166,9 +3083,6 @@ class _BrandImageChoiceQuestionContentState
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle through frames every 2 seconds
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() => _frameIndex = (_frameIndex + 1) % 6);
-    });
   }
 
   @override
@@ -3260,7 +3174,7 @@ class _BrandImageChoiceQuestionContentState
                           FadeTransition(opacity: anim, child: child),
                       child: Image(
                         key: ValueKey<String>(assetName),
-                        image: ImageCacheService.instance.imageProvider(assetName),
+                        image: _assetImageProvider(assetName),
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -3316,7 +3230,6 @@ class _OriginCountryQuestionContent extends StatefulWidget {
 class _OriginCountryQuestionContentState
     extends State<_OriginCountryQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
-  Timer? _frameTimer;
   bool _answered = false;
   String? _selectedOrigin;
 
@@ -3326,9 +3239,6 @@ class _OriginCountryQuestionContentState
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Cycle frames every 2 seconds
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() => _frameIndex = (_frameIndex + 1) % 6);
-    });
   }
 
   @override
@@ -3400,8 +3310,7 @@ class _OriginCountryQuestionContentState
                   FadeTransition(opacity: anim, child: child),
               child: Image(
                 key: ValueKey<int>(_frameIndex),
-                image: ImageCacheService.instance
-                    .imageProvider('${widget.fileBase}$_frameIndex.webp'),
+                image: _assetImageProvider('${widget.fileBase}$_frameIndex.webp'),
                 height: 220,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -3477,7 +3386,6 @@ class _ModelOnlyImageQuestionContent extends StatefulWidget {
 class _ModelOnlyImageQuestionContentState
     extends State<_ModelOnlyImageQuestionContent> with AudioAnswerMixin {
   int _frameIndex = 0;
-  Timer? _frameTimer;
   bool _answered = false;
   String? _selectedModel;
 
@@ -3487,9 +3395,6 @@ class _ModelOnlyImageQuestionContentState
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
     // Alterner les frames toutes les 2 secondes
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() => _frameIndex = (_frameIndex + 1) % 6);
-    });
   }
 
   @override
@@ -3554,7 +3459,7 @@ class _ModelOnlyImageQuestionContentState
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image(
-              image: ImageCacheService.instance.imageProvider(
+              image: _assetImageProvider(
                 '${widget.fileBase}$_frameIndex.webp',
               ),
               key: ValueKey<int>(_frameIndex),
@@ -3695,8 +3600,7 @@ class _RandomCarImageQuestionContentState
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image(
-                  image: ImageCacheService.instance
-                      .imageProvider('${widget.fileBase}$i.webp'),
+                  image: _assetImageProvider('${widget.fileBase}$i.webp'),
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,

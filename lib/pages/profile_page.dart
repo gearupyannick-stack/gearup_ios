@@ -2,13 +2,9 @@
 // ignore_for_file: unused_element, deprecated_member_use, unused_field
 
 import 'dart:math';
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../services/image_service_cache.dart';
-import 'preload_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final VoidCallback? onReplayTutorial;
@@ -264,7 +260,18 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildAvatarHeader(String memSince) {
-    final fileBase = _formatImageName(favoriteBrand, favoriteModel);
+    // Compute fileBase only when we have a valid favorite brand+model
+    String? fileBase;
+    if (favoriteBrand.isNotEmpty &&
+        favoriteBrand != 'N/A' &&
+        favoriteModel.isNotEmpty &&
+        favoriteModel != 'N/A') {
+      fileBase = _formatImageName(favoriteBrand, favoriteModel);
+    }
+
+    final String assetForProfile = fileBase != null
+        ? 'assets/model/${fileBase}${profilePicIndex}.webp'
+        : 'assets/profile/avatar.png';
 
     final Widget avatarImage = ClipOval(
       child: _googleSignedIn && _googlePhotoUrl != null && _useGoogleName
@@ -280,8 +287,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 fit: BoxFit.cover,
               ),
             )
-          : Image(
-              image: ImageCacheService.instance.imageProvider('${fileBase}${profilePicIndex}.webp'),
+          : Image.asset(
+              assetForProfile,
               width: 100,
               height: 100,
               fit: BoxFit.cover,
@@ -289,6 +296,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 'assets/profile/avatar.png',
                 width: 100,
                 height: 100,
+                fit: BoxFit.cover,
               ),
             ),
     );
@@ -297,7 +305,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ? _googleDisplayName!
         : username;
 
-    // indicator (small badge) showing signed-in status
     final statusChip = _googleSignedIn
         ? Chip(label: Text(_googleEmail ?? 'Google'), avatar: const Icon(Icons.check_circle, size: 16))
         : (_isGuest ? const Chip(label: Text('Guest')) : const SizedBox.shrink());
@@ -1016,26 +1023,17 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
 
-          // Open PreloadPage with no arguments
+          // "Ensure All Images Are Loaded" — changed to a no-op informational action
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
-              onPressed: () async {
-                final result = await Navigator.of(context).push<Map<String, int>>(
-                  MaterialPageRoute(builder: (_) => const PreloadPage()),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('All images are bundled locally in the app — no preload required.'),
+                    duration: Duration(seconds: 2),
+                  ),
                 );
-                if (!mounted) return;
-                if (result != null) {
-                  final downloaded = result['downloaded'] ?? 0;
-                  final cached = result['cached'] ?? 0;
-                  final failed = result['failed'] ?? 0;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Downloaded $downloaded • Already $cached • Failed $failed'),
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                }
               },
               style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 40)),
               child: const Text('Ensure All Images Are Loaded'),

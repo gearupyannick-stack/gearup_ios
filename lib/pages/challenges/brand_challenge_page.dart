@@ -6,9 +6,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../../services/audio_feedback.dart';
-
-import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
-
 class BrandChallengePage extends StatefulWidget {
   @override
   _BrandChallengePageState createState() => _BrandChallengePageState();
@@ -179,14 +176,40 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
         .join();
   }
 
+  /// Build a static model image directly from assets/model (no service).
   Widget _buildStaticModelImage(int i) {
+    // randomBrand/randomModel are guaranteed non-null when this is called
     final base = _fileBase(randomBrand!, randomModel!);
     final fileName = '$base$i.webp';
-    return Image(
-      image: ImageCacheService.instance.imageProvider(fileName),
+    final assetPath = 'assets/model/$fileName';
+
+    return Image.asset(
+      assetPath,
       height: 160,
       width: double.infinity,
       fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        // helpful fallback for debugging missing assets
+        return Container(
+          height: 160,
+          width: double.infinity,
+          color: Colors.grey[900],
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.directions_car, color: Colors.white54, size: 28),
+                const SizedBox(height: 6),
+                Text(
+                  fileName,
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -302,6 +325,7 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                         final isCorrect = m['model'] == randomModel;
                         final isSelected = m['model'] == _selectedModel;
                         final imgIdx = _currentImageIndices[idx];
+                        final assetPath = 'assets/model/$fb$imgIdx.webp';
 
                         return AspectRatio(
                           aspectRatio: 1,
@@ -312,37 +336,51 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                               child: InkWell(
                                 onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
                               _onModelTap(m['model']!); },
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 500),
-                                  transitionBuilder:
-                                      (child, animation) => FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  ),
-                                  child: ColorFiltered(
-                                    key: ValueKey<int>(imgIdx),
-                                    colorFilter: _answered
-                                        ? (isCorrect
-                                            ? ColorFilter.mode(
-                                                Colors.green.withAlpha(128),
-                                                BlendMode.srcATop)
-                                            : (isSelected
-                                                ? ColorFilter.mode(
-                                                    Colors.red.withAlpha(128),
-                                                    BlendMode.srcATop)
-                                                : ColorFilter.mode(
-                                                    Colors.transparent,
-                                                    BlendMode.srcATop)))
-                                        : const ColorFilter.mode(
-                                            Colors.transparent,
-                                            BlendMode.srcATop),
-                                    child: Image(
-                                      image: ImageCacheService.instance
-                                          .imageProvider('$fb$imgIdx.webp'),
-                                      fit: BoxFit.cover,
-                                    ),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 500),
+                                transitionBuilder: (child, animation) => FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                                child: ColorFiltered(
+                                  key: ValueKey<int>(imgIdx),
+                                  colorFilter: _answered
+                                      ? (isCorrect
+                                          ? ColorFilter.mode(
+                                              Colors.green.withAlpha(128), BlendMode.srcATop)
+                                          : (isSelected
+                                              ? ColorFilter.mode(
+                                                  Colors.red.withAlpha(128), BlendMode.srcATop)
+                                              : ColorFilter.mode(
+                                                  Colors.transparent, BlendMode.srcATop)))
+                                      : const ColorFilter.mode(Colors.transparent, BlendMode.srcATop),
+                                  child: Image.asset(
+                                    assetPath,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey[900],
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.directions_car,
+                                                  color: Colors.white54, size: 28),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                '$fb$imgIdx.webp',
+                                                style:
+                                                    const TextStyle(color: Colors.white54, fontSize: 11),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
+                              ),
                               ),
                             ),
                           ),

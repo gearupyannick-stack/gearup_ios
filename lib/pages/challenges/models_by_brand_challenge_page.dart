@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../../services/audio_feedback.dart';
 
-import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
-
 class ModelsByBrandChallengePage extends StatefulWidget {
   @override
   _ModelsByBrandChallengePageState createState() =>
@@ -153,11 +151,33 @@ class __BrandTileState extends State<_BrandTile> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image(
-              image: ImageCacheService.instance
-                  .imageProvider('${_fileBase}4.webp'),
+            // Load a representative model image directly from assets/model/
+            Image.asset(
+              'assets/model/${_fileBase}4.webp',
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                // Fallback shows a dark tile with the brand name (useful when file missing)
+                return Container(
+                  color: Colors.grey[900],
+                  child: Center(
+                    child: Text(
+                      widget.brand,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(blurRadius: 4, offset: Offset(1, 1), color: Colors.black),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              },
             ),
+
+            // Brand label overlay
             Center(
               child: Text(
                 widget.brand,
@@ -298,11 +318,34 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
 
   Widget _buildStaticModelImage(int i) {
     final fileBase = _formatImageName(widget.brand, _correctAnswer);
-    return Image(
-      image: ImageCacheService.instance.imageProvider('$fileBase$i.webp'),
+    final assetPath = 'assets/model/$fileBase$i.webp';
+
+    return Image.asset(
+      assetPath,
       height: 160,
       width: double.infinity,
       fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          height: 160,
+          width: double.infinity,
+          color: Colors.grey[900],
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.directions_car, color: Colors.white54, size: 28),
+                const SizedBox(height: 6),
+                Text(
+                  '$fileBase$i.webp',
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -448,11 +491,29 @@ if (_answered) return;
                                             BlendMode.srcATop)))
                                 : const ColorFilter.mode(
                                     Colors.transparent, BlendMode.srcATop),
-                            child: Image(
-                              image: ImageCacheService.instance
-                                  .imageProvider('$fileBase$_frameIndex.webp'),
+                            child: Image.asset(
+                              'assets/model/$fileBase$_frameIndex.webp',
                               fit: BoxFit.cover,
-                            ),
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[900],
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.directions_car, color: Colors.white54, size: 28),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '$fileBase$_frameIndex.webp',
+                                          style: const TextStyle(color: Colors.white54, fontSize: 11),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
                           ),
                         ),
                       ),

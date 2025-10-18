@@ -56,7 +56,7 @@ class SfxButton extends StatelessWidget {
         padding: padding ?? const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
         child: Center(child: child),
       ),
-      splashColor: Theme.of(context).splashColor.withOpacity(0.12),
+      splashColor: Theme.of(context).splashColor,
       highlightColor: Colors.transparent,
       radius: splashRadius ?? 24,
     );

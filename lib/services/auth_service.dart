@@ -8,29 +8,53 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 // Keeps the same API shape but does not depend on firebase_auth/google_sign_in.
 import 'dart:io' show Platform;
 
+// Replace the existing AuthService class with this block.
+
 class AuthService {
+  // singleton factory (keeps the same API shape you already used)
   AuthService._internal();
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
 
-  /// Attempts to sign in with Google. On iOS this is disabled and throws.
+  /// Attempts to sign in with Google. On iOS this intentionally throws (disabled).
   Future<Map<String, String>?> signInWithGoogle() async {
     if (!Platform.isAndroid) {
-      throw UnsupportedError('Google Sign-In disabled on iOS. Use Apple Sign-In later.');
+      // Keep behavior consistent with your earlier stub.
+      throw UnsupportedError('Google Sign-In disabled on iOS. Use Apple Sign-In instead.');
     }
-    // On Android, you can re-enable real implementation here.
+    // If you re-enable Android Google sign-in later, implement it here.
     return null;
   }
 
+  /// Sign out (no-op stub for now to preserve interface)
   Future<void> signOut() async {
-    // No-op for now (no real auth). Keeps signature compatibility.
+    // No real sign-out implementation in this iOS-focused branch.
     return;
   }
 
-  /// Returns current user as a map { 'uid': ..., 'email': ... } or null.
-  Map<String,String>? get currentUser => null;
-}
+  /// Returns a simple map describing a current user or `null` when no backend auth is present.
+  Map<String, String>? get currentUser => null;
 
+  // ---------------- Apple wrappers (exposed API for UI) ----------------
+
+  /// UI-friendly wrapper: signs in with Apple and returns the Firebase UserCredential.
+  /// Throws UnsupportedError on non-iOS builds.
+  Future<UserCredential> signInWithApple() async {
+    if (!Platform.isIOS) {
+      throw UnsupportedError('signInWithApple is only supported on iOS in this build.');
+    }
+    // Delegates to the helper defined elsewhere in this file
+    return await signInWithAppleIOSOnly(FirebaseAuth.instance);
+  }
+
+  /// UI-friendly wrapper: links the currently-signed-in Firebase user with Apple credentials.
+  Future<UserCredential> linkWithApple() async {
+    if (!Platform.isIOS) {
+      throw UnsupportedError('linkWithApple is only supported on iOS in this build.');
+    }
+    return await linkCurrentUserWithAppleIOSOnly(FirebaseAuth.instance);
+  }
+}
 
 // === Apple Sign-In helpers (iOS only) ===
 
@@ -44,6 +68,24 @@ String _sha256ofString(String input) {
   final bytes = utf8.encode(input);
   final digest = sha256.convert(bytes);
   return digest.toString();
+}
+
+/// Convenience wrapper used by UI/dialogs to sign in with Apple.
+/// Delegates to the platform helper that performs the OAuth flow and signs into Firebase.
+Future<UserCredential> signInWithApple() async {
+  // On non-iOS platforms you should not call this; keep for safety.
+  if (!Platform.isIOS) {
+    throw UnsupportedError('signInWithApple is only supported on iOS in this build.');
+  }
+  return await signInWithAppleIOSOnly(FirebaseAuth.instance);
+}
+
+/// Convenience wrapper to link the currently signed-in Firebase user with Apple credentials.
+Future<UserCredential> linkWithApple() async {
+  if (!Platform.isIOS) {
+    throw UnsupportedError('linkWithApple is only supported on iOS in this build.');
+  }
+  return await linkCurrentUserWithAppleIOSOnly(FirebaseAuth.instance);
 }
 
 Future<UserCredential> signInWithAppleIOSOnly(FirebaseAuth auth) async {

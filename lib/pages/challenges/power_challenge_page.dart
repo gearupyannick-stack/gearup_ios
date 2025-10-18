@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../../services/audio_feedback.dart'; // added by audio patch
 
-import '../../services/image_service_cache.dart'; // ← Utilisation du cache local
-
 class PowerChallengePage extends StatefulWidget {
   @override
   _PowerChallengePageState createState() => _PowerChallengePageState();
@@ -167,16 +165,41 @@ Future.delayed(const Duration(seconds: 1), _nextQuestion);
         .join();
   }
 
-  /// Displays the current frame image from cache.
+  /// Displays the current frame image directly from assets/model (no service).
   Widget _buildFrameImage() {
+    // build filename exactly like your assets: e.g. "Porsche9110.webp"
     final base = _fileBase(_currentBrand!, _currentModel!);
     final fileName = '$base$_frameIndex.webp';
-    return Image(
+    final assetPath = 'assets/model/$fileName';
+
+    return Image.asset(
+      assetPath,
       key: ValueKey<int>(_frameIndex),
-      image: ImageCacheService.instance.imageProvider(fileName),
       height: 220,
       width: double.infinity,
       fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        // fallback UI when an asset is missing (helps debugging on iOS)
+        return Container(
+          height: 220,
+          width: double.infinity,
+          color: Colors.grey[900],
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.directions_car, color: Colors.white54, size: 36),
+                const SizedBox(height: 8),
+                Text(
+                  'Missing: $fileName',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
