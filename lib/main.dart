@@ -11,11 +11,13 @@ import 'pages/library_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/welcome_page.dart';
 import 'services/sound_manager.dart';
+import 'services/premium_service.dart';
+import 'pages/premium_page.dart';
 
 import 'storage/lives_storage.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'services/firebase_options.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/race_page.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -85,6 +87,7 @@ class CarLearningApp extends StatelessWidget {
       title: 'GearUp',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: scaffoldMessengerKey,
+      routes: {'/premium': (ctx)=>const PremiumPage()},
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF121212),
@@ -167,7 +170,9 @@ class _FirstLaunchGateState extends State<FirstLaunchGate> {
   @override
   void initState() {
     super.initState();
-    _markNotFirstAndShowPreload();
+    // Initialize Premium state
+    PremiumService.instance.init().then((_) { if(mounted) setState((){}); });
+_markNotFirstAndShowPreload();
   }
 
   Future<void> _markNotFirstAndShowPreload() async {
@@ -391,13 +396,12 @@ class _MainPageState extends State<MainPage> {
   /// then show the 5-star popup if it’s the first time at zero.
   /// Called whenever the user fails a challenge.
   Future<void> _onChallengeFail() async {
-    // 1) Decrement & persist
-    setState(() {
-      if (lives > 0) lives--;
-    });
-    await widget.livesStorage.writeLives(lives);
-
-    // 2) If we’ve dropped below max, schedule the next life *relative to now*
+    // 1) Decrement & persist (skip if Premium)
+    if (!PremiumService.instance.isPremium) {
+      setState(() { if (lives > 0) lives--; });
+      await widget.livesStorage.writeLives(lives);
+    }
+// 2) If we’ve dropped below max, schedule the next life *relative to now*
     if (lives < _maxLives) {
       final prefs = await SharedPreferences.getInstance();
       final nextDue = DateTime.now().add(const Duration(seconds: _refillInterval));
@@ -1134,6 +1138,7 @@ class _MainPageState extends State<MainPage> {
             ],
           );
         } else {
+          // inside the AlertDialog you return when lives < _maxLives
           return AlertDialog(
             title: const Text('Your Lives'),
             content: ValueListenableBuilder<int>(
@@ -1141,28 +1146,44 @@ class _MainPageState extends State<MainPage> {
               builder: (context, remaining, child) {
                 final minutes = remaining ~/ 60;
                 final seconds = remaining % 60;
-                final progress = 1 - (remaining / _refillInterval);
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text("You have $lives / $_maxLives lives remaining."),
                     const SizedBox(height: 8),
-                    Text("Next life in $minutes min $seconds sec"),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: progress.clamp(0.0, 1.0),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
+                    Text("Next life in ${minutes}m ${seconds}s"),
+                    const SizedBox(height: 12),
+
+                    const SizedBox(height: 12),
+
+                    // TRAINING CTA: jump to Training tab so user can earn a life
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.fitness_center),
+                      label: const Text("Train now — earn 1 life"),
                       onPressed: () {
-                        Navigator.of(context).pop();
-                        setState(() {
-                          _currentIndex = 1; // Go to Training tab
-                        });
+                        Navigator.of(context).pop();               // close the popup
+                        setState(() { _currentIndex = 1; });       // switch to Training tab (index 1)
+                        scaffoldMessengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('Complete a Training challenge to earn 1 life'),
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
                       },
-                      child: const Text("Train for life"),
                     ),
+
                     const SizedBox(height: 8),
+
+                    // Upgrade hint inside popup
+                    if (!PremiumService.instance.isPremium)
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.upgrade),
+                        label: const Text("Upgrade to Premium — Unlimited lives"),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).pushNamed('/premium');
+                        },
+                      ),
                   ],
                 );
               },
@@ -1247,7 +1268,10 @@ class _MainPageState extends State<MainPage> {
                 children: [
                   Image.asset(_heartImagePath, height: 24),
                   const SizedBox(width: 8),
-                  Text('$lives', style: const TextStyle(fontSize: 18)),
+                  Text(
+                    PremiumService.instance.isPremium ? '∞' : '$lives',
+                    style: const TextStyle(fontSize: 18),
+                  ),
                 ],
               ),
             ),
