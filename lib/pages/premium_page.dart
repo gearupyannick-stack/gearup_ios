@@ -14,7 +14,7 @@ class PremiumPage extends StatefulWidget {
 }
 
 class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStateMixin {
-  static const String _productId = 'com.gearup.premium';
+  static const String _productId = 'com.gearup.premium2';
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _sub;
 
