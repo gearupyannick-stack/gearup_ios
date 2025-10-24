@@ -75,7 +75,7 @@ jobs:
           sudo xcodebuild -downloadPlatform iOS
 
       - name: 🏗️ Build iOS archive (final clean version)
-              run: |
+        run: |
                 set -euo pipefail
                 echo "🏗️ Archiving Runner with correct signing..."
                 xcodebuild clean archive \
