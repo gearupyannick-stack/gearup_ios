@@ -92,7 +92,6 @@ jobs:
                   PRODUCT_BUNDLE_IDENTIFIER=${{ env.APP_BUNDLE_ID }} \
                   IPHONEOS_DEPLOYMENT_TARGET=17.0 \
                   CURRENT_PROJECT_VERSION=${{ github.run_id }} \
-                  CODE_SIGN_ENTITLEMENTS=Runner/Runner.entitlements \
                   -allowProvisioningUpdates \
                   -verbose
 
