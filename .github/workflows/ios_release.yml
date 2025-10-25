@@ -70,6 +70,11 @@ jobs:
           api-private-key:  ${{ secrets.ASC_KEY_P8 }}
           profile-type:     IOS_APP_STORE
 
+      - name: 🧩 Verify provisioning entitlements
+        run: |
+          echo "Checking provisioning profile for Sign In with Apple..."
+          security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | grep -A5 "com.apple.developer.applesignin" || echo "⚠️ Entitlement not found!"
+
       - name: 🧩 Ensure iOS platform installed
         run: |
           sudo xcodebuild -downloadPlatform iOS
@@ -104,7 +109,7 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>app-store</string>
+            <string>app-store-connect</string>
             <key>uploadBitcode</key>
             <false/>
             <key>compileBitcode</key>
