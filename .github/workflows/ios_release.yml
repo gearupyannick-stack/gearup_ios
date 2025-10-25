@@ -10,7 +10,7 @@ jobs:
     env:
       APP_BUNDLE_ID: com.gearup.app
       TEAM_ID: M282YL56RT
-      PROFILE_NAME: GearupAppStore            # provisioning profile name in Apple Developer
+      PROFILE_NAME: GearupAppStore
       KEYCHAIN_NAME: signing_${{ github.run_id }}
       FLUTTER_VERSION: 3.35.5
       XCODE_VERSION: 16.1
@@ -32,8 +32,7 @@ jobs:
           architecture: arm64
 
       - name: 🔧 Precache Flutter iOS artifacts
-        run: |
-          flutter precache --ios --no-universal --force
+        run: flutter precache --ios --no-universal --force
 
       - name: 🧹 Clean and get dependencies
         run: |
@@ -45,6 +44,23 @@ jobs:
         run: |
           pod repo update
           pod install --verbose
+
+      - name: 🔍 Inspect system & environment
+        run: |
+          echo "=== macOS Info ==="
+          sw_vers
+          echo
+          echo "=== Xcode Version ==="
+          xcodebuild -version
+          echo
+          echo "=== Flutter Version ==="
+          flutter --version
+          echo
+          echo "=== List iOS SDKs ==="
+          xcodebuild -showsdks
+          echo
+          echo "=== Environment Variables ==="
+          env | grep -E "TEAM_ID|APP_BUNDLE_ID|PROFILE_NAME|FLUTTER_VERSION|XCODE_VERSION"
 
       - name: 🔐 Import signing certificates
         uses: apple-actions/import-codesign-certs@v2
@@ -60,6 +76,9 @@ jobs:
           security default-keychain -s "${KEYCHAIN_NAME}.keychain"
           security unlock-keychain -p "${{ secrets.IOS_CERT_P12_PASSWORD }}" "${KEYCHAIN_NAME}.keychain"
           security set-keychain-settings -t 3600 -u "${KEYCHAIN_NAME}.keychain"
+          echo "✅ Keychain configured"
+          echo "=== List identities ==="
+          security find-identity -v -p codesigning || true
 
       - name: 📲 Download provisioning profile
         uses: apple-actions/download-provisioning-profiles@v1
@@ -72,33 +91,58 @@ jobs:
 
       - name: 🧩 Verify provisioning entitlements
         run: |
-          echo "Checking provisioning profile for Sign In with Apple..."
-          security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | grep -A5 "com.apple.developer.applesignin" || echo "⚠️ Entitlement not found!"
+          echo "Checking provisioning profile details..."
+          PROFILE_PATH=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -n 1)
+          echo "Using provisioning profile: $PROFILE_PATH"
+          security cms -D -i "$PROFILE_PATH" > profile.plist
+          /usr/libexec/PlistBuddy -c "Print :UUID" profile.plist || true
+          /usr/libexec/PlistBuddy -c "Print :Name" profile.plist || true
+          /usr/libexec/PlistBuddy -c "Print :TeamIdentifier:0" profile.plist || true
+          /usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" profile.plist || true
+          echo
+          echo "Checking for Sign in with Apple entitlement..."
+          grep -A5 "com.apple.developer.applesignin" profile.plist || echo "⚠️ Entitlement not found!"
+          echo "✅ Provisioning profile inspection done"
+
+      - name: 🧩 Verify Flutter iOS setup
+        run: |
+          echo "=== Flutter doctor summary ==="
+          flutter doctor -v
+          echo
+          echo "=== iOS devices (simulators) ==="
+          xcrun simctl list devices | head -n 15 || true
+          echo "✅ Flutter iOS environment OK"
 
       - name: 🧩 Ensure iOS platform installed
+        run: sudo xcodebuild -downloadPlatform iOS
+
+      - name: 🧾 Show Xcode project info
         run: |
-          sudo xcodebuild -downloadPlatform iOS
+          echo "=== Xcode schemes ==="
+          xcodebuild -list -workspace ios/Runner.xcworkspace
+          echo "=== Build settings ==="
+          xcodebuild -showBuildSettings -workspace ios/Runner.xcworkspace -scheme Runner | grep -E "PRODUCT_BUNDLE_IDENTIFIER|CODE_SIGN|DEVELOPMENT_TEAM"
 
       - name: 🏗️ Build iOS archive (final clean version)
         run: |
-                set -euo pipefail
-                echo "🏗️ Archiving Runner with correct signing..."
-                xcodebuild clean archive \
-                  -workspace ios/Runner.xcworkspace \
-                  -scheme Runner \
-                  -sdk iphoneos \
-                  -configuration Release \
-                  -archivePath build/Runner.xcarchive \
-                  -destination 'generic/platform=iOS' \
-                  DEVELOPMENT_TEAM=${{ env.TEAM_ID }} \
-                  CODE_SIGN_STYLE=Manual \
-                  CODE_SIGN_IDENTITY="Apple Distribution" \
-                  "OTHER_CODE_SIGN_FLAGS=--deep" \
-                  PRODUCT_BUNDLE_IDENTIFIER=${{ env.APP_BUNDLE_ID }} \
-                  IPHONEOS_DEPLOYMENT_TARGET=17.0 \
-                  CURRENT_PROJECT_VERSION=${{ github.run_id }} \
-                  -allowProvisioningUpdates \
-                  -verbose
+          set -euo pipefail
+          echo "🏗️ Archiving Runner with correct signing..."
+          xcodebuild clean archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/Runner.xcarchive \
+            -destination 'generic/platform=iOS' \
+            DEVELOPMENT_TEAM=${{ env.TEAM_ID }} \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            "OTHER_CODE_SIGN_FLAGS=--deep" \
+            PRODUCT_BUNDLE_IDENTIFIER=${{ env.APP_BUNDLE_ID }} \
+            IPHONEOS_DEPLOYMENT_TARGET=17.0 \
+            CURRENT_PROJECT_VERSION=${{ github.run_id }} \
+            -allowProvisioningUpdates \
+            -verbose
 
       - name: 📦 Create exportOptionsPlist (for App Store export)
         run: |
@@ -124,11 +168,13 @@ jobs:
           </dict>
           </plist>
           EOF
-          echo "Created build/ci_export_appstore.plist"
+          echo "✅ Created build/ci_export_appstore.plist"
 
       - name: 📦 Export IPA for App Store
         run: |
           set -euo pipefail
+          echo "=== Available archives ==="
+          ls -R build || true
           xcodebuild -exportArchive \
             -archivePath build/Runner.xcarchive \
             -exportOptionsPlist build/ci_export_appstore.plist \
