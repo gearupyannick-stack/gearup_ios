@@ -22,7 +22,7 @@
           }
         },
         {
-          "client_id": "947361107260-3kt4jkrmo6ti3pkmpr849ihshgmg18nq.apps.googleusercontent.com",
+          "client_id": "947361107260-9ogd3jg6prigue87395imbrchs993spo.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -37,6 +37,14 @@
             {
               "client_id": "947361107260-3kt4jkrmo6ti3pkmpr849ihshgmg18nq.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "947361107260-ava4aoun4v5mvepdtshqk1n27jlvuu7t.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.gearup.app",
+                "app_store_id": "6751094678"
+              }
             }
           ]
         }
