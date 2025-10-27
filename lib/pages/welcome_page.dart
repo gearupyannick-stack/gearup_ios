@@ -1,6 +1,5 @@
 // lib/pages/welcome_page.dart
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -59,12 +58,10 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   Future<void> _markOnboardedAndEnter() async {
-    // mark onboarded in prefs
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isOnboarded', true);
     if (!mounted) return;
 
-    // prepare the LivesStorage and read the current lives (defaults to 5 if missing/errors)
     final livesStorage = LivesStorage();
     int currentLives;
     try {
@@ -73,7 +70,6 @@ class _WelcomePageState extends State<WelcomePage> {
       currentLives = 5;
     }
 
-    // Navigate directly to MainPage, providing the required named arguments
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => MainPage(
@@ -84,42 +80,20 @@ class _WelcomePageState extends State<WelcomePage> {
     );
   }
 
-  Future<void> _continueAsGuest() async {
+  Future<void> _continueWithICloud() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      // No auth, just mark onboarding done and go in
-      await _markOnboardedAndEnter();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not continue as guest: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _continueWithApple() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      if (!Platform.isIOS) {
-        // Build iOS only, but on the off chance this runs elsewhere:
-        throw 'Apple Sign-In is only available on iOS.';
-      }
+      // Automatically authenticate with Firebase Anonymous (iCloud data will sync)
       final auth = AuthService();
-      final user = await auth.signInWithApple();
-      if (user == null) {
-        throw 'Sign-in cancelled.';
-      }
+      await auth.signInAnonymously();
+      
       // Mark onboarding done and enter
       await _markOnboardedAndEnter();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Apple sign-in failed: $e')),
+          SnackBar(content: Text('Could not connect: $e')),
         );
       }
     } finally {
@@ -187,7 +161,7 @@ class _WelcomePageState extends State<WelcomePage> {
             ),
           ),
 
-          // Dots indicator above buttons
+          // Dots indicator above button
           Positioned(
             left: 0,
             right: 0,
@@ -210,62 +184,30 @@ class _WelcomePageState extends State<WelcomePage> {
             ),
           ),
 
-          // Bottom buttons (iOS only view)
+          // Single "Get Started" button
           Positioned(
             left: 16,
             right: 16,
             bottom: 24 + bottomPadding,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Continue with Apple (primary for iOS)
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _busy ? null : _continueWithApple,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black87,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.apple, size: 22),
-                        SizedBox(width: 10),
-                        Text(
-                          "Continue with Apple",
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                        ),
-                      ],
-                    ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _busy ? null : _continueWithICloud,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 2,
                 ),
-                const SizedBox(height: 12),
-                // Join as a guest (secondary)
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton(
-                    onPressed: _busy ? null : _continueAsGuest,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white70),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      backgroundColor: Colors.white10,
-                    ),
-                    child: const Text(
-                      "Join as a guest",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
+                child: const Text(
+                  "Get Started",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
-              ],
+              ),
             ),
           ),
 

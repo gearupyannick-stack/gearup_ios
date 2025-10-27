@@ -19,7 +19,6 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
   StreamSubscription<List<PurchaseDetails>>? _sub;
 
   bool _loading = true;
-  bool _isAvailable = false;
   ProductDetails? _product;
   bool _processing = false;
 
@@ -44,7 +43,6 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
 
     final available = await _iap.isAvailable();
     setState(() {
-      _isAvailable = available;
     });
 
     if (!available) {
@@ -132,7 +130,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.black.withOpacity(0.45), Colors.transparent],
+                  colors: [Colors.black, Colors.transparent],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                 ),
@@ -309,7 +307,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 3))],
+                      boxShadow: [BoxShadow(color: Colors.black, blurRadius: 8, offset: const Offset(0, 3))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

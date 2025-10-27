@@ -13,7 +13,7 @@ import 'pages/welcome_page.dart';
 import 'services/sound_manager.dart';
 import 'services/premium_service.dart';
 import 'pages/premium_page.dart';
-
+import 'services/auth_service.dart';
 import 'storage/lives_storage.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -81,6 +81,25 @@ class CarLearningApp extends StatelessWidget {
     required this.livesStorage,
   }) : super(key: key);
 
+  Future<bool> _initializeApp() async {
+    final prefs = await SharedPreferences.getInstance();
+    final onboarded = prefs.getBool('isOnboarded') ?? false;
+    
+    // Auto-authenticate returning users silently in background
+    if (onboarded) {
+      try {
+        final auth = AuthService();
+        if (auth.currentUser == null) {
+          await auth.signInAnonymously();
+        }
+      } catch (e) {
+        debugPrint('Background auth failed: $e');
+      }
+    }
+    
+    return onboarded;
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -125,8 +144,7 @@ class CarLearningApp extends StatelessWidget {
       ),
 
       home: FutureBuilder<bool>(
-        future: SharedPreferences.getInstance()
-            .then((p) => p.getBool('isOnboarded') ?? false),
+        future: _initializeApp(),
         builder: (context, snap) {
           if (!snap.hasData) {
             return const Scaffold(
@@ -135,11 +153,8 @@ class CarLearningApp extends StatelessWidget {
           }
           final onboarded = snap.data!;
           if (!onboarded) {
-            // ✅ First launch: show WelcomePage (your buttons handle setting isOnboarded=true)
             return const WelcomePage();
           }
-          // ✅ After onboarding: keep your existing preload vs. main logic
-          // After onboarding: always go straight to MainPage (assets are local now)
           return MainPage(
             initialLives: initialLives,
             livesStorage: livesStorage,

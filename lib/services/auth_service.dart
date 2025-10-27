@@ -46,7 +46,7 @@ class AuthService {
       debugPrint('APPLE CRED: identityToken present? -> ${appleCred.identityToken != null}');
       debugPrint('APPLE CRED: identityToken length -> ${appleCred.identityToken?.length ?? 0}');
       debugPrint('APPLE CRED: authorizationCode present? -> ${appleCred.authorizationCode != null}');
-      debugPrint('APPLE CRED: authorizationCode length -> ${appleCred.authorizationCode?.length ?? 0}');
+      debugPrint('APPLE CRED: authorizationCode length -> ${appleCred.authorizationCode.length}');
       debugPrint('DEBUG NONCE: rawNonce length=${rawNonce.length}, sha256 length=${hashedNonce.length}');
 
       if (appleCred.identityToken == null || appleCred.identityToken!.isEmpty) {
