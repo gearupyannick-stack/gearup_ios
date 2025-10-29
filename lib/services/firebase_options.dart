@@ -17,7 +17,10 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      return web;
+      throw UnsupportedError(
+        'DefaultFirebaseOptions have not been configured for web - '
+        'you can reconfigure this by running the FlutterFire CLI again.',
+      );
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -25,9 +28,15 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        return macos;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.windows:
-        return windows;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -40,19 +49,9 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCNUQjXSt1fl7GtfDx9FA3KSwHtzTiWMcY',
-    appId: '1:947361107260:web:26b19b006ca8d67ee2a239',
-    messagingSenderId: '947361107260',
-    projectId: 'gearup-ceeb0',
-    authDomain: 'gearup-ceeb0.firebaseapp.com',
-    storageBucket: 'gearup-ceeb0.firebasestorage.app',
-    measurementId: 'G-0Y69D812DS',
-  );
-
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCYAJbWqy94oiFZNmOn6oLIqNd4ORAkj3Y',
-    appId: '1:947361107260:android:55c50d669c8882d9e2a239',
+    appId: '1:947361107260:android:d96311d73e344e03e2a239',
     messagingSenderId: '947361107260',
     projectId: 'gearup-ceeb0',
     storageBucket: 'gearup-ceeb0.firebasestorage.app',
@@ -60,29 +59,12 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDaIFBl0QXQSLQ3nC55X00_eNp4oZbcRYw',
-    appId: '1:947361107260:ios:1866ca8c1e051aa8e2a239',
+    appId: '1:947361107260:ios:7ec18ae14bac0a0de2a239',
     messagingSenderId: '947361107260',
     projectId: 'gearup-ceeb0',
     storageBucket: 'gearup-ceeb0.firebasestorage.app',
+    androidClientId: '947361107260-bij2k79laobhpgg3rfeg8itsa99hv78j.apps.googleusercontent.com',
+    iosClientId: '947361107260-ava4aoun4v5mvepdtshqk1n27jlvuu7t.apps.googleusercontent.com',
     iosBundleId: 'com.gearup.app',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDaIFBl0QXQSLQ3nC55X00_eNp4oZbcRYw',
-    appId: '1:947361107260:ios:1866ca8c1e051aa8e2a239',
-    messagingSenderId: '947361107260',
-    projectId: 'gearup-ceeb0',
-    storageBucket: 'gearup-ceeb0.firebasestorage.app',
-    iosBundleId: 'com.gearup.app',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCNUQjXSt1fl7GtfDx9FA3KSwHtzTiWMcY',
-    appId: '1:947361107260:web:6750454538b94830e2a239',
-    messagingSenderId: '947361107260',
-    projectId: 'gearup-ceeb0',
-    authDomain: 'gearup-ceeb0.firebaseapp.com',
-    storageBucket: 'gearup-ceeb0.firebasestorage.app',
-    measurementId: 'G-69N8YLPTJB',
   );
 }

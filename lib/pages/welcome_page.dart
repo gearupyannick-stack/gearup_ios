@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../main.dart';
-import '../storage/lives_storage.dart';
+import '../services/lives_storage.dart';
 
 class Slide {
   final String imagePath;

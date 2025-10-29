@@ -14,7 +14,7 @@ import 'services/sound_manager.dart';
 import 'services/premium_service.dart';
 import 'pages/premium_page.dart';
 import 'services/auth_service.dart';
-import 'storage/lives_storage.dart';
+import 'services/lives_storage.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'services/firebase_options.dart';
