@@ -49,5 +49,68 @@
 	<array>
 		<integer>1</integer> <!-- iPhone only -->
 	</array>
+
+	<!-- Google AdMob Configuration -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3327975632345057~0000000000</string>
+	<!-- ⚠️ TODO: Replace with your actual iOS App ID from AdMob Console -->
+	<!-- Instructions:
+	     1. Go to https://apps.admob.com
+	     2. Create a new iOS app (or select existing)
+	     3. Copy the App ID (format: ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY)
+	     4. Replace the value above
+	-->
+
+	<!-- App Tracking Transparency (Required for iOS 14.5+) -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This app uses your data to provide personalized ads and improve your experience.</string>
+
+	<!-- SKAdNetwork IDs for Ad Attribution -->
+	<key>SKAdNetworkItems</key>
+	<array>
+		<!-- Google AdMob -->
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>cstr6suwn9.skadnetwork</string>
+		</dict>
+		<!-- Google Ads -->
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>4fzdc2evr5.skadnetwork</string>
+		</dict>
+		<!-- Additional common ad networks -->
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>v72qych5uu.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>ludvb6z3bs.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>2u9pt9hc89.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>yclnxrl5pm.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>8s468mfl3y.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>glqzh8vgby.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>ppxm28t8ap.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>4468km3ulz.skadnetwork</string>
+		</dict>
+	</array>
 </dict>
 </plist>

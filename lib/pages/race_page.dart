@@ -8,6 +8,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/audio_feedback.dart';
 import '../services/collab_wan_service.dart'; // <<-- NEW
+import '../services/ad_service.dart';
+import '../services/analytics_service.dart';
 
 class RacePage extends StatefulWidget {
   const RacePage({Key? key}) : super(key: key);
@@ -169,6 +171,16 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
     setState(() {
       _raceStarted = true;
     });
+
+    // Track race started
+    AnalyticsService.instance.logEvent(
+      name: 'race_started',
+      parameters: {
+        'track': _activeTrackIndex ?? 0,
+        'is_multiplayer': _currentRoomCode != null ? 'true' : 'false',
+      },
+    );
+
     _carController.repeat();
   }
 
@@ -1754,6 +1766,14 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
     }
   }
 
+  Future<void> _maybeShowRaceInterstitial() async {
+    try {
+      await AdService.instance.incrementRaceAndMaybeShow();
+    } catch (e, st) {
+      debugPrint('AdService.incrementRaceAndMaybeShow failed: $e\n$st');
+    }
+  }
+
   Future<void> _leaveCurrentRoom() async {
     final room = _currentRoomCode;
     // stop presence updates first
@@ -2046,6 +2066,17 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                       onPressed: () async {
                         _carController.stop();
                         await _leaveCurrentRoom();
+
+                        // Show interstitial ad after leaving race
+                        final bool hadProgress = _raceStarted || _quizCurrentPos > 0 || _quizScore > 0;
+                        if (hadProgress) {
+                          try {
+                            await _maybeShowRaceInterstitial();
+                          } catch (e) {
+                            debugPrint('Race interstitial on leave failed: $e');
+                          }
+                        }
+
                         if (!mounted) return;
                         setState(() {
                           _inPublicRaceView = false;

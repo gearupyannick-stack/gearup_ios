@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
 import '../services/lives_storage.dart';
+import '../services/analytics_service.dart';
 
 class Slide {
   final String imagePath;
@@ -86,8 +87,14 @@ class _WelcomePageState extends State<WelcomePage> {
     try {
       // Automatically authenticate with Firebase Anonymous (iCloud data will sync)
       final auth = AuthService();
-      await auth.signInAnonymously();
-      
+      final user = await auth.signInAnonymously();
+
+      // Track sign-up in Analytics
+      await AnalyticsService.instance.logSignUp(method: 'anonymous');
+      if (user != null) {
+        await AnalyticsService.instance.setUserId(user.uid);
+      }
+
       // Mark onboarding done and enter
       await _markOnboardedAndEnter();
     } catch (e) {

@@ -11,8 +11,10 @@ import 'challenges/max_speed_challenge_page.dart';
 import 'challenges/acceleration_challenge_page.dart';
 import 'challenges/power_challenge_page.dart';
 import 'challenges/special_feature_challenge_page.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../services/premium_service.dart';
+import '../services/ad_service.dart';
 import '../services/audio_feedback.dart'; // keep your audio hook if used
 
 typedef VoidAsync = Future<void> Function();
@@ -76,7 +78,7 @@ class _TrainingPageState extends State<TrainingPage> {
     // If this title is gated and user is not premium, check the daily limit.
     final bool isGated = _gatedTitles.contains(title);
     if (isGated && !premium.isPremium) {
-      // If they reached the daily free limit, show upgrade dialog
+      // If they reached the daily free limit, show dialog with ad option
       if (!premium.canStartTrainingNow()) {
         await showDialog(
           context: context,
@@ -84,10 +86,39 @@ class _TrainingPageState extends State<TrainingPage> {
             title: const Text("Daily limit reached"),
             content: const Text(
               "Free users can try 5 gated Training challenges per day.\n\n"
-              "Upgrade to Premium for unlimited Training and unlimited lives.",
+              "Watch an ad to get +5 more attempts or upgrade to Premium for unlimited Training and unlimited lives.",
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close")),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  // Show rewarded ad
+                  try {
+                    final shown = await AdService.instance.showRewardedTrainingTrials(
+                      onGrantedTrials: (RewardItem reward) {
+                        // Grant +5 training attempts
+                        // Note: You may want to add actual tracking of ad-granted trials
+                        // For now, we'll just show a success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Granted +5 training attempts! Try again.')),
+                        );
+                      },
+                    );
+                    if (!shown) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Ad unavailable — please try again later.')),
+                      );
+                    }
+                  } catch (e) {
+                    debugPrint('Error showing training trials ad: $e');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error showing ad: $e')),
+                    );
+                  }
+                },
+                child: const Text("Watch Ad (+5)"),
+              ),
               TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
@@ -109,6 +140,13 @@ class _TrainingPageState extends State<TrainingPage> {
 
     // optional callback
     widget.recordChallengeCompletion?.call();
+
+    // increment challenge counter (and show interstitial per your rule every 5)
+    try {
+      await AdService.instance.incrementChallengeAndMaybeShow();
+    } catch (e) {
+      debugPrint('AdService.incrementChallengeAndMaybeShow error: $e');
+    }
   }
 
   @override

@@ -12,6 +12,7 @@ import 'pages/profile_page.dart';
 import 'pages/welcome_page.dart';
 import 'services/sound_manager.dart';
 import 'services/premium_service.dart';
+import 'services/ad_service.dart';
 import 'pages/premium_page.dart';
 import 'services/auth_service.dart';
 import 'services/lives_storage.dart';
@@ -21,15 +22,81 @@ import 'services/firebase_options.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/race_page.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'services/analytics_service.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+/// Track app launch and update user properties in Analytics
+Future<void> _trackAppLaunch(SharedPreferences prefs) async {
+  try {
+    // Log app open
+    await AnalyticsService.instance.logAppOpen();
+
+    // Check if this is first app open
+    final isFirstOpen = !(prefs.getBool('isOnboarded') ?? false);
+    if (isFirstOpen) {
+      await AnalyticsService.instance.logFirstOpen();
+    }
+
+    // Set user ID from Firebase Auth
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      await AnalyticsService.instance.setUserId(currentUser.uid);
+    }
+
+    // Update user properties
+    final isPremium = prefs.getBool('isPremium') ?? false;
+    final gearCount = prefs.getInt('gearCount') ?? 0;
+    final dayStreak = prefs.getInt('dayStreak') ?? 0;
+
+    // Determine auth method for iOS
+    String authMethod = 'anonymous';
+    if (currentUser != null && !currentUser.isAnonymous) {
+      // Check provider data to determine if it's Apple Sign-In
+      final providerData = currentUser.providerData;
+      if (providerData.any((info) => info.providerId == 'apple.com')) {
+        authMethod = 'apple';
+      }
+    }
+
+    // Determine user type
+    String userType = 'free';
+    if (isPremium) {
+      userType = 'premium';
+    } else if (currentUser?.isAnonymous ?? false) {
+      userType = 'guest';
+    }
+
+    // Update all user properties
+    await AnalyticsService.instance.updateUserProperties(
+      userType: userType,
+      totalGears: gearCount,
+      currentTrack: 1, // Default, will be updated as user progresses
+      currentLevel: 1, // Default, will be updated as user progresses
+      dayStreak: dayStreak,
+      authMethod: authMethod,
+    );
+
+    debugPrint('Analytics: App launch tracked successfully');
+  } catch (e) {
+    debugPrint('Analytics: Error tracking app launch: $e');
+    // Don't block app startup if analytics fails
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Set true during local dev to use test ads
+  await AdService.instance.init(testMode: false);
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize Analytics
+  await AnalyticsService.instance.init();
 
   await SoundManager.instance.init();
   // --------------------------
@@ -55,7 +122,9 @@ void main() async {
     debugPrint('AppCheck activation error: $e\n$st');
   }
 
+  // Track app open and set user properties
   final prefs = await SharedPreferences.getInstance();
+  await _trackAppLaunch(prefs);
   final bool areImagesLoaded = prefs.getBool('areImagesLoaded') ?? false;
   final bool shouldPreload = !areImagesLoaded;
 
@@ -259,6 +328,7 @@ class _MainPageState extends State<MainPage> {
   late int lives;
   Timer? _lifeTimer;
   bool _hasShownRatePopup = false;
+  bool _isShowingAdAction = false;
   final ValueNotifier<int> _lifeTimerRemaining = ValueNotifier<int>(0);
 
   // ── KEYS & PAGES ───────────────────────────────────
@@ -304,6 +374,12 @@ class _MainPageState extends State<MainPage> {
         onLifeWon: () async {
           int newLives = await widget.livesStorage.readLives();
           setState(() => lives = newLives);
+
+          // Track life earned from training
+          AnalyticsService.instance.logLifeEarned(
+            source: 'training',
+            livesNow: newLives,
+          );
         },
         recordChallengeCompletion: recordChallengeCompletion,
       ),
@@ -415,6 +491,12 @@ class _MainPageState extends State<MainPage> {
     if (!PremiumService.instance.isPremium) {
       setState(() { if (lives > 0) lives--; });
       await widget.livesStorage.writeLives(lives);
+
+      // Track life lost
+      AnalyticsService.instance.logLifeLost(
+        context: 'challenge_fail',
+        livesRemaining: lives,
+      );
     }
 // 2) If we’ve dropped below max, schedule the next life *relative to now*
     if (lives < _maxLives) {
@@ -457,6 +539,12 @@ class _MainPageState extends State<MainPage> {
                     final prefs = await SharedPreferences.getInstance();
                     prefs.remove('nextLifeDueTime');
 
+                    // Track life earned from rating
+                    AnalyticsService.instance.logLifeEarned(
+                      source: 'rate_app',
+                      livesNow: lives,
+                    );
+
                     Navigator.of(ctx).pop();
                     final uri = Uri.parse(
                       // NOTE: keep your existing Android package here.
@@ -485,6 +573,48 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
+  /// Watch ad to recover a life
+  Future<void> _onWatchAdForLife() async {
+    if (_isShowingAdAction) return;
+    setState(() => _isShowingAdAction = true);
+
+    scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Loading ad...')));
+
+    try {
+      // AdService should call the provided onEarnedLife callback synchronously
+      final shown = await AdService.instance.showRewardedHomeLife(
+        onEarnedLife: () {
+          // Grant 1 life
+          setState(() {
+            lives = (lives + 1).clamp(0, _maxLives);
+          });
+          widget.livesStorage.writeLives(lives);
+
+          scaffoldMessengerKey.currentState?.showSnackBar(
+            const SnackBar(content: Text('Life recovered!')),
+          );
+        },
+      );
+
+      scaffoldMessengerKey.currentState?.clearSnackBars();
+
+      if (!shown) {
+        scaffoldMessengerKey.currentState?.showSnackBar(
+          const SnackBar(content: Text('Ad unavailable — please try again later.')),
+        );
+      }
+      // if shown==true, the onEarnedLife callback will have run and persisted new lives.
+    } catch (e) {
+      scaffoldMessengerKey.currentState?.clearSnackBars();
+      scaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text('Error showing ad: $e')),
+      );
+      debugPrint('Error in _onWatchAdForLife: $e');
+    } finally {
+      if (mounted) setState(() => _isShowingAdAction = false);
+    }
+  }
+
   Future<void> _maybeShowTutorial({bool force = false}) async {
     // Show the tutorial only when:
     //  - force == true  (replay request from profile), OR
@@ -499,6 +629,8 @@ class _MainPageState extends State<MainPage> {
     if (force) {
       // Replay requested from profile: always show, and persist that user has seen it.
       await prefs.setBool('hasSeenTutorial', true);
+      // Track tutorial replay
+      AnalyticsService.instance.logTutorialReplayed();
       WidgetsBinding.instance.addPostFrameCallback((_) => _showTutorial());
       return;
     }
@@ -506,6 +638,8 @@ class _MainPageState extends State<MainPage> {
     // Normal behaviour: if not seen before, mark seen and show once.
     if (!hasSeen) {
       await prefs.setBool('hasSeenTutorial', true);
+      // Track tutorial begin
+      AnalyticsService.instance.logTutorialBegin();
       WidgetsBinding.instance.addPostFrameCallback((_) => _showTutorial());
     }
   }
@@ -964,10 +1098,14 @@ class _MainPageState extends State<MainPage> {
       alignSkip: Alignment(0, skipYOffset),
       showSkipInLastTarget: false,
       paddingFocus: 10,
-      onFinish: () => print("Tutorial finished"),
+      onFinish: () {
+        print("Tutorial finished");
+        AnalyticsService.instance.logTutorialComplete();
+      },
       onClickTarget: (t) => print("Clicked on ${t.identify}"),
       onSkip: () {
         print("Tutorial skipped");
+        AnalyticsService.instance.logTutorialSkip();
         return true;
       },
     );
@@ -1038,6 +1176,9 @@ class _MainPageState extends State<MainPage> {
 
   void _triggerStreakReward(int streak) {
     if ([7, 14, 30, 60, 100].contains(streak)) {
+      // Track streak milestone
+      AnalyticsService.instance.logStreakMilestone(milestone: streak);
+
       scaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(
           content: Text("🎁 $streak-Day Streak! Bonus awarded!"),
@@ -1091,6 +1232,12 @@ class _MainPageState extends State<MainPage> {
       streakTitle = _getStreakTitle(currentStreak);
     });
 
+    // Track streak update in Analytics
+    AnalyticsService.instance.logStreakUpdated(
+      newStreakCount: currentStreak,
+      streakTitle: streakTitle,
+    );
+
     _triggerStreakReward(currentStreak);
     _playStreakAnimation();
   }
@@ -1123,6 +1270,9 @@ class _MainPageState extends State<MainPage> {
         challengesCompletedToday = true;
       });
 
+      // Track daily goal completed
+      AnalyticsService.instance.logDailyGoalCompleted(challengesCompleted: count);
+
       final completionDays = prefs.getStringList('playHistory') ?? [];
       if (!completionDays.contains(todayStr)) {
         completionDays.add(todayStr);
@@ -1140,6 +1290,9 @@ class _MainPageState extends State<MainPage> {
   Future<void> _showLivesPopup() async {
     // Refresh lives when opening popup
     lives = await widget.livesStorage.readLives();
+
+    // Track lives popup opened
+    AnalyticsService.instance.logLivesPopupOpened(currentLives: lives);
 
     return showDialog(
       context: context,
@@ -1169,7 +1322,18 @@ class _MainPageState extends State<MainPage> {
                     Text("Next life in ${minutes}m ${seconds}s"),
                     const SizedBox(height: 12),
 
-                    const SizedBox(height: 12),
+                    // Watch ad button to recover 1 life
+                    if (!PremiumService.instance.isPremium)
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text("Watch ad — get 1 life"),
+                        onPressed: () {
+                          Navigator.of(context).pop();  // close popup first
+                          _onWatchAdForLife();
+                        },
+                      ),
+
+                    const SizedBox(height: 8),
 
                     // TRAINING CTA: jump to Training tab so user can earn a life
                     ElevatedButton.icon(
@@ -1213,6 +1377,9 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _showCalendarPopup() async {
+    // Track calendar viewed
+    AnalyticsService.instance.logCalendarViewed();
+
     final prefs = await SharedPreferences.getInstance();
     final rawJson   = prefs.getString('dailyCounts') ?? '{}';
     final Map<String, dynamic> dailyCounts = json.decode(rawJson);
