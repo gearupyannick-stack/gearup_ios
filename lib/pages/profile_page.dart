@@ -5,7 +5,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../services/analytics_service.dart';
+import '../services/language_service.dart';
 
 class ProfilePage extends StatefulWidget {
   final VoidCallback? onReplayTutorial;
@@ -135,7 +137,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void showAchievementSnackBar(String title) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("🏆 Achievement Unlocked: $title"),
+        content: Text('profile.achievementUnlocked'.tr(namedArgs: {'title': title})),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         backgroundColor: Colors.black87,
@@ -205,7 +207,7 @@ class _ProfilePageState extends State<ProfilePage> {
         (storedUsername == null ||
             storedUsername.isEmpty ||
             storedUsername == 'N/A' ||
-            storedUsername.startsWith('unamed'));
+            storedUsername.startsWith('unnamed'));
 
     // Compute profilePicIndex and createdAt (persist if missing)
     int resolvedPicIndex;
@@ -225,7 +227,7 @@ class _ProfilePageState extends State<ProfilePage> {
     // Decide username: prefer persisted username, but allow Google name when signed in & opted-in
     String resolvedUsername =
         (storedUsername == null || storedUsername.isEmpty || storedUsername == 'N/A')
-            ? 'unamed_carenthusiast'
+            ? 'unnamed_carenthusiast'
             : storedUsername;
 
     if (googleSigned && useGoogleNamePref && (googleName != null && googleName.isNotEmpty)) {
@@ -311,8 +313,8 @@ class _ProfilePageState extends State<ProfilePage> {
         : username;
 
     final statusChip = _googleSignedIn
-        ? Chip(label: Text(_googleEmail ?? 'Google'), avatar: const Icon(Icons.check_circle, size: 16))
-        : (_isGuest ? const Chip(label: Text('Guest')) : const SizedBox.shrink());
+        ? Chip(label: Text(_googleEmail ?? 'profile.googleUser'.tr(), style: const TextStyle(color: Colors.white70)), avatar: const Icon(Icons.check_circle, size: 16), backgroundColor: const Color(0xFF1E1E1E))
+        : (_isGuest ? Chip(label: Text('profile.guest'.tr(), style: const TextStyle(color: Colors.white70)), backgroundColor: const Color(0xFF1E1E1E)) : const SizedBox.shrink());
 
     return Center(
       child: Column(
@@ -338,8 +340,25 @@ class _ProfilePageState extends State<ProfilePage> {
                       constraints: const BoxConstraints.tightFor(width: 36, height: 36),
                       padding: EdgeInsets.zero,
                       icon: const Icon(Icons.edit, size: 18),
-                      tooltip: 'Edit profile',
+                      tooltip: 'profile.editProfileTooltip'.tr(),
                       onPressed: _showEditProfileDialog,
+                    ),
+                  ),
+                ),
+                // Language selector button
+                Positioned(
+                  top: -6,
+                  left: -6,
+                  child: Material(
+                    color: Colors.black.withOpacity(0.05),
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.language, size: 18),
+                      tooltip: 'language.title'.tr(),
+                      onPressed: _showLanguageSelector,
                     ),
                   ),
                 ),
@@ -354,7 +373,7 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 Text(displayName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text('Member since: $memSince', style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                Text('profile.memberSince'.tr(namedArgs: {'date': memSince}), style: const TextStyle(fontSize: 14, color: Colors.grey)),
               ],
             ),
           ),
@@ -366,7 +385,7 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               const Icon(Icons.local_fire_department, color: Colors.orange),
               const SizedBox(width: 6),
-              Text('Streak: $dailyStreak Days', style: const TextStyle(fontSize: 16)),
+              Text('profile.streakDays'.tr(namedArgs: {'count': dailyStreak.toString()}), style: const TextStyle(fontSize: 16)),
             ],
           ),
         ],
@@ -456,7 +475,7 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (ctx) {
         final allNames = achievementMap.entries.expand((e) => e.value).toList();
         return AlertDialog(
-          title: const Text('All Achievements'),
+          title: Text('profile.allAchievements'.tr()),
           content: SizedBox(
             width: double.maxFinite,
             child: GridView.count(
@@ -466,7 +485,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close"))
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('common.close'.tr()))
           ],
         );
       },
@@ -562,11 +581,67 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Google sign-in is not enabled in this build. Apple ID will replace it later.')),
+      SnackBar(content: Text('profile.appleIdNotice'.tr())),
     );
     return;
   }
   // --- END adapted flow
+
+  // --- START: language selector dialog
+  void _showLanguageSelector() {
+    final currentLang = LanguageService.getCurrentLanguageCode(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: Text('language.selectLanguage'.tr(), style: const TextStyle(color: Colors.white)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: LanguageService.availableLanguages.length,
+              itemBuilder: (context, index) {
+                final langCode = LanguageService.availableLanguages.keys.elementAt(index);
+                final langName = LanguageService.availableLanguages[langCode]!;
+                final flag = LanguageService.getLanguageFlag(langCode);
+                final isSelected = langCode == currentLang;
+
+                return ListTile(
+                  leading: Text(flag, style: const TextStyle(fontSize: 24)),
+                  title: Text(langName, style: const TextStyle(color: Colors.white)),
+                  trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    try {
+                      await LanguageService.changeLanguage(context, langCode);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('language.languageChanged'.tr())),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('language.languageChangeFailed'.tr())),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('common.close'.tr()),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // --- END language selector dialog
 
   // --- START: account dialog (simplified, no Google disconnect button)
   void _showAccountDialog() {
@@ -574,7 +649,7 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Account'),
+          title: Text('profile.account'.tr()),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -590,14 +665,14 @@ class _ProfilePageState extends State<ProfilePage> {
               const Divider(),
               const SizedBox(height: 8),
               Text(
-                _googleSignedIn ? 'Signed in with Google' : (_isGuest ? 'Guest account' : 'Local profile'),
-                style: const TextStyle(fontSize: 13),
+                _googleSignedIn ? 'profile.signedInWithGoogle'.tr() : (_isGuest ? 'profile.guestAccount'.tr() : 'profile.localProfile'.tr()),
+                style: const TextStyle(fontSize: 13, color: Colors.white70),
               ),
             ],
           ),
           actions: [
             // Removed Google disconnect button entirely to have a clear ground for Apple ID integration.
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('common.close'.tr())),
           ],
         );
       },
@@ -615,7 +690,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (prefs.getString('username') == null ||
         prefs.getString('username')!.isEmpty ||
         prefs.getString('username') == 'N/A') {
-      await prefs.setString('username', username.isEmpty ? 'unamed_carenthusiast' : username);
+      await prefs.setString('username', username.isEmpty ? 'unnamed_carenthusiast' : username);
     }
 
     // If favorites are missing, pick a random brand and model once and persist
@@ -652,7 +727,7 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (ctx) => AlertDialog(
         title: Text(title),
         content: Text(description),
-        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text("OK"))],
+        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('common.ok'.tr()))],
       ),
     );
   }
@@ -680,7 +755,7 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Unlocked Achievements"),
+        title: Text('profile.unlockedAchievements'.tr()),
         content: SizedBox(
           width: double.maxFinite,
           child: GridView.count(
@@ -689,7 +764,7 @@ class _ProfilePageState extends State<ProfilePage> {
             children: unlocked.map((name) => _buildMiniAchievement(name)).toList(),
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('common.close'.tr()))],
       ),
     );
   }
@@ -702,7 +777,7 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Locked Achievements"),
+        title: Text('profile.lockedAchievements'.tr()),
         content: SizedBox(
           width: double.maxFinite,
           child: GridView.count(
@@ -711,7 +786,7 @@ class _ProfilePageState extends State<ProfilePage> {
             children: locked.map((name) => _buildMiniAchievement(name)).toList(),
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('common.close'.tr()))],
       ),
     );
   }
@@ -745,7 +820,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _googlePhotoUrl = null;
       _useGoogleName = false;
       _isGuest = true;
-      username = prefs.getString('username') ?? 'unamed_carenthusiast';
+      username = prefs.getString('username') ?? 'unnamed_carenthusiast';
     });
 
     // Close progress + dialog
@@ -769,14 +844,18 @@ class _ProfilePageState extends State<ProfilePage> {
           bool localUseGoogleName = _useGoogleName;
 
           return AlertDialog(
-            title: const Text('Edit Profile'),
+            title: Text('profile.editProfile'.tr()),
             content: SingleChildScrollView(
               child: Column(
                 children: [
                   // Username field
                   TextField(
                     controller: TextEditingController(text: u),
-                    decoration: const InputDecoration(labelText: 'Username'),
+                    style: const TextStyle(color: Colors.white70),
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      labelStyle: TextStyle(color: Colors.white70),
+                    ),
                     onChanged: (v) => u = v,
                   ),
                   const SizedBox(height: 12),
@@ -784,8 +863,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   // Favorite Brand dropdown
                   DropdownButtonFormField<String>(
                     value: fb,
-                    decoration: const InputDecoration(labelText: 'Favorite Brand'),
-                    items: _brandOptions.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                    style: const TextStyle(color: Colors.white70),
+                    decoration: const InputDecoration(
+                      labelText: 'Favorite Brand',
+                      labelStyle: TextStyle(color: Colors.white70),
+                    ),
+                    dropdownColor: const Color(0xFF1E1E1E),
+                    items: _brandOptions.map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(color: Colors.white70)))).toList(),
                     onChanged: (v) {
                       setSt(() {
                         fb = v!;
@@ -798,8 +882,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   // Favorite Model dropdown
                   DropdownButtonFormField<String>(
                     value: fm,
-                    decoration: const InputDecoration(labelText: 'Favorite Model'),
-                    items: _brandToModels[fb]!.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                    style: const TextStyle(color: Colors.white70),
+                    decoration: const InputDecoration(
+                      labelText: 'Favorite Model',
+                      labelStyle: TextStyle(color: Colors.white70),
+                    ),
+                    dropdownColor: const Color(0xFF1E1E1E),
+                    items: _brandToModels[fb]!.map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(color: Colors.white70)))).toList(),
                     onChanged: (v) => setSt(() => fm = v!),
                   ),
                   const SizedBox(height: 12),
@@ -808,7 +897,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   // We still keep the localUseGoogleName toggle variable so user's preference persists if present,
                   // but we don't show Connect/Disconnect Google buttons in this dialog.
                   const SizedBox(height: 4),
-                  Text('Account type: ${_googleSignedIn ? 'Google (signed)' : (_isGuest ? 'Guest' : 'Local')}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text('${'profile.accountType'.tr()}: ${_googleSignedIn ? 'profile.googleSigned'.tr() : (_isGuest ? 'profile.guest'.tr() : 'profile.localProfile'.tr())}', style: const TextStyle(fontSize: 12, color: Colors.white70)),
                 ],
               ),
             ),
@@ -834,9 +923,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   });
                   Navigator.pop(ctx);
                 },
-                child: const Text('Save'),
+                child: Text('common.save'.tr()),
               ),
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text('common.cancel'.tr())),
             ],
           );
         },
@@ -877,7 +966,7 @@ class _ProfilePageState extends State<ProfilePage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("🏆 Achievement Unlocked: $_justUnlockedAchievement"),
+            content: Text('profile.achievementUnlocked'.tr(namedArgs: {'title': _justUnlockedAchievement ?? ''})),
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.black87,
@@ -903,8 +992,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 20),
 
                   Text(
-                    'Track $_currentTrack, Level ${_sessionsCompleted + 1}, '
-                    '${_currentLevelGears}/$_requiredGearsForCurrentLevel gear',
+                    'profile.trackLevelProgress'.tr(namedArgs: {
+                      'track': _currentTrack.toString(),
+                      'level': (_sessionsCompleted + 1).toString(),
+                      'current': _currentLevelGears.toString(),
+                      'required': _requiredGearsForCurrentLevel.toString()
+                    }),
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -915,22 +1008,22 @@ class _ProfilePageState extends State<ProfilePage> {
                     valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
                   ),
                   const SizedBox(height: 24),
-                  const Text('Your Stats', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('profile.yourStats'.tr(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _buildStatCard('Training Completed', trainingCompletedCount.toString(), Icons.fitness_center),
-                        _buildStatCard('Correct Answers', correctAnswerCount.toString(), Icons.check_circle),
-                        _buildStatCard('Categories Mastered', '$categoriesMastered/8', Icons.category),
-                        _buildStatCard('Challenges Attempted', challengesAttemptedCount.toString(), Icons.flag),
-                        _buildStatCard('Accuracy Rate', '$accuracy%', Icons.bar_chart),
+                        _buildStatCard('profile.trainingCompleted'.tr(), trainingCompletedCount.toString(), Icons.fitness_center),
+                        _buildStatCard('profile.correctAnswers'.tr(), correctAnswerCount.toString(), Icons.check_circle),
+                        _buildStatCard('profile.categoriesMasteredLabel'.tr(), '$categoriesMastered/8', Icons.category),
+                        _buildStatCard('profile.challengesAttemptedLabel'.tr(), challengesAttemptedCount.toString(), Icons.flag),
+                        _buildStatCard('profile.accuracyRate'.tr(), '$accuracy%', Icons.bar_chart),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text('Achievements', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('profile.achievements'.tr(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
 
                   if (unlocked.isNotEmpty)
@@ -1034,14 +1127,14 @@ class _ProfilePageState extends State<ProfilePage> {
             child: ElevatedButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('All images are bundled locally in the app — no preload required.'),
-                    duration: Duration(seconds: 2),
+                  SnackBar(
+                    content: Text('profile.imagesPreloaded'.tr()),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
               },
               style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 40)),
-              child: const Text('Ensure All Images Are Loaded'),
+              child: Text('profile.ensureImagesLoaded'.tr()),
             ),
           ),
         ],

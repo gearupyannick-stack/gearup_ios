@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:easy_localization/easy_localization.dart';
 import '../../services/audio_feedback.dart'; // added by audio patch
 
 class OriginChallengePage extends StatefulWidget {
@@ -30,6 +31,7 @@ class _OriginChallengePageState extends State<OriginChallengePage> {
   // ── Frame animation ─────────────────────────────────────────────────────────
   int    _frameIndex = 0;
   Timer? _frameTimer;
+  static const int _maxFrames = 6;
 
   // ── Answer‐highlighting ─────────────────────────────────────────────────────
   String? _selectedOrigin;
@@ -48,12 +50,34 @@ _loadCsv();
       setState(() => _elapsedSeconds++);
     });
 
-    // frame‐by‐frame timer (2s per frame)
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() {
-        _frameIndex = (_frameIndex + 1) % 6;
-      });
+    _startFrameTimer();
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!_answered) {
+        setState(() {
+          _frameIndex = (_frameIndex + 1) % _maxFrames;
+        });
+      }
     });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex + 1) % _maxFrames;
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+    });
+    _startFrameTimer();
   }
 
   @override
@@ -96,13 +120,19 @@ super.dispose();
     _currentModel  = row['model'];
     _correctOrigin = row['origin']!;
 
-    final opts = <String>{ _correctOrigin };
+    // Build 4 distinct options with uniqueness check
+    final used = <String>{_correctOrigin};
+    final opts = [_correctOrigin];
     while (opts.length < 4) {
-      opts.add(_carData[rnd.nextInt(_carData.length)]['origin']!);
+      final candidate = _carData[rnd.nextInt(_carData.length)]['origin']!;
+      if (!used.contains(candidate)) {
+        used.add(candidate);
+        opts.add(candidate);
+      }
     }
 
     setState(() {
-      _options = opts.toList()..shuffle();
+      _options = opts..shuffle();
     });
   }
 
@@ -170,34 +200,42 @@ Future.delayed(const Duration(seconds: 1), _nextQuestion);
     final fileName = '$base$_frameIndex.webp';
     final assetPath = 'assets/model/$fileName';
 
-    return Image.asset(
-      assetPath,
-      key: ValueKey<int>(_frameIndex),
-      height: 220,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        // fallback UI when an asset is missing (helps debugging on iOS)
-        return Container(
-          height: 220,
-          width: double.infinity,
-          color: Colors.grey[900],
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.directions_car, color: Colors.white54, size: 36),
-                const SizedBox(height: 8),
-                Text(
-                  'Missing: $fileName',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-              ],
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix(<double>[
+        1.3, 0, 0, 0, 0,
+        0, 1.3, 0, 0, 0,
+        0, 0, 1.3, 0, 0,
+        0, 0, 0, 1, 0,
+      ]),
+      child: Image.asset(
+        assetPath,
+        key: ValueKey<int>(_frameIndex),
+        height: 220,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // fallback UI when an asset is missing (helps debugging on iOS)
+          return Container(
+            height: 220,
+            width: double.infinity,
+            color: Colors.grey[900],
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.directions_car, color: Colors.white54, size: 36),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Missing: $fileName',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -240,7 +278,48 @@ Future.delayed(const Duration(seconds: 1), _nextQuestion);
                     borderRadius: BorderRadius.circular(12),
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 500),
+                      transitionBuilder: (child, anim) =>
+                          FadeTransition(opacity: anim, child: child),
                       child: _buildFrameImage(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios, size: 20),
+                        onPressed: _answered ? null : _goToPreviousFrame,
+                        color: Colors.white70,
+                      ),
+                      Text(
+                        '${_frameIndex + 1}/$_maxFrames',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                        onPressed: _answered ? null : _goToNextFrame,
+                        color: Colors.white70,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      _maxFrames,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _frameIndex == index
+                              ? Colors.red
+                              : Colors.grey.withOpacity(0.4),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),

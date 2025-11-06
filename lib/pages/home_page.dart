@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../services/audio_feedback.dart';
 import '../services/ad_service.dart';
 import '../services/analytics_service.dart';
@@ -161,7 +162,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (_isShowingAdAction) return;
     setState(() => _isShowingAdAction = true);
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(const SnackBar(content: Text('Loading ad...')));
+    messenger.showSnackBar(SnackBar(content: Text('lives.loadingAd'.tr())));
 
     try {
       final shown = await AdService.instance.showRewardedHomePass(
@@ -178,13 +179,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       messenger.clearSnackBars();
 
       if (shown) {
-        messenger.showSnackBar(const SnackBar(content: Text('Passed — good luck!')));
+        messenger.showSnackBar(SnackBar(content: Text('home.passedGoodLuck'.tr())));
       } else {
-        messenger.showSnackBar(const SnackBar(content: Text('Ad unavailable — please try again later.')));
+        messenger.showSnackBar(SnackBar(content: Text('lives.adUnavailable'.tr())));
       }
     } catch (e) {
       messenger.clearSnackBars();
-      messenger.showSnackBar(SnackBar(content: Text('Error showing ad: $e')));
+      messenger.showSnackBar(SnackBar(content: Text('home.errorShowingAd'.tr(namedArgs: {'error': e.toString()}))));
       debugPrint('Error in _onWatchAdToPass: $e');
     } finally {
       if (mounted) setState(() => _isShowingAdAction = false);
@@ -596,7 +597,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Feeling stuck?'),
+        title: Text('home.feelingStuck'.tr()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -618,7 +619,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   // call the ad flow, passing the async onPassAction
                   _onWatchAdToPass(onPassAction);
                 },
-                child: const Text('Watch ad to pass'),
+                child: Text('home.watchAdToPass'.tr()),
               ),
             ),
             const SizedBox(height: 8),
@@ -629,7 +630,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
+                child: Text('common.close'.tr()),
               ),
             ),
           ],
@@ -802,7 +803,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void showAchievementSnackBar(String title) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("🏆 Achievement Unlocked: $title"),
+        content: Text('home.achievementUnlocked'.tr(namedArgs: {'title': title})),
         duration: Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         backgroundColor: Colors.black87,
@@ -1581,7 +1582,7 @@ Future<void> _loadConsecutiveFails() async {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("Tracks"),
+          title: Text('home.tracks'.tr()),
           content: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -1595,7 +1596,7 @@ Future<void> _loadConsecutiveFails() async {
           actions: [
             TextButton(
               onPressed: () { Navigator.of(context).pop(); },
-              child: Text("Close"),
+              child: Text('common.close'.tr()),
             )
           ],
         );
@@ -1664,7 +1665,7 @@ Future<void> _loadConsecutiveFails() async {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text("Level $level - Required: $requiredGears gears", style: TextStyle(fontSize: 12)),
+                            Text('home.levelRequired'.tr(namedArgs: {'level': level.toString(), 'gears': requiredGears.toString()}), style: const TextStyle(fontSize: 12)),
                             SizedBox(height: 2),
                             LinearProgressIndicator(
                               value: progress,
@@ -1925,7 +1926,7 @@ Future<void> _loadConsecutiveFails() async {
 
                           _animateToNextPoint();
                         },
-                        child: Text("Next Track"),
+                        child: Text('home.nextTrack'.tr()),
                       ),
                     );
                   }
@@ -1954,7 +1955,7 @@ Future<void> _loadConsecutiveFails() async {
                             _animateToNextPoint();
                           });
                         },
-                        child: Text("Next Level"),
+                        child: Text('home.nextLevel'.tr()),
                       ),
                     );
                   }
@@ -1971,7 +1972,7 @@ Future<void> _loadConsecutiveFails() async {
                           });
                           _correctMistakes();
                         },
-                        child: Text("Retry"),
+                        child: Text('home.retry'.tr()),
                       ),
                     );
                   }
@@ -1994,7 +1995,7 @@ class _QuestionPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false, // disables back arrow
-        title: Text("Flag Challenge"),    // or any title you use
+        title: Text('home.flagChallenge'.tr()),    // or any title you use
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -2071,15 +2072,14 @@ class _RandomModelBrandQuestionContentState
         children: [
           // Header
           Text(
-            "Question #${widget.questionNumber}  "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
 
           // Prompt
           const Text(
-            "What's the brand of this model ?",
+            "questions.brandOfModel".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -2208,13 +2208,12 @@ class _ModelNameToBrandQuestionContentState
       child: Column(
         children: [
           Text(
-            "Question #${widget.questionNumber} – "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: TextStyle(fontSize: 12),
           ),
           SizedBox(height: 30),
           Text(
-            "Which brand makes the model:",
+            "questions.brandMakesModel".tr(),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -2333,15 +2332,14 @@ class _DescriptionSlideshowQuestionContentState
         children: [
           // ── Header ────────────────────────────────────────────────
           Text(
-            "Question #${widget.questionNumber}   "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
 
           // ── Prompt ────────────────────────────────────────────────
           const Text(
-            "Which description corresponds to this car ?",
+            "questions.descriptionMatch".tr(),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
             textAlign: TextAlign.center,
           ),
@@ -2483,13 +2481,12 @@ class _HorsepowerQuestionContentState
         children: [
           // Header
           Text(
-            "Question #${widget.questionNumber} – "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
           const Text(
-            "How many HorsePower does this car has ?",
+            "questions.horsePower".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -2640,15 +2637,14 @@ class _AccelerationQuestionContentState
         children: [
           // Header
           Text(
-            "Question #${widget.questionNumber} – "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
 
           // Prompt
           const Text(
-            "What's the acceleration time (0-100km/h) of this car ?",
+            "questions.acceleration".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -2800,15 +2796,14 @@ class _MaxSpeedQuestionContentState
         children: [
           // Header
           Text(
-            "Question #${widget.questionNumber} – "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
 
           // Prompt
           const Text(
-            "What's the max speed of this car ?",
+            "questions.maxSpeed".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -2959,15 +2954,14 @@ class _SpecialFeatureQuestionContentState
         children: [
           // Header
           Text(
-            "Question #${widget.questionNumber} – "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
 
           // Prompt
           const Text(
-            "WHich special feature does this car has ?",
+            "questions.specialFeature".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -3115,8 +3109,7 @@ class _DescriptionToCarImageQuestionContentState
         children: [
           // Header
           Text(
-            "Question #${widget.questionNumber} – "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
@@ -3269,15 +3262,14 @@ class _BrandImageChoiceQuestionContentState
       children: [
         // Header
         Text(
-          "Question #${widget.questionNumber} – "
-          "Score: ${widget.currentScore}/${widget.totalQuestions}",
+          "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
           style: const TextStyle(fontSize: 12),
         ),
         const SizedBox(height: 20),
 
         // Prompt
         Text(
-          "Which image represent the ${widget.targetBrand} ?",
+          'questions.brandImage'.tr(namedArgs: {'brand': widget.targetBrand}),
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
@@ -3425,15 +3417,14 @@ class _OriginCountryQuestionContentState
         children: [
           // Header
           Text(
-            "Question #${widget.questionNumber} – "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
 
           // Prompt
           const Text(
-            "Which country does this car come from ?",
+            "questions.origin".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -3581,13 +3572,12 @@ class _ModelOnlyImageQuestionContentState
         children: [
           // En-tête
           Text(
-            "Question #${widget.questionNumber} – "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
           const Text(
-            "What is this model ?",
+            "questions.modelName".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -3717,15 +3707,14 @@ class _RandomCarImageQuestionContentState
         children: [
           // Header
           Text(
-            "Question #${widget.questionNumber}  "
-            "Score: ${widget.currentScore}/${widget.totalQuestions}",
+            "questions.questionNumber".tr(namedArgs: {'number': widget.questionNumber.toString()}) + " " + "questions.score".tr(namedArgs: {'current': widget.currentScore.toString(), 'total': widget.totalQuestions.toString()}),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
 
           // Prompt (changed)
           const Text(
-            "Which car is this ?",
+            "questions.whichCar".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),

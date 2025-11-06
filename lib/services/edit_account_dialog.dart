@@ -5,6 +5,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../services/auth_service.dart';
 
 class EditAccountDialog extends StatefulWidget {
@@ -48,7 +49,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
 
   Future<void> _connectApple() async {
     if (!Platform.isIOS) {
-      _showSnack('Sign in with Apple is available only on iOS in this app.');
+      _showSnack('profile.appleOnlyIOS'.tr());
       return;
     }
 
@@ -68,12 +69,12 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
       _displayNameController.text = user.displayName ?? _displayNameController.text;
       _emailController.text = user.email ?? _emailController.text;
 
-      _showSnack('Connected with Apple.');
+      _showSnack('profile.connectedApple'.tr());
       setState(() {}); // force refresh du UI (notamment _isLinkedWithApple)
     } on FirebaseAuthException catch (e) {
-      _showSnack('Apple error: ${e.message ?? e.code}');
+      _showSnack('profile.appleError'.tr(namedArgs: {'error': e.message ?? e.code}));
     } catch (e) {
-      _showSnack('Apple sign-in failed: $e');
+      _showSnack('profile.appleSignInFailed'.tr(namedArgs: {'error': e.toString()}));
     } finally {
       if (mounted) setState(() => _loadingConnect = false);
     }
@@ -81,7 +82,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
 
   Future<void> _disconnectApple() async {
     if (!_isLinkedWithApple) {
-      _showSnack('No Apple link to remove.');
+      _showSnack('profile.noAppleLink'.tr());
       return;
     }
 
@@ -89,18 +90,18 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        _showSnack('No signed-in user.');
+        _showSnack('profile.noSignedInUser'.tr());
         return;
       }
 
       // Try to unlink the apple provider (removes provider from account)
       try {
         await user.unlink('apple.com');
-        _showSnack('Apple account unlinked.');
+        _showSnack('profile.appleUnlinked'.tr());
       } on FirebaseAuthException catch (e) {
         // In some cases unlink may fail (provider not linked). As fallback, sign out the user.
         // Only use signOut fallback if unlink explicitly fails for platform reasons.
-        _showSnack('Unlink failed: ${e.message}. Signing out as fallback.');
+        _showSnack('profile.unlinkFailed'.tr(namedArgs: {'error': e.message ?? ''}));
         await FirebaseAuth.instance.signOut();
       }
 
@@ -111,7 +112,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
 
       setState(() {}); // refresh _isLinkedWithApple
     } catch (e) {
-      _showSnack('Error while disconnecting Apple: $e');
+      _showSnack('profile.errorDisconnecting'.tr(namedArgs: {'error': e.toString()}));
     } finally {
       if (mounted) setState(() => _loadingDisconnect = false);
     }
@@ -128,13 +129,13 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
           await user.updateDisplayName(newName);
         }
         // Note: changing email may require re-auth; we keep it read-only by default.
-        _showSnack('Profile saved.');
+        _showSnack('profile.profileSaved'.tr());
       } else {
-        _showSnack('No user signed in.');
+        _showSnack('profile.noSignedInUser'.tr());
       }
       Navigator.of(context).pop(true); // close dialog (return true = saved)
     } catch (e) {
-      _showSnack('Error saving profile: $e');
+      _showSnack('profile.errorSaving'.tr(namedArgs: {'error': e.toString()}));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -155,18 +156,20 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Edit account', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                Text('profile.editAccount'.tr(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
 
                 // Display name
                 TextFormField(
                   controller: _displayNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Display name',
-                    border: OutlineInputBorder(),
+                  style: const TextStyle(color: Colors.white70),
+                  decoration: InputDecoration(
+                    labelText: 'profile.displayName'.tr(),
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a name' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'profile.enterName'.tr() : null,
                 ),
                 const SizedBox(height: 12),
 
@@ -174,9 +177,11 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                 TextFormField(
                   controller: _emailController,
                   enabled: false, // editing email typically requires reauth; keep read-only
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
+                  style: const TextStyle(color: Colors.white70),
+                  decoration: InputDecoration(
+                    labelText: 'profile.email'.tr(),
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
                 ),
@@ -194,7 +199,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                       icon: const Icon(Icons.apple),
                       label: _loadingConnect
                           ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Connect with Apple ID'),
+                          : Text('profile.connectApple'.tr()),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -209,7 +214,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                     child: OutlinedButton.icon(
                       onPressed: null,
                       icon: const Icon(Icons.apple, color: Colors.grey),
-                      label: const Text('Connect with Apple ID (iOS only)'),
+                      label: Text('profile.connectAppleIOSOnly'.tr()),
                       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                     ),
                   ),
@@ -224,7 +229,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                       icon: _loadingDisconnect
                           ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.link_off),
-                      label: const Text('Disconnect Apple ID'),
+                      label: Text('profile.disconnectApple'.tr()),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -241,9 +246,9 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
                     onPressed: _saving ? null : _saveProfile,
                     child: _saving
                         ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text('Save', style: TextStyle(fontSize: 16)),
+                        : Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Text('common.save'.tr(), style: const TextStyle(fontSize: 16)),
                           ),
                     style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                   ),
@@ -253,7 +258,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
 
                 TextButton(
                   onPressed: _saving || _loadingConnect || _loadingDisconnect ? null : () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
+                  child: Text('common.cancel'.tr()),
                 ),
               ],
             ),

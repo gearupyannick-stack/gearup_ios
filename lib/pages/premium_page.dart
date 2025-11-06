@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../services/premium_service.dart';
 
 /// A redesigned Premium purchase page with hero, feature cards and prominent CTA.
@@ -158,7 +159,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Unlimited lives • Ad-free • Training unlocked',
+                        'premium.unlimitedLives'.tr() + ' • ' + 'premium.noAds'.tr() + ' • ' + 'premium.unlimitedTraining'.tr(),
                         style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -189,7 +190,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              PremiumService.instance.isPremium ? 'Active' : 'Premium',
+                              PremiumService.instance.isPremium ? 'premium.active'.tr() : 'premium.title'.tr(),
                               style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -252,7 +253,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                     color: Colors.green.shade700,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Center(child: Text('Purchased', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+                  child: Center(child: Text('premium.alreadyPremium'.tr(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
                 )
               : ElevatedButton(
                   key: const ValueKey('buy'),
@@ -266,7 +267,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                   ),
                   child: _processing
                       ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text('Buy Premium — $priceLabel'),
+                      : Text('premium.purchaseButton'.tr(namedArgs: {'price': priceLabel})),
                 ),
         ),
         const SizedBox(height: 10),
@@ -274,7 +275,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
         Center(
           child: TextButton(
             onPressed: _processing ? null : _restore,
-            child: const Text('Restore purchases', style: TextStyle(decoration: TextDecoration.underline)),
+            child: Text('premium.restorePurchases'.tr(), style: const TextStyle(decoration: TextDecoration.underline)),
           ),
         ),
       ],
@@ -288,7 +289,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Upgrade to Premium'),
+        title: Text('premium.title'.tr()),
         leading: IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.arrow_back)),
       ),
       body: _loading
@@ -317,21 +318,21 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                           children: [
                             Icon(isPremium ? Icons.favorite : Icons.favorite_border, color: isPremium ? Colors.amber : Colors.white70),
                             const SizedBox(width: 8),
-                            Text(isPremium ? 'Premium active' : 'Premium not purchased', style: theme.textTheme.titleLarge?.copyWith(fontSize: 16)),
+                            Text(isPremium ? 'premium.premiumActive'.tr() : 'premium.notPurchased'.tr(), style: theme.textTheme.titleLarge?.copyWith(fontSize: 16)),
                             const Spacer(),
                             // Small note
-                            Text(isPremium ? 'Thank you!' : 'One-time purchase', style: const TextStyle(color: Colors.white54)),
+                            Text(isPremium ? 'premium.thankYou'.tr() : 'premium.oneTimePurchase'.tr(), style: const TextStyle(color: Colors.white54)),
                           ],
                         ),
 
                         const SizedBox(height: 12),
 
                         // Features list
-                        _buildFeatureRow(Icons.favorite, 'Unlimited lives', 'Play without waiting — keep learning'),
+                        _buildFeatureRow(Icons.favorite, 'premium.unlimitedLives'.tr(), 'premium.unlimitedLivesDesc'.tr()),
                         const SizedBox(height: 12),
-                        _buildFeatureRow(Icons.block, 'Ad-free', 'A distraction-free learning experience'),
+                        _buildFeatureRow(Icons.block, 'premium.noAds'.tr(), 'premium.noAdsDesc'.tr()),
                         const SizedBox(height: 12),
-                        _buildFeatureRow(Icons.fitness_center, 'Training unlocked', 'Unlimited access to advanced drills'),
+                        _buildFeatureRow(Icons.fitness_center, 'premium.unlimitedTraining'.tr(), 'premium.unlimitedTrainingDesc'.tr()),
                         const SizedBox(height: 16),
 
                         // Price and CTA
@@ -339,7 +340,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
 
                         // small legal / note
                         const SizedBox(height: 8),
-                        const Text('Available on all devices. Restores automatically on reinstall.', style: TextStyle(fontSize: 12, color: Colors.white60)),
+                        Text('premium.deviceNote'.tr(), style: const TextStyle(fontSize: 12, color: Colors.white60)),
                       ],
                     ),
                   ),
@@ -352,10 +353,10 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                     decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(12)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('Why upgrade?', style: TextStyle(fontWeight: FontWeight.bold)),
-                        SizedBox(height: 8),
-                        Text('- Faster progression and unlimited retries.\n- Better experience without ads.\n- Supports development of new features.', style: TextStyle(fontSize: 13, color: Colors.white70)),
+                      children: [
+                        Text('premium.whyUpgrade'.tr(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Text('premium.whyUpgradeDesc'.tr(), style: const TextStyle(fontSize: 13, color: Colors.white70)),
                       ],
                     ),
                   ),

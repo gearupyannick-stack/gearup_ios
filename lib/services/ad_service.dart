@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - Handles 2 interstitials and 3 rewarded ads (based on your mapping)
 /// - Counters:
 ///    * every 2 races => Interstitial_Race
-///    * every 5 challenges => Interstitial_Challenge
+///    * every 2 challenges => Interstitial_Challenge
 class AdService {
   AdService._privateConstructor();
   static final AdService instance = AdService._privateConstructor();
@@ -51,7 +51,7 @@ class AdService {
 
   // Thresholds
   static const int _raceThreshold = 2;
-  static const int _challengeThreshold = 5;
+  static const int _challengeThreshold = 2;
 
   SharedPreferences? _prefs;
 

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../services/audio_feedback.dart';
 import '../services/collab_wan_service.dart'; // <<-- NEW
 import '../services/ad_service.dart';
@@ -88,6 +89,10 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
   double _stepDistance = 0.0;    // _totalPathLength / totalQuestions
   String? _roomCreatorId;
 
+  // end_race handling guards
+  bool _handlingEndRace = false;
+  bool _raceEndedByServer = false;
+
   // --- path data for tracks (normalized coords in [0..1]) ---
   // Monza (RaceTrack0) — the list you asked for
   final List<List<double>> _monzaNorm = [
@@ -168,20 +173,376 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
 
   // small helper to start the car animation
   void _startCar() {
-    setState(() {
-      _raceStarted = true;
-    });
+    if (!mounted) return;
 
-    // Track race started
+    // CRITICAL FIX: Guard against premature finish - only start final animation if all questions are completed
+    final totalSlots = _quizSelectedIndices.length;
+    if (totalSlots > 0 && _quizCurrentPos < totalSlots) {
+      debugPrint('_startCar: Cannot start final animation - questions not complete ($_quizCurrentPos / $totalSlots)');
+      return;
+    }
+
+    // Track race final animation
     AnalyticsService.instance.logEvent(
-      name: 'race_started',
+      name: 'race_final_animation',
       parameters: {
         'track': _activeTrackIndex ?? 0,
         'is_multiplayer': _currentRoomCode != null ? 'true' : 'false',
+        'score': _quizScore,
       },
     );
 
-    _carController.repeat();
+    // CRITICAL FIX: Properly animate to finish and call _onRaceFinished (like Android)
+    try { _carController.stop(); } catch (_) {}
+
+    final cur = _carController.value.clamp(0.0, 1.0);
+    final remaining = (1.0 - cur).clamp(0.0, 1.0);
+
+    // if already at or extremely close to the end, trigger finish immediately
+    if (remaining <= 1e-3) {
+      try { _carController.value = 1.0; } catch (_) {}
+      Future.microtask(() => _onRaceFinished());
+      return;
+    }
+
+    final baseDuration = _carController.duration ?? const Duration(seconds: 6);
+    final ms = max(300, (baseDuration.inMilliseconds * remaining).round());
+    final animDuration = Duration(milliseconds: ms);
+
+    // animate the rest of the lap once, then run finish handler
+    _carController
+        .animateTo(1.0, duration: animDuration, curve: Curves.easeInOut)
+        .then((_) {
+      if (mounted) _onRaceFinished();
+    }).catchError((err) {
+      debugPrint('Car animation to finish failed: $err');
+      if (mounted) _onRaceFinished();
+    });
+  }
+
+  // Determine race winner based on score (higher is better) and errors (lower is better)
+  PlayerInfo _determineWinner(List<PlayerInfo> players) {
+    if (players.isEmpty) {
+      return PlayerInfo(id: '', displayName: 'No one', lastSeen: DateTime.now(), score: 0, errors: 0);
+    }
+
+    // defensive: make a sorted copy
+    final sorted = List<PlayerInfo>.from(players);
+    sorted.sort((a, b) {
+      // primary: score desc
+      final scoreCmp = b.score.compareTo(a.score);
+      if (scoreCmp != 0) return scoreCmp;
+      // secondary: errors asc
+      final errCmp = a.errors.compareTo(b.errors);
+      if (errCmp != 0) return errCmp;
+      // tertiary: earlier lastSeen wins (smaller DateTime)
+      return a.lastSeen.compareTo(b.lastSeen);
+    });
+
+    return sorted.first;
+  }
+
+  // Show race result dialog with winner and leaderboard
+  Future<void> _showRaceResultDialog(List<PlayerInfo> players, PlayerInfo winner) async {
+    if (!mounted) return;
+
+    // Sort players for presentation (winner first)
+    final displayList = List<PlayerInfo>.from(players);
+    displayList.sort((a, b) {
+      final scoreCmp = b.score.compareTo(a.score);
+      if (scoreCmp != 0) return scoreCmp;
+      return a.errors.compareTo(b.errors);
+    });
+
+    final localId = _collab.localPlayerId;
+    final localName = _nameController.text.trim();
+    final bool localWon = winner.id == localId || winner.displayName == localName;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return _RaceResultDialogContent(
+          displayList: displayList,
+          winner: winner,
+          localId: localId,
+          localName: localName,
+          localWon: localWon,
+        );
+      },
+    );
+  }
+
+  // Called when local player finishes all questions
+  Future<void> _onRaceFinished() async {
+    if (!mounted) return;
+
+    debugPrint('Race finished locally — running finish flow.');
+
+    // ensure the car isn't repeating
+    try { _carController.stop(); } catch (_) {}
+
+    // If server already declared the race ended, don't re-run finish logic.
+    if (_raceEndedByServer) {
+      debugPrint('Race already ended by server; aborting local finish flow.');
+      return;
+    }
+
+    // send local final score to server (best-effort)
+    final room = _currentRoomCode;
+    final localId = _collab.localPlayerId;
+    if (room != null) {
+      try {
+        await _collab.sendMessage(room, {
+          'type': 'score_update',
+          'playerId': localId,
+          'score': _quizScore,
+        });
+      } catch (e) {
+        debugPrint('Failed to send final score update: $e');
+      }
+    }
+
+    // give server/opponent a short moment to push final scores
+    await Future.delayed(const Duration(milliseconds: 700));
+
+    // snapshot players (copy to avoid concurrent mutation)
+    List<PlayerInfo> playersSnapshot = List<PlayerInfo>.from(_playersInRoom);
+
+    // ensure local player present and up-to-date
+    final localName = _nameController.text.trim().isEmpty ? 'You' : _nameController.text.trim();
+    final idxLocal = playersSnapshot.indexWhere((p) => p.id == localId || p.displayName == localName);
+    if (idxLocal >= 0) {
+      final p = playersSnapshot[idxLocal];
+      playersSnapshot[idxLocal] = PlayerInfo(
+        id: p.id,
+        displayName: p.displayName.isNotEmpty ? p.displayName : localName,
+        lastSeen: p.lastSeen,
+        score: _quizScore,
+        errors: p.errors,
+      );
+    } else {
+      playersSnapshot.add(PlayerInfo(
+        id: localId,
+        displayName: localName,
+        lastSeen: DateTime.now(),
+        score: _quizScore,
+        errors: 0,
+      ));
+    }
+
+    // determine winner
+    final winner = _determineWinner(playersSnapshot);
+
+    // Track race finished
+    final didWin = winner.id == localId || winner.displayName == localName;
+    AnalyticsService.instance.logEvent(
+      name: 'race_finished',
+      parameters: {
+        'track': _activeTrackIndex ?? 0,
+        'score': _quizScore,
+        'is_multiplayer': _currentRoomCode != null ? 'true' : 'false',
+        'won': didWin ? 'true' : 'false',
+        'players_count': playersSnapshot.length,
+      },
+    );
+
+    // mark that *we* are ending the race
+    _raceEndedByServer = true;
+
+    // inform others that race ended
+    if (room != null) {
+      try {
+        await _collab.sendMessage(room, {
+          'type': 'end_race',
+          'winnerId': winner.id,
+          'winnerName': winner.displayName,
+        });
+      } catch (e) {
+        debugPrint('Failed to send end_race message: $e');
+      }
+    }
+
+    // show results dialog (blocking until user dismisses)
+    await _showRaceResultDialog(playersSnapshot, winner);
+
+    // cleanup & leave room
+    await _leaveCurrentRoom();
+
+    // **Show interstitial AFTER user dismissed results dialog and after leaving the room**
+    try {
+      await _maybeShowRaceInterstitial();
+    } catch (e, st) {
+      debugPrint('Race interstitial attempt failed: $e\n$st');
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _inPublicRaceView = false;
+      _activeTrackIndex = null;
+      _raceStarted = false;
+    });
+  }
+
+  // Called when receiving end_race message from server/other player
+  Future<void> _handleServerEndRace(Map<String, dynamic> payload) async {
+    if (!mounted) return;
+    debugPrint('Handling server end_race payload: $payload');
+
+    // If not in race view, ignore.
+    if (!_inPublicRaceView) {
+      debugPrint('Ignoring end_race: not in public race view.');
+      return;
+    }
+
+    // Prevent duplicate handling / re-entry
+    if (_handlingEndRace || _raceEndedByServer) {
+      debugPrint('Already handling end_race or race already marked ended; ignoring.');
+      return;
+    }
+
+    _handlingEndRace = true;
+    _raceEndedByServer = true;
+
+    try {
+      final localId = _collab.localPlayerId;
+      final room = _currentRoomCode;
+
+      // Safely extract winner fields from payload
+      final winnerIdRaw = payload['winnerId'];
+      final winnerNameRaw = payload['winnerName'];
+      final String? winnerId = winnerIdRaw == null ? null : winnerIdRaw.toString();
+      final String? winnerName = winnerNameRaw == null ? null : winnerNameRaw.toString();
+      final bool payloadHasWinner = (winnerId != null && winnerId.isNotEmpty) ||
+                                    (winnerName != null && winnerName.isNotEmpty);
+
+      // Snapshot players to avoid concurrent mutation
+      List<PlayerInfo> playersSnapshot = List<PlayerInfo>.from(_playersInRoom);
+
+      // Ensure local player present and up-to-date in snapshot
+      final localName = _nameController.text.trim().isEmpty ? 'You' : _nameController.text.trim();
+      final idxLocal = playersSnapshot.indexWhere((p) => p.id == localId || p.displayName == localName);
+      if (idxLocal >= 0) {
+        final p = playersSnapshot[idxLocal];
+        playersSnapshot[idxLocal] = PlayerInfo(
+          id: p.id,
+          displayName: p.displayName.isNotEmpty ? p.displayName : localName,
+          lastSeen: p.lastSeen,
+          score: _quizScore,
+          errors: p.errors,
+        );
+      } else {
+        playersSnapshot.add(PlayerInfo(
+          id: localId,
+          displayName: localName,
+          lastSeen: DateTime.now(),
+          score: _quizScore,
+          errors: 0,
+        ));
+      }
+
+      // Determine winner: prefer server-provided id/name, fallback to local logic
+      PlayerInfo winner;
+      if (payloadHasWinner && winnerId != null && winnerId.isNotEmpty) {
+        winner = playersSnapshot.firstWhere(
+          (p) => p.id == winnerId,
+          orElse: () => PlayerInfo(
+            id: winnerId,
+            displayName: (winnerName != null && winnerName.isNotEmpty) ? winnerName : 'Winner',
+            lastSeen: DateTime.now(),
+            score: 0,
+            errors: 0,
+          ),
+        );
+      } else if (payloadHasWinner && winnerName != null && winnerName.isNotEmpty) {
+        winner = playersSnapshot.firstWhere(
+          (p) => p.displayName == winnerName,
+          orElse: () => PlayerInfo(
+            id: '',
+            displayName: winnerName,
+            lastSeen: DateTime.now(),
+            score: 0,
+            errors: 0,
+          ),
+        );
+      } else {
+        winner = _determineWinner(playersSnapshot);
+      }
+
+      // total slots expected for this race
+      final totalSlots = _quizSelectedIndices.length;
+      final bool localCompleted = (totalSlots > 0) && (_quizScore >= totalSlots);
+
+      // If the winner is local but local hasn't completed, ignore
+      if (winner.id == localId && !localCompleted) {
+        debugPrint('Ignoring end_race: decided winner is local but local has not completed quiz.');
+        _handlingEndRace = false;
+        _raceEndedByServer = false;
+        return;
+      }
+
+      // If local player lost, show small SnackBar
+      if (localId != winner.id) {
+        try {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('race.youLose'.tr() + ' — ' + 'race.winner'.tr(namedArgs: {'name': winner.displayName})),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } catch (_) {}
+      }
+
+      // Show the full results dialog (blocking until dismissed)
+      try {
+        await _showRaceResultDialog(playersSnapshot, winner);
+      } catch (e) {
+        debugPrint('Error showing race result dialog: $e');
+      }
+
+      // best-effort ack to server
+      if (room != null) {
+        try {
+          await _collab.sendMessage(room, {
+            'type': 'ack_end_race',
+            'playerId': localId,
+          });
+        } catch (e) {
+          debugPrint('Failed to send ack_end_race: $e');
+        }
+      }
+
+      // leave and cleanup UI
+      try {
+        await _leaveCurrentRoom();
+      } catch (e) {
+        debugPrint('Error leaving room after end_race: $e');
+      }
+
+      // **Show interstitial AFTER user dismissed results dialog**
+      try {
+        await _maybeShowRaceInterstitial();
+      } catch (e, st) {
+        debugPrint('Race interstitial attempt failed in server end flow: $e\n$st');
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _inPublicRaceView = false;
+        _activeTrackIndex = null;
+        _raceStarted = false;
+        _quizSelectedIndices = [];
+        _quizCurrentPos = 0;
+        _quizScore = 0;
+        _currentDistance = 0.0;
+        _waitingForNextQuestion = false;
+        _roomCreatorId = null;
+      });
+    } finally {
+      _handlingEndRace = false;
+    }
   }
 
   void _subscribePublicTracks() {
@@ -296,7 +657,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
         final v = c.trim();
         if (v.isEmpty) continue;
         // don't treat the placeholder as a real name (case-insensitive)
-        if (v.toLowerCase() == 'unamed_carenthusiast') continue;
+        if (v.toLowerCase() == 'unnamed_carenthusiast') continue;
         return v;
       }
     } catch (e) {
@@ -714,9 +1075,9 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
         await showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('No data'),
-            content: const Text('No car data available for the quiz.'),
-            actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
+            title: Text('common.error'.tr()),
+            content: Text('race.noCarData'.tr()),
+            actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('common.ok'.tr()))],
           ),
         );
         return;
@@ -784,17 +1145,18 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
 
     // reset animation controller to start of lap
     _carController.stop();
+    _carController.reset();
     _carController.value = 0.0;
-    setState(() {
-      _raceStarted = true;
-    });
+
+    // DON'T set _raceStarted = true here - it will be set after first question is shown
+    // This prevents the "immediate win" bug
 
     // ask first question (this will chain the rest)
     await _askNextQuestion();
   }
 
   Future<void> _joinPrivateGame(int index, String displayName, String roomCode, {bool isCreator = false}) async {
-    // Mark UI state (local)
+    // Mark UI state (local) - CRITICAL FIX: Reset ALL state flags to prevent rejoin bugs
     setState(() {
       _activeTrackIndex = index;
       _inPublicRaceView = true;
@@ -807,6 +1169,11 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
       _cumLengths = [];
       _totalPathLength = 0.0;
       _raceAborted = false;
+      _waitingForNextQuestion = false;
+      // CRITICAL: Reset these flags to prevent "already ended" bugs on rejoin
+      _raceEndedByServer = false;
+      _handlingEndRace = false;
+      _roomCreatorId = null;
     });
     _carController.stop();
     _carController.reset();
@@ -843,7 +1210,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
         });
       });
       // Listen for score/error updates via messages
-      _messagesSub = _collab.messagesStream(_currentRoomCode!).listen((messages) {
+      _messagesSub = _collab.messagesStream(_currentRoomCode!).listen((messages) async {
         for (final msg in messages) {
           if (msg.payload['type'] == 'score_update') {
             setState(() {
@@ -877,9 +1244,22 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
             });
           } else if (msg.payload['type'] == 'start_race') {
             // Start the race for all players when the message is received
+            // CRITICAL FIX: Add await to prevent race condition
             if (!_raceStarted) {
               debugPrint('Received start_race message, starting race!');
-              _startQuizRace();
+              await _startQuizRace();
+            }
+          } else if (msg.payload['type'] == 'end_race') {
+            // Handle race end from server/other player
+            if (!_inPublicRaceView) {
+              debugPrint('Received end_race but not in public race view — ignoring.');
+              continue;
+            }
+            try {
+              final payloadCopy = Map<String, dynamic>.from(msg.payload);
+              _handleServerEndRace(payloadCopy);
+            } catch (e) {
+              debugPrint('Error handling server end_race: $e');
             }
           }
         }
@@ -900,7 +1280,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
       _currentRoomCode = null;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to join private room: $e')),
+          SnackBar(content: Text('race.unableToJoinRoom'.tr(namedArgs: {'error': e.toString()}))),
         );
       }
     }
@@ -934,12 +1314,15 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                       "You're about to enter a private multiplayer game.\n\n"
                       "You will need to answer $qCount questions correctly to complete the lap.\n\n"
                       "Choose your player name:",
+                      style: const TextStyle(color: Colors.white70),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _nameController,
+                      style: const TextStyle(color: Colors.white70),
                       decoration: InputDecoration(
                         hintText: 'Enter your name',
+                        hintStyle: const TextStyle(color: Colors.white38),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -964,14 +1347,16 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                         FocusScope.of(context).unfocus();
                         _joinPrivateGame(index, playerName, roomCode, isCreator: true);
                       },
-                      child: const Text('Create Room'),
+                      child: Text('race.createRoom'.tr()),
                     ),
                     const SizedBox(height: 8),
                     // Join Room Section
                     TextField(
                       controller: roomCodeController,
+                      style: const TextStyle(color: Colors.white70),
                       decoration: InputDecoration(
-                        hintText: 'Enter room code',
+                        hintText: 'race.enterRoomCode'.tr(),
+                        hintStyle: const TextStyle(color: Colors.white38),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -985,7 +1370,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text('common.cancel'.tr()),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -998,7 +1383,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                     final roomCode = roomCodeController.text.trim();
                     if (roomCode.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter a room code.')),
+                        SnackBar(content: Text('race.enterRoomCode'.tr())),
                       );
                       return;
                     }
@@ -1007,7 +1392,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                     Navigator.of(context).pop();
                     _joinPrivateGame(index, playerName, roomCode, isCreator: false);
                   },
-                  child: const Text('Join Room'),
+                  child: Text('race.joinRoom'.tr()),
                 ),
               ],
             );
@@ -1036,11 +1421,11 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
         setState(() => _waitingForNextQuestion = false);
       }
 
-      // finished all steps -> start full continuous race
+      // finished all steps -> race completed, show results and ad
       if (_quizCurrentPos >= _quizSelectedIndices.length) {
-        // Ensure UI updated then start car
+        // Ensure UI updated before showing results
         if (mounted) setState(() {});
-        _startCar();
+        _onRaceFinished();
         return;
       }
 
@@ -1062,29 +1447,46 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
       }
 
       // Ask the question (this pushes the question page and waits for pop).
-      final correct = await handler(
-        _quizCurrentPos + 1,
-        currentScore: _quizScore,
-        totalQuestions: _quizSelectedIndices.length,
-      );
+      bool correct = false;
+      final bool isFirstQuestion = (_quizCurrentPos == 0);
+      try {
+        correct = await handler(
+          _quizCurrentPos + 1,
+          currentScore: _quizScore,
+          totalQuestions: _quizSelectedIndices.length,
+        );
+      } catch (e, st) {
+        debugPrint('Question handler threw: $e\n$st');
+        correct = false;
+      }
+
+      // CRITICAL FIX: Set _raceStarted = true AFTER first question is shown (not before)
+      if (isFirstQuestion && !_raceStarted) {
+        setState(() {
+          _raceStarted = true;
+        });
+        AnalyticsService.instance.logEvent(
+          name: 'race_started',
+          parameters: {
+            'track': _activeTrackIndex ?? 0,
+            'is_multiplayer': _currentRoomCode != null ? 'true' : 'false',
+          },
+        );
+      }
 
       // Stop if user left during question
       if (_raceAborted || !_inPublicRaceView) return;
       if (!mounted) return;
 
-      // If correct, increment score
+      final localPlayerId = _collab.localPlayerId;
+      final totalSlots = _quizSelectedIndices.length;
+
       if (correct) {
+        // CORRECT ANSWER: Increment score, advance position, move car
         _quizScore++;
-      }
 
-      // ALWAYS advance to next step regardless of correct/incorrect.
-      // This makes progression deterministic and avoids off-by-one / skipped final step issues.
-      _quizCurrentPos++;
-
-      // Notify server about score/error AFTER we've updated local pos/score
-      if (_currentRoomCode != null) {
-        final localPlayerId = _collab.localPlayerId;
-        if (correct) {
+        // Notify server of score update
+        if (_currentRoomCode != null) {
           try {
             await _collab.sendMessage(_currentRoomCode!, {
               'type': 'score_update',
@@ -1094,8 +1496,27 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
           } catch (e) {
             debugPrint('Failed to send score_update: $e');
           }
-        } else {
-          // figure currentErrors locally (best-effort)
+        }
+
+        // CRITICAL FIX: Only advance position on CORRECT answers (match Android logic)
+        _quizCurrentPos++;
+
+        // Move car forward visually
+        if (_raceAborted || !_inPublicRaceView) return;
+        await _advanceByStep();
+
+        // Check if race is complete after advancing
+        if (_quizCurrentPos >= totalSlots) {
+          if (mounted) setState(() {});
+          _startCar(); // Start final animation
+          return;
+        }
+
+        // Show waiting badge for next question
+        if (mounted) setState(() => _waitingForNextQuestion = true);
+      } else {
+        // INCORRECT ANSWER: Increment errors, DON'T advance position, DON'T move car
+        if (_currentRoomCode != null) {
           final currentErrors = _playersInRoom
               .firstWhere((p) => p.id == localPlayerId, orElse: () => PlayerInfo(id: '', displayName: '', lastSeen: DateTime.now(), score: 0, errors: 0))
               .errors;
@@ -1109,17 +1530,9 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
             debugPrint('Failed to send error_update: $e');
           }
         }
-      }
 
-      // move car forward visually
-      if (_raceAborted || !_inPublicRaceView) return;
-      await _advanceByStep();
-
-      // show waiting badge - user must press Next to continue
-      if (mounted) {
-        setState(() {
-          _waitingForNextQuestion = true;
-        });
+        // Show waiting badge - user can retry or get new question for same slot
+        if (mounted) setState(() => _waitingForNextQuestion = true);
       }
     } finally {
       _isAskingQuestion = false;
@@ -1488,17 +1901,20 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
               Text(
                 "You're about to enter a multiplayer game.\n\n"
                 "You will need to answer $qCount questions correctly to complete the lap. Difficulty progresses from easy to hard.",
+                style: const TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 16),
               const Text(
                 "Choose your player name:",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _nameController,
+                style: const TextStyle(color: Colors.white70),
                 decoration: InputDecoration(
                   hintText: 'Enter your name',
+                  hintStyle: const TextStyle(color: Colors.white38),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -1507,7 +1923,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
           ),
           actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('common.cancel'.tr())),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () {
@@ -1522,7 +1938,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                   _joinPublicGame(index, playerName, roomCodeOverride: roomCodeOverride);
                 });
               },
-              child: const Text('Join'),
+              child: Text('race.join'.tr()),
             ),
           ],
         );
@@ -1642,7 +2058,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
 
   // join a public game for a given track index and display name
   Future<void> _joinPublicGame(int index, String displayName, {String? roomCodeOverride}) async {
-    // mark UI state (local)
+    // mark UI state (local) - CRITICAL FIX: Reset ALL state flags to prevent rejoin bugs
     setState(() {
       _activeTrackIndex = index;
       _inPublicRaceView = true;
@@ -1655,6 +2071,11 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
       _cumLengths = [];
       _totalPathLength = 0.0;
       _raceAborted = false;
+      _waitingForNextQuestion = false;
+      // CRITICAL: Reset these flags to prevent "already ended" bugs on rejoin
+      _raceEndedByServer = false;
+      _handlingEndRace = false;
+      _roomCreatorId = null;
     });
 
     _carController.stop();
@@ -1676,7 +2097,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
 
       // subscribe to players list
       _playersSub?.cancel();
-      _playersSub = _collab.playersStream(roomCode).listen((players) {
+      _playersSub = _collab.playersStream(roomCode).listen((players) async {
         if (!mounted) return;
         // Merge the incoming players with the current _playersInRoom to preserve score/errors
         setState(() {
@@ -1695,14 +2116,15 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
           }).toList();
         });
         // Auto-start if 2+ players and not already started
+        // CRITICAL FIX: Add await to prevent race condition
         if (!_raceStarted && players.length >= 2) {
           debugPrint('Starting race with ${players.length} players!');
-          _startQuizRace();
+          await _startQuizRace();
         }
       });
 
       // Listen for score/error updates via messages
-      _messagesSub = _collab.messagesStream(_currentRoomCode!).listen((messages) {
+      _messagesSub = _collab.messagesStream(_currentRoomCode!).listen((messages) async {
         for (final msg in messages) {
           if (msg.payload['type'] == 'score_update') {
             setState(() {
@@ -1736,9 +2158,22 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
             });
           } else if (msg.payload['type'] == 'start_race') {
             // Start the race for all players when the message is received
+            // CRITICAL FIX: Add await to prevent race condition
             if (!_raceStarted) {
               debugPrint('Received start_race message, starting race!');
-              _startQuizRace();
+              await _startQuizRace();
+            }
+          } else if (msg.payload['type'] == 'end_race') {
+            // Handle race end from server/other player
+            if (!_inPublicRaceView) {
+              debugPrint('Received end_race but not in public race view — ignoring.');
+              continue;
+            }
+            try {
+              final payloadCopy = Map<String, dynamic>.from(msg.payload);
+              _handleServerEndRace(payloadCopy);
+            } catch (e) {
+              debugPrint('Error handling server end_race: $e');
             }
           }
         }
@@ -1760,7 +2195,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
       _currentRoomCode = null;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to join multiplayer room: $e')),
+          SnackBar(content: Text('race.unableToJoinRoom'.tr(namedArgs: {'error': e.toString()}))),
         );
       }
     }
@@ -2087,11 +2522,19 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                           _quizScore = 0;
                           _currentDistance = 0.0;
                           _waitingForNextQuestion = false;
+                          // CRITICAL FIX: Reset ALL state flags when leaving
+                          _pathPoints = [];
+                          _cumLengths = [];
+                          _totalPathLength = 0.0;
+                          _raceAborted = false;
+                          _raceEndedByServer = false;
+                          _handlingEndRace = false;
+                          _roomCreatorId = null;
                         });
                       },
-                      child: const Text(
-                        'Leave',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      child: Text(
+                        'race.leave'.tr(),
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ),
                   ),
@@ -2255,7 +2698,7 @@ class _QuestionPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false, // disables back arrow
-        title: Text("Flag Challenge"),    // or any title you use
+        title: Text('home.flagChallenge'.tr()),    // or any title you use
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -2689,19 +3132,47 @@ class _HorsepowerQuestionContentState
   int _frameIndex = 0;
   bool _answered = false;
   String? _selectedAnswer;
+  Timer? _frameTimer;
+  static const int _maxFrames = 6;
 
   @override
   void initState() {
     super.initState();
-    // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
-    // Cycle frames every 2 seconds
+    _startFrameTimer();
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && !_answered) {
+        setState(() {
+          _frameIndex = (_frameIndex + 1) % _maxFrames;
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex + 1) % _maxFrames;
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+    });
+    _startFrameTimer();
   }
 
   @override
   void dispose() {
+    _frameTimer?.cancel();
     try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
-    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
@@ -2709,6 +3180,7 @@ class _HorsepowerQuestionContentState
     if (_answered) return;
 
     _audioPlayTap();
+    _frameTimer?.cancel();
 
     final bool correct = answer == widget.correctAnswer;
 
@@ -2769,6 +3241,48 @@ class _HorsepowerQuestionContentState
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Manual frame controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 20),
+                onPressed: _answered ? null : _goToPreviousFrame,
+                color: Colors.white70,
+              ),
+              Text(
+                '${_frameIndex + 1}/$_maxFrames',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                onPressed: _answered ? null : _goToNextFrame,
+                color: Colors.white70,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Dot indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _maxFrames,
+              (index) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _frameIndex == index
+                      ? Colors.red
+                      : Colors.grey.withOpacity(0.4),
+                ),
               ),
             ),
           ),
@@ -2846,19 +3360,48 @@ class _AccelerationQuestionContentState
   int _frameIndex = 0;
   bool _answered = false;
   String? _selectedAnswer;
+  Timer? _frameTimer;
+  static const int _maxFrames = 6;
 
   @override
   void initState() {
     super.initState();
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
-    // Cycle the image every 2 seconds
+    _startFrameTimer();
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && !_answered) {
+        setState(() {
+          _frameIndex = (_frameIndex + 1) % _maxFrames;
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex + 1) % _maxFrames;
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+    });
+    _startFrameTimer();
   }
 
   @override
   void dispose() {
+    _frameTimer?.cancel();
     try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
-    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
@@ -2866,6 +3409,7 @@ class _AccelerationQuestionContentState
     if (_answered) return;
 
     _audioPlayTap();
+    _frameTimer?.cancel();
 
     final bool correct = answer == widget.correctAcceleration;
 
@@ -2931,7 +3475,48 @@ class _AccelerationQuestionContentState
               ),
             ),
           ),
+          const SizedBox(height: 12),
 
+          // Manual frame controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 20),
+                onPressed: _answered ? null : _goToPreviousFrame,
+                color: Colors.white70,
+              ),
+              Text(
+                '${_frameIndex + 1}/$_maxFrames',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                onPressed: _answered ? null : _goToNextFrame,
+                color: Colors.white70,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Dot indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _maxFrames,
+              (index) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _frameIndex == index
+                      ? Colors.red
+                      : Colors.grey.withOpacity(0.4),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
 
           // Acceleration option buttons
@@ -3006,19 +3591,48 @@ class _MaxSpeedQuestionContentState
   int _frameIndex = 0;
   bool _answered = false;
   String? _selectedSpeed;
+  Timer? _frameTimer;
+  static const int _maxFrames = 6;
 
   @override
   void initState() {
     super.initState();
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
-    // Cycle frames every 2 seconds
+    _startFrameTimer();
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && !_answered) {
+        setState(() {
+          _frameIndex = (_frameIndex + 1) % _maxFrames;
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex + 1) % _maxFrames;
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+    });
+    _startFrameTimer();
   }
 
   @override
   void dispose() {
+    _frameTimer?.cancel();
     try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
-    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
@@ -3026,6 +3640,7 @@ class _MaxSpeedQuestionContentState
     if (_answered) return;
 
     _audioPlayTap();
+    _frameTimer?.cancel();
 
     final bool correct = speed == widget.correctSpeed;
 
@@ -3091,7 +3706,48 @@ class _MaxSpeedQuestionContentState
               ),
             ),
           ),
+          const SizedBox(height: 12),
 
+          // Manual frame controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 20),
+                onPressed: _answered ? null : _goToPreviousFrame,
+                color: Colors.white70,
+              ),
+              Text(
+                '${_frameIndex + 1}/$_maxFrames',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                onPressed: _answered ? null : _goToNextFrame,
+                color: Colors.white70,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Dot indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _maxFrames,
+              (index) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _frameIndex == index
+                      ? Colors.red
+                      : Colors.grey.withOpacity(0.4),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
 
           // Speed option buttons
@@ -3165,19 +3821,48 @@ class _SpecialFeatureQuestionContentState
   int _frameIndex = 0;
   bool _answered = false;
   String? _selectedFeature;
+  Timer? _frameTimer;
+  static const int _maxFrames = 6;
 
   @override
   void initState() {
     super.initState();
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
-    // Cycle the image every 2 seconds
+    _startFrameTimer();
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && !_answered) {
+        setState(() {
+          _frameIndex = (_frameIndex + 1) % _maxFrames;
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex + 1) % _maxFrames;
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+    });
+    _startFrameTimer();
   }
 
   @override
   void dispose() {
+    _frameTimer?.cancel();
     try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
-    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
@@ -3185,6 +3870,7 @@ class _SpecialFeatureQuestionContentState
     if (_answered) return;
 
     _audioPlayTap();
+    _frameTimer?.cancel();
 
     final bool correct = feature == widget.correctFeature;
 
@@ -3247,6 +3933,48 @@ class _SpecialFeatureQuestionContentState
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Manual frame controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 20),
+                onPressed: _answered ? null : _goToPreviousFrame,
+                color: Colors.white70,
+              ),
+              Text(
+                '${_frameIndex + 1}/$_maxFrames',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                onPressed: _answered ? null : _goToNextFrame,
+                color: Colors.white70,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Dot indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _maxFrames,
+              (index) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _frameIndex == index
+                      ? Colors.red
+                      : Colors.grey.withOpacity(0.4),
+                ),
               ),
             ),
           ),
@@ -3320,19 +4048,48 @@ class _DescriptionToCarImageQuestionContentState
   int _frameIndex = 0;
   bool _answered = false;
   int? _selectedIndex;
+  Timer? _frameTimer;
+  static const int _maxFrames = 6;
 
   @override
   void initState() {
     super.initState();
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
-    // Cycle frames every 2 seconds
+    _startFrameTimer();
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && !_answered) {
+        setState(() {
+          _frameIndex = (_frameIndex + 1) % _maxFrames;
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex + 1) % _maxFrames;
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+    });
+    _startFrameTimer();
   }
 
   @override
   void dispose() {
+    _frameTimer?.cancel();
     try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
-    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
@@ -3340,6 +4097,7 @@ class _DescriptionToCarImageQuestionContentState
     if (_answered) return;
 
     _audioPlayTap();
+    _frameTimer?.cancel();
 
     final bool correct = index == widget.correctIndex;
 
@@ -3439,6 +4197,48 @@ class _DescriptionToCarImageQuestionContentState
               );
             },
           ),
+          const SizedBox(height: 12),
+
+          // Manual frame controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 20),
+                onPressed: _answered ? null : _goToPreviousFrame,
+                color: Colors.white70,
+              ),
+              Text(
+                '${_frameIndex + 1}/$_maxFrames',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                onPressed: _answered ? null : _goToNextFrame,
+                color: Colors.white70,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Dot indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _maxFrames,
+              (index) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _frameIndex == index
+                      ? Colors.red
+                      : Colors.grey.withOpacity(0.4),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -3475,19 +4275,48 @@ class _BrandImageChoiceQuestionContentState
   int _frameIndex = 0;
   bool _answered = false;
   String? _selectedBrand;
+  Timer? _frameTimer;
+  static const int _maxFrames = 6;
 
   @override
   void initState() {
     super.initState();
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
-    // Cycle through frames every 2 seconds
+    _startFrameTimer();
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && !_answered) {
+        setState(() {
+          _frameIndex = (_frameIndex + 1) % _maxFrames;
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex + 1) % _maxFrames;
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+    });
+    _startFrameTimer();
   }
 
   @override
   void dispose() {
+    _frameTimer?.cancel();
     try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
-    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
@@ -3495,6 +4324,7 @@ class _BrandImageChoiceQuestionContentState
     if (_answered) return;
 
     _audioPlayTap();
+    _frameTimer?.cancel();
 
     final bool correct = brand == widget.correctBrand;
 
@@ -3593,6 +4423,48 @@ class _BrandImageChoiceQuestionContentState
             );
           },
         ),
+        const SizedBox(height: 12),
+
+        // Manual frame controls
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios, size: 20),
+              onPressed: _answered ? null : _goToPreviousFrame,
+              color: Colors.white70,
+            ),
+            Text(
+              '${_frameIndex + 1}/$_maxFrames',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios, size: 20),
+              onPressed: _answered ? null : _goToNextFrame,
+              color: Colors.white70,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Dot indicators
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _maxFrames,
+            (index) => Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _frameIndex == index
+                    ? Colors.red
+                    : Colors.grey.withOpacity(0.4),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -3631,19 +4503,48 @@ class _OriginCountryQuestionContentState
   int _frameIndex = 0;
   bool _answered = false;
   String? _selectedOrigin;
+  Timer? _frameTimer;
+  static const int _maxFrames = 6;
 
   @override
   void initState() {
     super.initState();
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
-    // Cycle frames every 2 seconds
+    _startFrameTimer();
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && !_answered) {
+        setState(() {
+          _frameIndex = (_frameIndex + 1) % _maxFrames;
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex + 1) % _maxFrames;
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+    });
+    _startFrameTimer();
   }
 
   @override
   void dispose() {
+    _frameTimer?.cancel();
     try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
-    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
@@ -3651,6 +4552,7 @@ class _OriginCountryQuestionContentState
     if (_answered) return;
 
     _audioPlayTap();
+    _frameTimer?.cancel();
 
     final bool correct = origin == widget.origin;
 
@@ -3716,7 +4618,48 @@ class _OriginCountryQuestionContentState
               ),
             ),
           ),
+          const SizedBox(height: 12),
 
+          // Manual frame controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 20),
+                onPressed: _answered ? null : _goToPreviousFrame,
+                color: Colors.white70,
+              ),
+              Text(
+                '${_frameIndex + 1}/$_maxFrames',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                onPressed: _answered ? null : _goToNextFrame,
+                color: Colors.white70,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Dot indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _maxFrames,
+              (index) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _frameIndex == index
+                      ? Colors.red
+                      : Colors.grey.withOpacity(0.4),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
 
           // Country choice buttons
@@ -3787,19 +4730,48 @@ class _ModelOnlyImageQuestionContentState
   int _frameIndex = 0;
   bool _answered = false;
   String? _selectedModel;
+  Timer? _frameTimer;
+  static const int _maxFrames = 6;
 
   @override
   void initState() {
     super.initState();
     // play page open sound
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
-    // Alterner les frames toutes les 2 secondes
+    _startFrameTimer();
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && !_answered) {
+        setState(() {
+          _frameIndex = (_frameIndex + 1) % _maxFrames;
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex + 1) % _maxFrames;
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+    });
+    _startFrameTimer();
   }
 
   @override
   void dispose() {
+    _frameTimer?.cancel();
     try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
-    // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
   }
 
@@ -3807,6 +4779,7 @@ class _ModelOnlyImageQuestionContentState
     if (_answered) return;
 
     _audioPlayTap();
+    _frameTimer?.cancel();
 
     final bool correct = model == widget.correctModel;
 
@@ -3857,17 +4830,63 @@ class _ModelOnlyImageQuestionContentState
           // Image animée en boucle via le cache
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image(
-              image: _assetImageProvider(
-                '${widget.fileBase}$_frameIndex.webp',
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 500),
+              transitionBuilder: (child, anim) =>
+                  FadeTransition(opacity: anim, child: child),
+              child: Image(
+                key: ValueKey<int>(_frameIndex),
+                image: _assetImageProvider(
+                  '${widget.fileBase}$_frameIndex.webp',
+                ),
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
               ),
-              key: ValueKey<int>(_frameIndex),
-              height: 200,
-              width: double.infinity,
-              fit: BoxFit.cover,
             ),
           ),
+          const SizedBox(height: 12),
 
+          // Manual frame controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 20),
+                onPressed: _answered ? null : _goToPreviousFrame,
+                color: Colors.white70,
+              ),
+              Text(
+                '${_frameIndex + 1}/$_maxFrames',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                onPressed: _answered ? null : _goToNextFrame,
+                color: Colors.white70,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Dot indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _maxFrames,
+              (index) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _frameIndex == index
+                      ? Colors.red
+                      : Colors.grey.withOpacity(0.4),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
 
           // Boutons modèles
@@ -4045,6 +5064,378 @@ class _RandomCarImageQuestionContentState
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+// Animated Race Result Dialog Widget
+class _RaceResultDialogContent extends StatefulWidget {
+  final List<PlayerInfo> displayList;
+  final PlayerInfo winner;
+  final String localId;
+  final String localName;
+  final bool localWon;
+
+  const _RaceResultDialogContent({
+    required this.displayList,
+    required this.winner,
+    required this.localId,
+    required this.localName,
+    required this.localWon,
+  });
+
+  @override
+  State<_RaceResultDialogContent> createState() => _RaceResultDialogContentState();
+}
+
+class _RaceResultDialogContentState extends State<_RaceResultDialogContent>
+    with TickerProviderStateMixin {
+  late AnimationController _trophyController;
+  late AnimationController _listController;
+  late Animation<double> _trophyScale;
+  late Animation<double> _trophyRotation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Trophy animation (pulse + slight rotation)
+    _trophyController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _trophyScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _trophyController, curve: Curves.elasticOut),
+    );
+    _trophyRotation = Tween<double>(begin: -0.1, end: 0.1).animate(
+      CurvedAnimation(parent: _trophyController, curve: Curves.easeInOut),
+    );
+
+    // List animation
+    _listController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    // Start animations
+    _trophyController.forward();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) _listController.forward();
+    });
+
+    // Continuous trophy pulse
+    _trophyController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _trophyController.reverse();
+          }
+        });
+      } else if (status == AnimationStatus.dismissed && mounted) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _trophyController.forward();
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _trophyController.dispose();
+    _listController.dispose();
+    super.dispose();
+  }
+
+  String _getPositionMedal(int position) {
+    switch (position) {
+      case 0:
+        return '🥇';
+      case 1:
+        return '🥈';
+      case 2:
+        return '🥉';
+      default:
+        return '${position + 1}.';
+    }
+  }
+
+  Color _getPositionColor(int position) {
+    switch (position) {
+      case 0:
+        return const Color(0xFFFFD700); // Gold
+      case 1:
+        return const Color(0xFFC0C0C0); // Silver
+      case 2:
+        return const Color(0xFFCD7F32); // Bronze
+      default:
+        return Colors.grey[700]!;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 400),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: widget.localWon
+                ? [const Color(0xFF1a237e), const Color(0xFF0d47a1), const Color(0xFF01579b)]
+                : [const Color(0xFF263238), const Color(0xFF37474f), const Color(0xFF455a64)],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: widget.localWon ? Colors.blue.withOpacity(0.5) : Colors.black.withOpacity(0.5),
+              blurRadius: 20,
+              spreadRadius: 5,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with trophy
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: widget.localWon
+                      ? [Colors.amber.withOpacity(0.3), Colors.transparent]
+                      : [Colors.white.withOpacity(0.1), Colors.transparent],
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  // Animated trophy
+                  AnimatedBuilder(
+                    animation: _trophyController,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _trophyScale.value * (0.95 + _trophyController.value * 0.1),
+                        child: Transform.rotate(
+                          angle: _trophyRotation.value,
+                          child: Text(
+                            widget.localWon ? '🏆' : '🏁',
+                            style: const TextStyle(fontSize: 64),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Winner announcement
+                  Text(
+                    widget.localWon ? 'Victory!' : 'Race Finished!',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      widget.winner.displayName.isNotEmpty
+                          ? widget.winner.displayName
+                          : 'Winner',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Leaderboard
+            Flexible(
+              child: AnimatedBuilder(
+                animation: _listController,
+                builder: (context, child) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: widget.displayList.length,
+                      itemBuilder: (context, i) {
+                        final p = widget.displayList[i];
+                        final isWinner = p.id == widget.winner.id || p.displayName == widget.winner.displayName;
+                        final isLocal = p.id == widget.localId || p.displayName == widget.localName;
+
+                        // Staggered animation for each item
+                        final delay = i * 0.15;
+                        final animationValue = (_listController.value - delay).clamp(0.0, 1.0);
+                        final slideAnimation = Curves.easeOut.transform(animationValue);
+
+                        return Transform.translate(
+                          offset: Offset(0, 30 * (1 - slideAnimation)),
+                          child: Opacity(
+                            opacity: slideAnimation,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                gradient: isWinner
+                                    ? LinearGradient(
+                                        colors: [
+                                          _getPositionColor(i).withOpacity(0.6),
+                                          _getPositionColor(i).withOpacity(0.3),
+                                        ],
+                                      )
+                                    : LinearGradient(
+                                        colors: [
+                                          Colors.white.withOpacity(0.15),
+                                          Colors.white.withOpacity(0.05),
+                                        ],
+                                      ),
+                                borderRadius: BorderRadius.circular(12),
+                                border: isLocal
+                                    ? Border.all(color: Colors.white.withOpacity(0.5), width: 2)
+                                    : null,
+                              ),
+                              child: Row(
+                                children: [
+                                  // Position/Medal
+                                  SizedBox(
+                                    width: 40,
+                                    child: Text(
+                                      _getPositionMedal(i),
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Player name
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          p.displayName.isNotEmpty
+                                              ? p.displayName
+                                              : (isLocal ? 'You' : 'Player'),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: isWinner ? FontWeight.bold : FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (isLocal)
+                                          Text(
+                                            '(You)',
+                                            style: TextStyle(
+                                              color: Colors.white.withOpacity(0.7),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Score
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${p.score}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Errors
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text(
+                                          '❌',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${p.errors}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Continue button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.localWon ? Colors.amber : Colors.white.withOpacity(0.2),
+                    foregroundColor: widget.localWon ? Colors.black : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    elevation: 5,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    'Continue',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

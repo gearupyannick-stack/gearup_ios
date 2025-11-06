@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:easy_localization/easy_localization.dart';
 import '../../services/audio_feedback.dart';
 class BrandChallengePage extends StatefulWidget {
   @override
@@ -30,15 +31,16 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
   List<String> brandOptions = [];
 
   // ── For image cycling ───────────────────────────────────────────────────────
-  Timer? _imageCycleTimer;
+  Timer? _frameTimer;
   List<int> _currentImageIndices = [];
+  int _brandQuestionImageIndex = 0;
 
   // ── Answer‐highlighting ─────────────────────────────────────────────────────
   bool _answered = false;
   String? _selectedBrand;
   String? _selectedModel;
 
-  static const int _maxImageIndex = 5; // cycle 0…5
+  static const int _maxFrames = 6;
 
   @override
   void initState() {
@@ -54,7 +56,7 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
   @override
   void dispose() {
     _questionTimer?.cancel();
-    _imageCycleTimer?.cancel();
+    _frameTimer?.cancel();
     super.dispose();
   }
 
@@ -75,8 +77,7 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
   }
 
   void _nextQuestion() {
-    // cancel any existing image-cycling timer
-    _imageCycleTimer?.cancel();
+    _frameTimer?.cancel();
 
     if (questionCount >= 20) {
       return _finishQuiz();
@@ -99,6 +100,7 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
         opts.add(brandNames[rnd.nextInt(brandNames.length)]);
       }
       brandOptions = opts.toList()..shuffle();
+      _brandQuestionImageIndex = 0;
     } else {
       // Pick 4 distinct model entries for image grid
       final opts = <Map<String, String>>[
@@ -112,38 +114,72 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
         }
       }
       modelOptions = opts..shuffle();
-
-      // initialize cycling indices
       _currentImageIndices = List<int>.filled(modelOptions.length, 0);
-
-      // start cycling every 2 seconds
-      _imageCycleTimer =
-          Timer.periodic(const Duration(seconds: 2), (timer) {
-        setState(() {
-          for (var i = 0; i < _currentImageIndices.length; i++) {
-            _currentImageIndices[i] =
-                (_currentImageIndices[i] + 1) % (_maxImageIndex + 1);
-          }
-        });
-      });
     }
 
+    _startFrameTimer();
     setState(() {});
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!_answered) {
+        setState(() {
+          if (isBrandQuestion) {
+            _brandQuestionImageIndex = (_brandQuestionImageIndex + 1) % _maxFrames;
+          } else {
+            for (var i = 0; i < _currentImageIndices.length; i++) {
+              _currentImageIndices[i] = (_currentImageIndices[i] + 1) % _maxFrames;
+            }
+          }
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      if (isBrandQuestion) {
+        _brandQuestionImageIndex = (_brandQuestionImageIndex + 1) % _maxFrames;
+      } else {
+        for (var i = 0; i < _currentImageIndices.length; i++) {
+          _currentImageIndices[i] = (_currentImageIndices[i] + 1) % _maxFrames;
+        }
+      }
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      if (isBrandQuestion) {
+        _brandQuestionImageIndex = (_brandQuestionImageIndex - 1 + _maxFrames) % _maxFrames;
+      } else {
+        for (var i = 0; i < _currentImageIndices.length; i++) {
+          _currentImageIndices[i] = (_currentImageIndices[i] - 1 + _maxFrames) % _maxFrames;
+        }
+      }
+    });
+    _startFrameTimer();
   }
 
   void _finishQuiz() {
     _questionTimer?.cancel();
-    _imageCycleTimer?.cancel();
+    _frameTimer?.cancel();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Quiz Completed!'),
-        content: Text(
-          'You got $correctAnswers/20 in '
-          '${elapsedSeconds ~/ 60}m '
-          '${(elapsedSeconds % 60).toString().padLeft(2, '0')}s',
-        ),
+        title: Text('challenges.quizCompleted'.tr()),
+        content: Text('challenges.score'.tr(namedArgs: {
+          'correct': correctAnswers.toString(),
+          'total': '20',
+          'minutes': (elapsedSeconds ~/ 60).toString(),
+          'seconds': (elapsedSeconds % 60).toString().padLeft(2, '0')
+        })),
         actions: [
           TextButton(
             onPressed: () {
@@ -155,7 +191,7 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                 '${(elapsedSeconds % 60).toString().padLeft(2, '0')}\'',
               );
             },
-            child: const Text('OK'),
+            child: Text('common.ok'.tr()),
           ),
         ],
       ),
@@ -183,33 +219,41 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
     final fileName = '$base$i.webp';
     final assetPath = 'assets/model/$fileName';
 
-    return Image.asset(
-      assetPath,
-      height: 160,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        // helpful fallback for debugging missing assets
-        return Container(
-          height: 160,
-          width: double.infinity,
-          color: Colors.grey[900],
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.directions_car, color: Colors.white54, size: 28),
-                const SizedBox(height: 6),
-                Text(
-                  fileName,
-                  style: const TextStyle(color: Colors.white54, fontSize: 11),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix(<double>[
+        1.3, 0, 0, 0, 0,
+        0, 1.3, 0, 0, 0,
+        0, 0, 1.3, 0, 0,
+        0, 0, 0, 1, 0,
+      ]),
+      child: Image.asset(
+        assetPath,
+        height: 160,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // helpful fallback for debugging missing assets
+          return Container(
+            height: 160,
+            width: double.infinity,
+            color: Colors.grey[900],
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.directions_car, color: Colors.white54, size: 28),
+                  const SizedBox(height: 6),
+                  Text(
+                    fileName,
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -220,7 +264,7 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Brand Challenge'),
+        title: Text('challenges.brandChallenge'.tr()),
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -251,20 +295,84 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                   // ── TEXT-BUTTON MODE ─────────────────────────────────────────
                   if (isBrandQuestion) ...[
                     const Text(
-                      'Guess the brand from these photos:',
+                      'Guess the brand from this photo:',
                       style: TextStyle(fontSize: 20),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    for (int i = 0; i < 6; i++) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: _buildStaticModelImage(i),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 500),
+                        transitionBuilder: (child, anim) =>
+                            FadeTransition(opacity: anim, child: child),
+                        child: ColorFiltered(
+                          colorFilter: const ColorFilter.matrix(<double>[
+                            1.3, 0, 0, 0, 0,
+                            0, 1.3, 0, 0, 0,
+                            0, 0, 1.3, 0, 0,
+                            0, 0, 0, 1, 0,
+                          ]),
+                          child: Image.asset(
+                            key: ValueKey<int>(_brandQuestionImageIndex),
+                            'assets/model/${_fileBase(randomBrand!, randomModel!)}$_brandQuestionImageIndex.webp',
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 200,
+                                width: double.infinity,
+                                color: Colors.grey[900],
+                                child: const Center(
+                                  child: Icon(Icons.directions_car,
+                                      color: Colors.white54, size: 36),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios, size: 20),
+                          onPressed: _answered ? null : _goToPreviousFrame,
+                          color: Colors.white70,
+                        ),
+                        Text(
+                          '${_brandQuestionImageIndex + 1}/$_maxFrames',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                          onPressed: _answered ? null : _goToNextFrame,
+                          color: Colors.white70,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _maxFrames,
+                        (index) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _brandQuestionImageIndex == index
+                                ? Colors.red
+                                : Colors.grey.withOpacity(0.4),
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     for (var b in brandOptions)
                       Padding(
@@ -354,30 +462,38 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                                               : ColorFilter.mode(
                                                   Colors.transparent, BlendMode.srcATop)))
                                       : const ColorFilter.mode(Colors.transparent, BlendMode.srcATop),
-                                  child: Image.asset(
-                                    assetPath,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: Colors.grey[900],
-                                        child: Center(
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.directions_car,
-                                                  color: Colors.white54, size: 28),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                '$fb$imgIdx.webp',
-                                                style:
-                                                    const TextStyle(color: Colors.white54, fontSize: 11),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ],
+                                  child: ColorFiltered(
+                                    colorFilter: const ColorFilter.matrix(<double>[
+                                      1.3, 0, 0, 0, 0,
+                                      0, 1.3, 0, 0, 0,
+                                      0, 0, 1.3, 0, 0,
+                                      0, 0, 0, 1, 0,
+                                    ]),
+                                    child: Image.asset(
+                                      assetPath,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          color: Colors.grey[900],
+                                          child: Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.directions_car,
+                                                    color: Colors.white54, size: 28),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  '$fb$imgIdx.webp',
+                                                  style:
+                                                      const TextStyle(color: Colors.white54, fontSize: 11),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    },
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
@@ -386,6 +502,45 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                           ),
                         );
                       },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios, size: 20),
+                          onPressed: _answered ? null : _goToPreviousFrame,
+                          color: Colors.white70,
+                        ),
+                        Text(
+                          '${(_currentImageIndices.isNotEmpty ? _currentImageIndices[0] : 0) + 1}/$_maxFrames',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                          onPressed: _answered ? null : _goToNextFrame,
+                          color: Colors.white70,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _maxFrames,
+                        (index) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: (_currentImageIndices.isNotEmpty && _currentImageIndices[0] == index)
+                                ? Colors.red
+                                : Colors.grey.withOpacity(0.4),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ],

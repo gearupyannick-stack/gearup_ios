@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:easy_localization/easy_localization.dart';
 import '../../services/audio_feedback.dart';
 
 class ModelChallengePage extends StatefulWidget {
@@ -29,8 +30,9 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
   Timer? _quizTimer;
 
   // ── Frame animation ──────────────────────────────────────────────────────────
-  static const int _frameCount = 6;
+  static const int _maxFrames = 6;
   int    _frameIndex = 0;
+  int    _imageToModelFrameIndex = 0;
   Timer? _frameTimer;
 
   // ── Answer‐highlighting state ────────────────────────────────────────────────
@@ -45,13 +47,6 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
     // overall quiz timer
     _quizTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _elapsedSeconds++);
-    });
-
-    // frame‐by‐frame timer (2s per frame)
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() {
-        _frameIndex = (_frameIndex + 1) % _frameCount;
-      });
     });
   }
 
@@ -75,6 +70,8 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
   }
 
   void _nextQuestion() {
+    _frameTimer?.cancel();
+
     if (_questionCount >= 20) {
       return _finishQuiz();
     }
@@ -90,8 +87,10 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
 
     if (_isImageToModel) {
       _correctAnswer = _currentModel!;
+      _imageToModelFrameIndex = 0;
     } else {
       _correctAnswer = '$_currentBrand $_currentModel';
+      _frameIndex = 0;
     }
 
     // build 4 distinct options
@@ -108,7 +107,48 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
       }
     }
     _options = opts..shuffle();
+
+    _startFrameTimer();
     setState(() {});
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!_answered) {
+        setState(() {
+          if (_isImageToModel) {
+            _imageToModelFrameIndex = (_imageToModelFrameIndex + 1) % _maxFrames;
+          } else {
+            _frameIndex = (_frameIndex + 1) % _maxFrames;
+          }
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      if (_isImageToModel) {
+        _imageToModelFrameIndex = (_imageToModelFrameIndex + 1) % _maxFrames;
+      } else {
+        _frameIndex = (_frameIndex + 1) % _maxFrames;
+      }
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      if (_isImageToModel) {
+        _imageToModelFrameIndex = (_imageToModelFrameIndex - 1 + _maxFrames) % _maxFrames;
+      } else {
+        _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+      }
+    });
+    _startFrameTimer();
   }
 
   void _finishQuiz() {
@@ -155,13 +195,20 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
     final fileName = '$base$i.webp';
     final assetPath = 'assets/model/$fileName';
 
-    return Image.asset(
-      assetPath,
-      key: ValueKey<int>(i),
-      height: 160,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix(<double>[
+        1.3, 0, 0, 0, 0,
+        0, 1.3, 0, 0, 0,
+        0, 0, 1.3, 0, 0,
+        0, 0, 0, 1, 0,
+      ]),
+      child: Image.asset(
+        assetPath,
+        key: ValueKey<int>(i),
+        height: 160,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
         // Helpful debug fallback when an asset is missing on device (esp. iOS case sensitivity)
         return Container(
           height: 160,
@@ -183,6 +230,7 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
           ),
         );
       },
+      ),
     );
   }
 
@@ -192,11 +240,18 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
     final fileName = '$base$_frameIndex.webp';
     final assetPath = 'assets/model/$fileName';
 
-    return Image.asset(
-      assetPath,
-      key: ValueKey<int>(_frameIndex),
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix(<double>[
+        1.3, 0, 0, 0, 0,
+        0, 1.3, 0, 0, 0,
+        0, 0, 1.3, 0, 0,
+        0, 0, 0, 1, 0,
+      ]),
+      child: Image.asset(
+        assetPath,
+        key: ValueKey<int>(_frameIndex),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
         return Container(
           color: Colors.grey[900],
           child: Center(
@@ -215,6 +270,7 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
           ),
         );
       },
+      ),
     );
   }
 
@@ -264,20 +320,84 @@ if (_answered) return;
                   // ── IMAGE → MODEL MODE ───────────────────────────────
                   if (_isImageToModel) ...[
                     const Text(
-                      'Guess the model from these photos:',
+                      'Guess the model from this photo:',
                       style: TextStyle(fontSize: 20),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    for (int i = 0; i < _frameCount; i++) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: _buildStaticModelImage(i),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 500),
+                        transitionBuilder: (child, anim) =>
+                            FadeTransition(opacity: anim, child: child),
+                        child: ColorFiltered(
+                          colorFilter: const ColorFilter.matrix(<double>[
+                            1.3, 0, 0, 0, 0,
+                            0, 1.3, 0, 0, 0,
+                            0, 0, 1.3, 0, 0,
+                            0, 0, 0, 1, 0,
+                          ]),
+                          child: Image.asset(
+                            key: ValueKey<int>(_imageToModelFrameIndex),
+                            'assets/model/${_formatImageName(_currentBrand!, _currentModel!)}$_imageToModelFrameIndex.webp',
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 200,
+                                width: double.infinity,
+                                color: Colors.grey[900],
+                                child: const Center(
+                                  child: Icon(Icons.directions_car,
+                                      color: Colors.white54, size: 36),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios, size: 20),
+                          onPressed: _answered ? null : _goToPreviousFrame,
+                          color: Colors.white70,
+                        ),
+                        Text(
+                          '${_imageToModelFrameIndex + 1}/$_maxFrames',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                          onPressed: _answered ? null : _goToNextFrame,
+                          color: Colors.white70,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _maxFrames,
+                        (index) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _imageToModelFrameIndex == index
+                                ? Colors.red
+                                : Colors.grey.withOpacity(0.4),
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     for (var opt in _options)
                       Padding(
@@ -369,6 +489,45 @@ if (_answered) return;
                           ),
                         );
                       },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios, size: 20),
+                          onPressed: _answered ? null : _goToPreviousFrame,
+                          color: Colors.white70,
+                        ),
+                        Text(
+                          '${_frameIndex + 1}/$_maxFrames',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                          onPressed: _answered ? null : _goToNextFrame,
+                          color: Colors.white70,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _maxFrames,
+                        (index) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _frameIndex == index
+                                ? Colors.red
+                                : Colors.grey.withOpacity(0.4),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ],

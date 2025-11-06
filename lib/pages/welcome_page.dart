@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import '../services/auth_service.dart';
 import '../main.dart';
@@ -100,7 +101,7 @@ class _WelcomePageState extends State<WelcomePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not connect: $e')),
+          SnackBar(content: Text('welcome.couldNotContinueAsGuest'.tr(namedArgs: {'error': e.toString()}))),
         );
       }
     } finally {
@@ -136,7 +137,7 @@ class _WelcomePageState extends State<WelcomePage> {
             left: 16,
             right: 16,
             child: Text(
-              "Welcome to GearUp",
+              "welcome.title".tr(),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 32,
@@ -210,9 +211,9 @@ class _WelcomePageState extends State<WelcomePage> {
                   ),
                   elevation: 2,
                 ),
-                child: const Text(
-                  "Get Started",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                child: Text(
+                  "welcome.joinAsGuest".tr(),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:easy_localization/easy_localization.dart';
 import '../services/audio_feedback.dart';
 
 
@@ -152,9 +153,9 @@ class _LibraryPageState extends State<LibraryPage> {
                       AudioFeedback.instance.playEvent(SoundEvent.tap);
                     } catch (_) {}
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('More brands coming soon'),
-                        duration: Duration(seconds: 1),
+                      SnackBar(
+                        content: Text('categories.comingSoon'.tr()),
+                        duration: const Duration(seconds: 1),
                       ),
                     );
                   },
@@ -164,9 +165,9 @@ class _LibraryPageState extends State<LibraryPage> {
                       color: Colors.black,
                       alignment: Alignment.center,
                       padding: const EdgeInsets.all(8),
-                      child: const Text(
-                        'More brands coming soon',
-                        style: TextStyle(
+                      child: Text(
+                        'categories.comingSoon'.tr(),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -193,7 +194,7 @@ class _LibraryPageState extends State<LibraryPage> {
                       backgroundColor: Colors.grey,
                       minimumSize: const Size(double.infinity, 48),
                     ),
-                    child: const Text('Back to Brands'),
+                    child: Text('common.back'.tr()),
                   ),
                 ),
                 Expanded(
@@ -261,19 +262,19 @@ class _LibraryPageState extends State<LibraryPage> {
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              Text('Description: ${model['description']}'),
-              Text('Engine Type: ${model['engineType']}'),
-              Text('Top Speed: ${model['topSpeed']}'),
-              Text('Acceleration: ${model['acceleration']}'),
-              Text('Horsepower: ${model['horsepower']}'),
-              Text('Price Range: ${model['priceRange']}'),
-              Text('Year: ${model['year']}'),
-              Text('Origin: ${model['origin']}'),
-              Text('Notable Feature: ${model['notableFeature']}'),
+              Text('${'library.description'.tr()}: ${model['description']}'),
+              Text('${'library.engineType'.tr()}: ${model['engineType']}'),
+              Text('${'library.topSpeed'.tr()}: ${model['topSpeed']}'),
+              Text('${'library.acceleration'.tr()}: ${model['acceleration']}'),
+              Text('${'library.horsepower'.tr()}: ${model['horsepower']}'),
+              Text('${'library.priceRange'.tr()}: ${model['priceRange']}'),
+              Text('${'library.year'.tr()}: ${model['year']}'),
+              Text('${'library.origin'.tr()}: ${model['origin']}'),
+              Text('${'library.notableFeature'.tr()}: ${model['notableFeature']}'),
               const SizedBox(height: 16),
-              const Text(
-                'Photos:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                'library.photos'.tr(),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               ...List.generate(6, (index) {

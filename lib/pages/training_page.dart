@@ -1,5 +1,6 @@
 // training_page.dart
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 // Keep existing relative imports to your challenge pages:
 import 'challenges/brand_challenge_page.dart';
@@ -72,6 +73,21 @@ class _TrainingPageState extends State<TrainingPage> {
     // Make sure PremiumService is initialized in app start (Main). If not, ensure init is called elsewhere.
   }
 
+  String _translateModuleName(String title) {
+    switch (title) {
+      case 'Brand': return 'training.moduleBrand'.tr();
+      case 'Models by Brand': return 'challenges.modelsByBrand'.tr();
+      case 'Model': return 'training.moduleModel'.tr();
+      case 'Origin': return 'training.moduleOrigin'.tr();
+      case 'Engine Type': return 'training.moduleEngineType'.tr();
+      case 'Max Speed': return 'training.moduleMaxSpeed'.tr();
+      case 'Acceleration': return 'training.moduleAcceleration'.tr();
+      case 'Power': return 'training.modulePower'.tr();
+      case 'Special Feature': return 'challenges.specialFeature'.tr();
+      default: return title;
+    }
+  }
+
   Future<void> _maybeStartChallenge(String title, Widget page) async {
     final premium = PremiumService.instance;
 
@@ -83,13 +99,10 @@ class _TrainingPageState extends State<TrainingPage> {
         await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text("Daily limit reached"),
-            content: const Text(
-              "Free users can try 5 gated Training challenges per day.\n\n"
-              "Watch an ad to get +5 more attempts or upgrade to Premium for unlimited Training and unlimited lives.",
-            ),
+            title: Text('training.dailyLimitReached'.tr()),
+            content: Text('training.upgradePremium'.tr()),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close")),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text('common.close'.tr())),
               TextButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
@@ -101,30 +114,30 @@ class _TrainingPageState extends State<TrainingPage> {
                         // Note: You may want to add actual tracking of ad-granted trials
                         // For now, we'll just show a success message
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Granted +5 training attempts! Try again.')),
+                          SnackBar(content: Text('training.attemptsGranted'.tr())),
                         );
                       },
                     );
                     if (!shown) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Ad unavailable — please try again later.')),
+                        SnackBar(content: Text('lives.adUnavailable'.tr())),
                       );
                     }
                   } catch (e) {
                     debugPrint('Error showing training trials ad: $e');
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error showing ad: $e')),
+                      SnackBar(content: Text('home.errorShowingAd'.tr(namedArgs: {'error': e.toString()}))),
                     );
                   }
                 },
-                child: const Text("Watch Ad (+5)"),
+                child: Text('lives.watchAd'.tr()),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
                   Navigator.of(context).pushNamed('/premium');
                 },
-                child: const Text("Upgrade"),
+                child: Text('premium.purchaseButton'.tr(namedArgs: {'price': ''})),
               ),
             ],
           ),
@@ -163,18 +176,28 @@ class _TrainingPageState extends State<TrainingPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header + remaining counter
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Training", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                Text('training.title'.tr(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.fitness_center, size: 18),
-                    const SizedBox(width: 6),
-                    Text("Gated remaining: $remaining", style: const TextStyle(fontSize: 14)),
-                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.fitness_center, size: 18),
+                        const SizedBox(width: 6),
+                        Text('training.attemptsRemaining'.tr(namedArgs: {'count': remaining}), style: const TextStyle(fontSize: 14)),
+                      ],
+                    ),
                     if (!isPremium)
-                      TextButton(onPressed: () => Navigator.of(context).pushNamed('/premium'), child: const Text("Upgrade")),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pushNamed('/premium'),
+                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                        child: const Text('Go Premium', style: TextStyle(fontSize: 13)),
+                      ),
                   ],
                 ),
               ],
@@ -199,7 +222,7 @@ class _TrainingPageState extends State<TrainingPage> {
                     ),
                     child: Stack(
                       children: [
-                        Center(child: Text(c.title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16))),
+                        Center(child: Text(_translateModuleName(c.title), textAlign: TextAlign.center, style: const TextStyle(fontSize: 16))),
                         if (isGatedItem)
                           Positioned(
                             right: 6,

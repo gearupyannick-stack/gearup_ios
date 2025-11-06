@@ -5,6 +5,7 @@ import 'dart:convert';               // for LineSplitter
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:easy_localization/easy_localization.dart';
 import '../../services/audio_feedback.dart';
 
 class ModelsByBrandChallengePage extends StatefulWidget {
@@ -216,7 +217,7 @@ class BrandModelQuizPage extends StatefulWidget {
 
 class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
   static const int _maxQuestions = 20;
-  static const int _frameCount = 6; // frames 0..5
+  static const int _maxFrames = 6;
 
   late List<String> _allModels;
   late List<String> _options;
@@ -228,8 +229,9 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
   int _correctAnswers = 0;
   int _elapsedSeconds = 0;
   int _frameIndex = 0;
+  int _imageToModelFrameIndex = 0;
   late Timer _quizTimer;
-  late Timer _frameTimer;
+  Timer? _frameTimer;
 
   @override
   void initState() {
@@ -241,22 +243,19 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
       setState(() => _elapsedSeconds++);
     });
 
-    // frame cycling every 2 seconds
-    _frameTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() => _frameIndex = (_frameIndex + 1) % _frameCount);
-    });
-
     _nextQuestion();
   }
 
   @override
   void dispose() {
     _quizTimer.cancel();
-    _frameTimer.cancel();
+    _frameTimer?.cancel();
     super.dispose();
   }
 
   void _nextQuestion() {
+    _frameTimer?.cancel();
+
     if (_questionCount >= _maxQuestions) {
       return _finishQuiz();
     }
@@ -267,6 +266,12 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
 
     final rnd = Random();
     _correctAnswer = _allModels[rnd.nextInt(_allModels.length)];
+
+    if (_isImageToModel) {
+      _imageToModelFrameIndex = 0;
+    } else {
+      _frameIndex = 0;
+    }
 
     // Build 4 distinct options
     final used = <String>{_correctAnswer};
@@ -279,12 +284,53 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
       }
     }
     _options.shuffle();
+
+    _startFrameTimer();
     setState(() {});
+  }
+
+  void _startFrameTimer() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!_answered) {
+        setState(() {
+          if (_isImageToModel) {
+            _imageToModelFrameIndex = (_imageToModelFrameIndex + 1) % _maxFrames;
+          } else {
+            _frameIndex = (_frameIndex + 1) % _maxFrames;
+          }
+        });
+      }
+    });
+  }
+
+  void _goToNextFrame() {
+    if (_answered) return;
+    setState(() {
+      if (_isImageToModel) {
+        _imageToModelFrameIndex = (_imageToModelFrameIndex + 1) % _maxFrames;
+      } else {
+        _frameIndex = (_frameIndex + 1) % _maxFrames;
+      }
+    });
+    _startFrameTimer();
+  }
+
+  void _goToPreviousFrame() {
+    if (_answered) return;
+    setState(() {
+      if (_isImageToModel) {
+        _imageToModelFrameIndex = (_imageToModelFrameIndex - 1 + _maxFrames) % _maxFrames;
+      } else {
+        _frameIndex = (_frameIndex - 1 + _maxFrames) % _maxFrames;
+      }
+    });
+    _startFrameTimer();
   }
 
   void _finishQuiz() {
     _quizTimer.cancel();
-    _frameTimer.cancel();
+    _frameTimer?.cancel();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -320,12 +366,19 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
     final fileBase = _formatImageName(widget.brand, _correctAnswer);
     final assetPath = 'assets/model/$fileBase$i.webp';
 
-    return Image.asset(
-      assetPath,
-      height: 160,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix(<double>[
+        1.3, 0, 0, 0, 0,
+        0, 1.3, 0, 0, 0,
+        0, 0, 1.3, 0, 0,
+        0, 0, 0, 1, 0,
+      ]),
+      child: Image.asset(
+        assetPath,
+        height: 160,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
         return Container(
           height: 160,
           width: double.infinity,
@@ -346,6 +399,7 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
           ),
         );
       },
+      ),
     );
   }
 
@@ -398,14 +452,79 @@ if (_answered) return;
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              for (int i = 0; i < _frameCount; i++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: _buildStaticModelImage(i),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  transitionBuilder: (child, anim) =>
+                      FadeTransition(opacity: anim, child: child),
+                  child: ColorFiltered(
+                    colorFilter: const ColorFilter.matrix(<double>[
+                      1.3, 0, 0, 0, 0,
+                      0, 1.3, 0, 0, 0,
+                      0, 0, 1.3, 0, 0,
+                      0, 0, 0, 1, 0,
+                    ]),
+                    child: Image.asset(
+                      key: ValueKey<int>(_imageToModelFrameIndex),
+                      'assets/model/${_formatImageName(widget.brand, _correctAnswer)}$_imageToModelFrameIndex.webp',
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 200,
+                          width: double.infinity,
+                          color: Colors.grey[900],
+                          child: const Center(
+                            child: Icon(Icons.directions_car,
+                                color: Colors.white54, size: 36),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, size: 20),
+                    onPressed: _answered ? null : _goToPreviousFrame,
+                    color: Colors.white70,
+                  ),
+                  Text(
+                    '${_imageToModelFrameIndex + 1}/$_maxFrames',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                    onPressed: _answered ? null : _goToNextFrame,
+                    color: Colors.white70,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _maxFrames,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _imageToModelFrameIndex == index
+                          ? Colors.red
+                          : Colors.grey.withOpacity(0.4),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
               for (var m in _options)
                 Padding(
@@ -491,17 +610,24 @@ if (_answered) return;
                                             BlendMode.srcATop)))
                                 : const ColorFilter.mode(
                                     Colors.transparent, BlendMode.srcATop),
-                            child: Image.asset(
-                              'assets/model/$fileBase$_frameIndex.webp',
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.grey[900],
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.directions_car, color: Colors.white54, size: 28),
+                            child: ColorFiltered(
+                              colorFilter: const ColorFilter.matrix(<double>[
+                                1.3, 0, 0, 0, 0,
+                                0, 1.3, 0, 0, 0,
+                                0, 0, 1.3, 0, 0,
+                                0, 0, 0, 1, 0,
+                              ]),
+                              child: Image.asset(
+                                'assets/model/$fileBase$_frameIndex.webp',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.grey[900],
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.directions_car, color: Colors.white54, size: 28),
                                         const SizedBox(height: 6),
                                         Text(
                                           '$fileBase$_frameIndex.webp',
@@ -513,13 +639,53 @@ if (_answered) return;
                                   ),
                                 );
                               },
-                            )
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   );
                 },
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, size: 20),
+                    onPressed: _answered ? null : _goToPreviousFrame,
+                    color: Colors.white70,
+                  ),
+                  Text(
+                    '${_frameIndex + 1}/$_maxFrames',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                    onPressed: _answered ? null : _goToNextFrame,
+                    color: Colors.white70,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _maxFrames,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _frameIndex == index
+                          ? Colors.red
+                          : Colors.grey.withOpacity(0.4),
+                    ),
+                  ),
+                ),
               ),
             ],
           ],
