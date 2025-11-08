@@ -179,8 +179,6 @@ class _TrainingPageState extends State<TrainingPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('training.title'.tr(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -196,7 +194,7 @@ class _TrainingPageState extends State<TrainingPage> {
                       TextButton(
                         onPressed: () => Navigator.of(context).pushNamed('/premium'),
                         style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
-                        child: const Text('Go Premium', style: TextStyle(fontSize: 13)),
+                        child: Text('training.goPremium'.tr(), style: const TextStyle(fontSize: 13)),
                       ),
                   ],
                 ),

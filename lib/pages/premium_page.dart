@@ -152,7 +152,7 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'GearUp Premium',
+                        'premium.title'.tr(),
                         style: theme.textTheme.titleLarge?.copyWith(color: Colors.white),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

@@ -157,10 +157,13 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Quiz Completed!'),
+        title: Text(tr('challenges.quizCompleted')),
         content: Text(
-          'You got $_correctAnswers/20 in '
-          '${_elapsedSeconds ~/ 60}m ${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s',
+          tr('challenges.resultMessage', namedArgs: {
+            'score': '$_correctAnswers',
+            'total': '20',
+            'time': '${_elapsedSeconds ~/ 60}m ${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s'
+          }),
         ),
         actions: [
           TextButton(
@@ -171,7 +174,7 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
                 '$_correctAnswers/20 in ${_elapsedSeconds ~/ 60}\'${(_elapsedSeconds % 60).toString().padLeft(2, '0')}\'\'',
               );
             },
-            child: const Text('OK'),
+            child: Text(tr('common.ok')),
           ),
         ],
       ),
@@ -189,50 +192,6 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
         .join();
   }
 
-  /// Displays the i-th static frame for the current model (from assets/model).
-  Widget _buildStaticModelImage(int i) {
-    final base = _formatImageName(_currentBrand!, _currentModel!);
-    final fileName = '$base$i.webp';
-    final assetPath = 'assets/model/$fileName';
-
-    return ColorFiltered(
-      colorFilter: const ColorFilter.matrix(<double>[
-        1.3, 0, 0, 0, 0,
-        0, 1.3, 0, 0, 0,
-        0, 0, 1.3, 0, 0,
-        0, 0, 0, 1, 0,
-      ]),
-      child: Image.asset(
-        assetPath,
-        key: ValueKey<int>(i),
-        height: 160,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-        // Helpful debug fallback when an asset is missing on device (esp. iOS case sensitivity)
-        return Container(
-          height: 160,
-          width: double.infinity,
-          color: Colors.grey[900],
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.directions_car, color: Colors.white54, size: 28),
-                const SizedBox(height: 6),
-                Text(
-                  fileName,
-                  style: const TextStyle(color: Colors.white54, fontSize: 11),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-      ),
-    );
-  }
 
   /// Displays the animated/current frame for a given option (from assets/model).
   Widget _buildOptionImage(Map<String, String> opt) {
@@ -295,12 +254,12 @@ if (_answered) return;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Model Challenge'),
+        title: Text(tr('challenges.modelChallenge')),
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Center(
-              child: Text('Time: $headerTime | Q: $_questionCount/20',
+              child: Text('${tr("challenges.timeLabel")}$headerTime | ${tr("challenges.questionLabel")}$_questionCount/20',
                   style: const TextStyle(fontSize: 16)),
             ),
           ),
@@ -312,7 +271,7 @@ if (_answered) return;
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  Text('Score: $_correctAnswers/20',
+                  Text('${tr("challenges.scoreLabel")}$_correctAnswers/20',
                       style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),

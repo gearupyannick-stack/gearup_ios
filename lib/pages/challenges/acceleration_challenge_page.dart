@@ -209,10 +209,13 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Quiz Completed!'),
+        title: Text(tr('challenges.quizCompleted')),
         content: Text(
-          'You got $_correctAnswers/20 in '
-          '${_elapsedSeconds ~/ 60}m ${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s',
+          tr('challenges.resultMessage', namedArgs: {
+            'score': '$_correctAnswers',
+            'total': '20',
+            'time': '${_elapsedSeconds ~/ 60}m ${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s'
+          }),
         ),
         actions: [
           TextButton(
@@ -223,7 +226,7 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
                 '$_correctAnswers/20 in ${_elapsedSeconds ~/ 60}\'${(_elapsedSeconds % 60).toString().padLeft(2, '0')}\'\'',
               );
             },
-            child: const Text('OK'),
+            child: Text(tr('common.ok')),
           ),
         ],
       ),
@@ -294,7 +297,7 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Acceleration Challenge'),
+        title: Text(tr('challenges.accelerationChallenge')),
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),

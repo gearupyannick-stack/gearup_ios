@@ -136,6 +136,7 @@
     "questionOf": "Question {current} of {total}",
     "whichBrand": "Which brand is this?",
     "whichModel": "Which model is this?",
+    "whichModelOfBrand": "Which model of this brand is shown?",
     "whatAcceleration": "What's the 0-100 km/h time?",
     "whatPower": "What's the power output?",
     "whatOrigin": "What's the origin?",
@@ -145,8 +146,20 @@
     "whatSpecialFeature": "What's a special feature?",
     "back": "Back",
     "adLoading": "Loading ad...",
-    "quizCompleted": "Quiz Completed",
-    "brandChallenge": "Brand Challenge"
+    "quizCompleted": "Quiz Completed!",
+    "brandChallenge": "Brand Challenge",
+    "modelChallenge": "Model Challenge",
+    "accelerationChallenge": "Acceleration Challenge",
+    "powerChallenge": "Power Challenge",
+    "originChallenge": "Origin Challenge",
+    "engineTypeChallenge": "Engine Type Challenge",
+    "modelsByBrandChallenge": "Models by Brand",
+    "maxSpeedChallenge": "Max Speed Challenge",
+    "specialFeatureChallenge": "Special Feature Challenge",
+    "resultMessage": "You got {score}/{total} in {time}",
+    "timeLabel": "Time: ",
+    "questionLabel": "Q: ",
+    "scoreLabel": "Score: "
   },
   "training": {
     "title": "Training Mode",
@@ -178,7 +191,8 @@
     "backToModules": "Back to Modules",
     "correctAnswer": "Correct Answer",
     "yourAnswer": "Your Answer",
-    "attemptsGranted": "Training attempts granted!"
+    "attemptsGranted": "Training attempts granted!",
+    "goPremium": "Go Premium"
   },
   "library": {
     "title": "Car Library",
@@ -193,17 +207,16 @@
     "origin": "Origin",
     "acceleration": "0-100 km/h",
     "power": "Power",
-    "maxSpeed": "Max Speed",
     "engineType": "Engine Type",
-    "specialFeature": "Special Feature",
     "seconds": "{value} sec",
-    "horsepower": "{value} hp",
+    "horsepower": "HorsePower",
     "kmh": "{value} km/h",
     "description": "Description",
     "topSpeed": "Top Speed",
     "priceRange": "Price Range",
     "notableFeature": "Notable Feature",
-    "photos": "Photos"
+    "photos": "Photos",
+    "MoreBrandsComingSoon": "More brands coming soon!"
   },
   "profile": {
     "title": "Profile",
@@ -213,7 +226,7 @@
     "username": "Username",
     "favoriteBrand": "Favorite Brand",
     "favoriteModel": "Favorite Model",
-    "memberSince": "Member since {date}",
+    "memberSince": "Member since",
     "guestAccount": "Guest Account",
     "anonymousAccount": "Anonymous Account",
     "connectGoogle": "Connect with Google",
@@ -303,10 +316,25 @@
     "ensureImagesLoaded": "Ensure All Images Are Loaded",
     "googleUser": "Google user",
     "googleSignInFailed": "Google sign-in failed: {error}",
-    "googleAccountInUse": "This Google account is already in use. Sign out and sign in with Google to use that account."
+    "googleAccountInUse": "This Google account is already in use. Sign out and sign in with Google to use that account.",
+    "labelUsername": "Username",
+    "labelFavoriteBrand": "Favorite Brand",
+    "labelFavoriteModel": "Favorite Model",
+    "monthJanuary": "January",
+    "monthFebruary": "February",
+    "monthMarch": "March",
+    "monthApril": "April",
+    "monthMay": "May",
+    "monthJune": "June",
+    "monthJuly": "July",
+    "monthAugust": "August",
+    "monthSeptember": "September",
+    "monthOctober": "October",
+    "monthNovember": "November",
+    "monthDecember": "December"
   },
   "premium": {
-    "title": "Go Premium",
+    "title": "GearUp Premium",
     "subtitle": "Unlock the Full Experience",
     "unlimitedLives": "Unlimited Lives",
     "unlimitedLivesDesc": "Never run out of lives again",
@@ -334,7 +362,15 @@
     "oneTimePurchase": "One-time purchase",
     "deviceNote": "Premium is linked to this device only",
     "whyUpgrade": "Why Upgrade?",
-    "whyUpgradeDesc": "Support the app and unlock unlimited features"
+    "whyUpgradeDesc": "Support the app and unlock unlimited features",
+    "legalNote": "Available on all devices. Restores automatically on reinstall.",
+    "faq": {
+      "title": "Why upgrade?",
+      "bullet1": "Faster progression and unlimited retries.",
+      "bullet2": "Better experience without ads.",
+      "bullet3": "Supports development of new features."
+    },
+    "productId": "Product ID: {id}"
   },
   "preload": {
     "title": "Loading",
@@ -345,7 +381,8 @@
     "percentComplete": "{percent}% complete",
     "tapToContinue": "Tap to continue",
     "error": "Error loading assets",
-    "retry": "Retry"
+    "retry": "Retry",
+    "ensureLoaded": "Ensure all images are loaded"
   },
   "home": {
     "passedGoodLuck": "Passed — good luck!",
@@ -370,11 +407,14 @@
       "trackConqueror": "Track Conqueror"
     },
     "tracks": "Tracks",
+    "level": "Level {number}",
     "levelRequired": "Level {level} - Required: {gears} gears",
     "nextTrack": "Next Track",
     "nextLevel": "Next Level",
     "retry": "Retry",
-    "flagChallenge": "Flag Challenge"
+    "flagChallenge": "Flag Challenge",
+    "track": "Track {number}",
+    "locked": "Locked"
   },
   "questions": {
     "questionNumber": "Question #{number}",
@@ -389,7 +429,8 @@
     "brandImage": "Which image represents the {brand}?",
     "origin": "Which country does this car come from?",
     "modelName": "What is this model?",
-    "whichCar": "Which car is this?"
+    "whichCar": "Which car is this?",
+    "progress": "Question {score}/{total}"
   },
   "race": {
     "title": "Multiplayer Race",
@@ -398,7 +439,7 @@
     "joinRoom": "Join Room",
     "searchingOpponent": "Searching for opponent...",
     "waitingForPlayers": "Waiting for players...",
-    "roomCode": "Room Code",
+    "roomCode": "Room Code:",
     "enterRoomCode": "Enter room code",
     "join": "Join",
     "start": "Start",
@@ -421,7 +462,37 @@
     "roomNotFound": "Room not found",
     "invalidRoomCode": "Invalid room code",
     "noCarData": "No car data available for the quiz.",
-    "unableToJoinRoom": "Unable to join room: {error}"
+    "unableToJoinRoom": "Unable to join room: {error}",
+    "choosePlayerName": "Choose your player name:",
+    "startRace": "Start Race",
+    "waitingForPlayer": "Waiting for another player...",
+    "nextQuestion": "Next Question",
+    "shareCode": "Share this code with friends!",
+    "leaderboardTitle": "LEADERBOARD — COMING SOON",
+    "leaderboardDesc": "A space to see top players and your rank — stay tuned!",
+    "aboutToEnterMultiplayer": "You're about to enter a multiplayer game.\n\nYou will need to answer {count} questions correctly to complete the lap. Difficulty progresses from easy to hard.",
+    "aboutToEnterPrivateMultiplayer": "You're about to enter a private multiplayer game.\n\nYou will need to answer {count} questions correctly to complete the lap.\n\nChoose your player name:",
+    "publicRoom": "Public Room",
+    "privateRoom": "Private Room",
+    "random": "Random",
+    "enterYourName": "Enter your name",
+    "ptsLabel": " pts",
+    "errLabel": " err",
+    "playerWaitingTooltip": "Player waiting",
+    "emptyTooltip": "Empty",
+    "pressStartToBegin": "Press \"Start Race\" to begin!",
+    "waitingForCreatorToStart": "Waiting for the room creator to start the race...",
+    "victory": "Victory!",
+    "finished": "Race Finished!",
+    "winnerFallback": "Winner",
+    "leaveConfirmContent": "Are you sure you want to leave the race? Your progress will be lost.",
+    "publicJoinIntro": "Join a public room where players wait for opponents. You can join an available room or create your own.",
+    "privateJoinIntro": "Create or join a private room. Share the room code with friends to play together.",
+    "playerPrefix": "Player",
+    "clubsTitle": "Clubs",
+    "clubsDesc": "Create or join clubs to play with friends and organize private tournaments.",
+    "roomCodeLabel": "Room Code:",
+    "shareRoomCode": "Share room code"
   },
   "common": {
     "ok": "OK",
@@ -442,7 +513,11 @@
     "delete": "Delete",
     "edit": "Edit",
     "share": "Share",
-    "more": "More"
+    "more": "More",
+    "player": "Player",
+    "youInParens": "(You)",
+    "points": "points",
+    "errors": "errors"
   },
   "language": {
     "title": "Language",
@@ -453,9 +528,43 @@
     "german": "Deutsch",
     "italian": "Italiano",
     "portuguese": "Português",
-    "currentLanguage": "Current: {language}",
+    "currentLanguage": "Current: {langCode}",
     "changeLanguagePrompt": "Change language? The app will reload.",
     "languageChanged": "Language changed to {language}",
     "cancel": "Cancel"
+  },
+  "achievements": {
+    "categories": {
+      "trackProgression": "🔸 Track Progression",
+      "perfectRuns": "🔸 Perfect Runs",
+      "gearMastery": "🔸 Gear Mastery",
+      "gateTrackUnlocks": "🔸 Gate & Track Unlocks",
+      "comebackCorrection": "🔸 Comeback & Correction",
+      "trainingAchievements": "🎓 Training Achievements"
+    },
+    "list": {
+      "firstFlag": "First Flag – Tap your very first flag on any Track.",
+      "levelComplete": "Level Complete – Finish Level 1 on Track 1.",
+      "midTrackMilestone": "Mid-Track Milestone – Finish Level 5 on Track 1.",
+      "trackConqueror": "Track Conqueror – Complete all levels on Track 1 (10/10), Track 2 (20/20) or Track 3 (30/30).",
+      "cleanSlate": "Clean Slate – Answer every question in a single level correctly (all green flags).",
+      "zeroLifeLoss": "Zero-Life Loss – Complete a level without ever losing a life.",
+      "swiftRacer": "Swift Racer – Finish any one level in under 60 seconds (time your elapsedSeconds).",
+      "gearRookie": "Gear Rookie – Earn 100 gears on the Home track.",
+      "gearGrinder": "Gear Grinder – Accumulate 1,000 gears total.",
+      "gearTycoon": "Gear Tycoon – Hit 5,000 gears total.",
+      "gateOpener": "Gate Opener – Unlock your first \"LevelLimit\" gate.",
+      "trackUnlockerI": "Track Unlocker I – Unlock Track 2.",
+      "trackUnlockerII": "Track Unlocker II – Unlock Track 3.",
+      "secondChance": "Second Chance – Use the \"Retry\" correction run to turn a red/orange flag green.",
+      "perseverance": "Perseverance – Correct 5 failed flags via correction runs.",
+      "trainingInitiate": "Training Initiate – Complete your 1st training session.",
+      "trainingRegular": "Training Regular – Hit 10 sessions.",
+      "trainingVeteran": "Training Veteran – Hit 50 sessions.",
+      "quizStreak": "Quiz Streak – Score ≥ 10/20 in 5 sessions in a row.",
+      "sharpshooter": "Sharpshooter – Maintain ≥ 90% accuracy over 200 total question attempts.",
+      "allRounder": "All-Rounder – On one day, score ≥ 10/20 in all 8 modules.",
+      "trainingAllStar": "Training All-Star – Earn 20/20 in all 8 modules (at least once each)."
+    }
   }
 }

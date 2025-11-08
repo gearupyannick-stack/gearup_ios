@@ -82,4 +82,60 @@ class LanguageService {
   static String getCurrentLanguageCode(BuildContext context) {
     return context.locale.languageCode;
   }
+
+  /// Returns the column index for the car description based on current locale
+  /// The CSV has translations for description in different columns:
+  /// - English (en): column 2
+  /// - French (fr): column 11
+  /// - Italian (it): column 12
+  /// - Spanish (es): column 13
+  /// - Portuguese (pt): column 14
+  /// - German (de): column 15
+  static int getDescriptionIndex(BuildContext context) {
+    final locale = context.locale.languageCode;
+
+    switch (locale) {
+      case 'fr':
+        return 11;
+      case 'it':
+        return 12;
+      case 'es':
+        return 13;
+      case 'pt':
+        return 14;
+      case 'de':
+        return 15;
+      case 'en':
+      default:
+        return 2; // Default to English
+    }
+  }
+
+  /// Returns the column index for the car special feature based on current locale
+  /// The CSV has translations for special feature in different columns:
+  /// - English (en): column 10
+  /// - French (fr): column 16
+  /// - Italian (it): column 17
+  /// - Spanish (es): column 18
+  /// - Portuguese (pt): column 19
+  /// - German (de): column 20
+  static int getSpecialFeatureIndex(BuildContext context) {
+    final locale = context.locale.languageCode;
+
+    switch (locale) {
+      case 'fr':
+        return 16;
+      case 'it':
+        return 17;
+      case 'es':
+        return 18;
+      case 'pt':
+        return 19;
+      case 'de':
+        return 20;
+      case 'en':
+      default:
+        return 10; // Default to English
+    }
+  }
 }

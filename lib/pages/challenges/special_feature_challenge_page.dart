@@ -1,12 +1,13 @@
 // lib/pages/challenges/special_feature_challenge_page.dart
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:easy_localization/easy_localization.dart';
+import 'package:csv/csv.dart';
 import '../../services/audio_feedback.dart'; // added by audio patch
+import '../../services/language_service.dart';
 
 class SpecialFeatureChallengePage extends StatefulWidget {
   @override
@@ -95,15 +96,15 @@ super.dispose();
 
   Future<void> _loadCsv() async {
     final raw = await rootBundle.loadString('assets/cars.csv');
-    final lines = const LineSplitter().convert(raw);
-    for (var line in lines) {
-      final parts = line.split(',');
-      // ensure we have at least 11 columns: notableFeature at index 10
-      if (parts.length > 10) {
+    final List<List<dynamic>> rows = const CsvToListConverter(eol: '\n').convert(raw);
+    final featureIndex = LanguageService.getSpecialFeatureIndex(context);
+
+    for (var values in rows) {
+      if (values.length > featureIndex) {
         _carData.add({
-          'brand': parts[0].trim(),
-          'model': parts[1].trim(),
-          'feature': parts[10].trim(),
+          'brand': values[0].toString().trim(),
+          'model': values[1].toString().trim(),
+          'feature': values[featureIndex].toString().trim(),
         });
       }
     }
@@ -166,10 +167,13 @@ Future.delayed(const Duration(seconds: 1), _nextQuestion);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Quiz Completed!'),
+        title: Text(tr('challenges.quizCompleted')),
         content: Text(
-          'You got $_correctAnswers/20 in '
-          '${_elapsedSeconds ~/ 60}m ${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s',
+          tr('challenges.resultMessage', namedArgs: {
+            'score': '$_correctAnswers',
+            'total': '20',
+            'time': '${_elapsedSeconds ~/ 60}m ${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s'
+          }),
         ),
         actions: [
           TextButton(
@@ -180,7 +184,7 @@ Future.delayed(const Duration(seconds: 1), _nextQuestion);
                 '$_correctAnswers/20 in ${_elapsedSeconds ~/ 60}\'${(_elapsedSeconds % 60).toString().padLeft(2, '0')}\'\'',
               );
             },
-            child: const Text('OK'),
+            child: Text(tr('common.ok')),
           ),
         ],
       ),
@@ -250,7 +254,7 @@ Future.delayed(const Duration(seconds: 1), _nextQuestion);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Special Feature Challenge'),
+        title: Text(tr('challenges.specialFeatureChallenge')),
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),

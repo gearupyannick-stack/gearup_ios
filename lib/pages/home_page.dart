@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:csv/csv.dart';
 import '../services/audio_feedback.dart';
 import '../services/ad_service.dart';
 import '../services/analytics_service.dart';
+import '../services/language_service.dart';
 
 /// Raw track point definitions for tracks 2 & 3.
 final Map<int, List<Offset>> _tracks = {
@@ -601,7 +603,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'You failed several times on this flag. Watch a short video to skip this question and automatically get full credit for it.',
               textAlign: TextAlign.center,
             ),
@@ -644,22 +646,24 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<void> _loadCarData() async {
     try {
       final rawCsv = await rootBundle.loadString('assets/cars.csv');
-      final lines = LineSplitter.split(rawCsv).toList();
-      carData = lines.map<Map<String, String>>((line) {
-        final values = line.split(',');
-        if (values.length >= 11) {
+      final List<List<dynamic>> rows = const CsvToListConverter(eol: '\n').convert(rawCsv);
+      final descIndex = LanguageService.getDescriptionIndex(context);
+      final featureIndex = LanguageService.getSpecialFeatureIndex(context);
+
+      carData = rows.map<Map<String, String>>((values) {
+        if (values.length > descIndex && values.length > featureIndex) {
           return {
-            'brand': values[0],
-            'model': values[1],
-            'description': values[2],
-            'engineType': values[3],
-            'topSpeed': values[4],
-            'acceleration': values[5],
-            'horsepower': values[6],
-            'priceRange': values[7],
-            'year': values[8],
-            'origin': values[9],
-            'specialFeature': values[10],
+            'brand': values[0].toString(),
+            'model': values[1].toString(),
+            'description': values[descIndex].toString(),
+            'engineType': values[3].toString(),
+            'topSpeed': values[4].toString(),
+            'acceleration': values[5].toString(),
+            'horsepower': values[6].toString(),
+            'priceRange': values[7].toString(),
+            'year': values[8].toString(),
+            'origin': values[9].toString(),
+            'specialFeature': values[featureIndex].toString(),
           };
         }
         return {};
@@ -827,33 +831,33 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   String _getAchievementTitle(String id) {
     switch (id) {
       case 'first_flag':
-        return 'First Flag';
+        return 'home.achievements.firstFlag'.tr();
       case 'level_complete':
-        return 'Level Complete';
+        return 'home.achievements.levelComplete'.tr();
       case 'mid-track_milestone':
-        return 'Mid‑Track Milestone';
+        return 'home.achievements.midTrackMilestone'.tr();
       case 'track_unlocker_i':
-        return 'Track Unlocker I';
+        return 'home.achievements.trackUnlockerI'.tr();
       case 'track_unlocker_ii':
-        return 'Track Unlocker II';
+        return 'home.achievements.trackUnlockerII'.tr();
       case 'clean_slate':
-        return 'Clean Slate';
+        return 'home.achievements.cleanSlate'.tr();
       case 'zero-life_loss':
-        return 'Zero‑Life Loss';
+        return 'home.achievements.zeroLifeLoss'.tr();
       case 'swift_racer':
-        return 'Swift Racer';
+        return 'home.achievements.swiftRacer'.tr();
       case 'gear_rookie':
-        return 'Gear Rookie';
+        return 'home.achievements.gearRookie'.tr();
       case 'gear_grinder':
-        return 'Gear Grinder';
+        return 'home.achievements.gearGrinder'.tr();
       case 'gear_tycoon':
-        return 'Gear Tycoon';
+        return 'home.achievements.gearTycoon'.tr();
       case 'second_chance':
-        return 'Second Chance';
+        return 'home.achievements.secondChance'.tr();
       case 'perseverance':
-        return 'Perseverance';
+        return 'home.achievements.perseverance'.tr();
       case 'track_conqueror':
-        return 'Track Conqueror';
+        return 'home.achievements.trackConqueror'.tr();
       default:
         return id;
     }
@@ -1615,7 +1619,7 @@ Future<void> _loadConsecutiveFails() async {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              "Track $trackNumber" + (unlocked ? "" : " (Locked)"),
+              'home.track'.tr(namedArgs: {'number': trackNumber.toString()}) + (unlocked ? "" : " (${'home.locked'.tr()})"),
               textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
@@ -1843,7 +1847,7 @@ Future<void> _loadConsecutiveFails() async {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    "Level ${_sessionsCompleted + 1}",
+                    'home.level'.tr(namedArgs: {'number': (_sessionsCompleted + 1).toString()}),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -2078,7 +2082,7 @@ class _RandomModelBrandQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
+          Text(
             "questions.brandOfModel".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -2338,7 +2342,7 @@ class _DescriptionSlideshowQuestionContentState
           const SizedBox(height: 20),
 
           // ── Prompt ────────────────────────────────────────────────
-          const Text(
+          Text(
             "questions.descriptionMatch".tr(),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
             textAlign: TextAlign.center,
@@ -2485,7 +2489,7 @@ class _HorsepowerQuestionContentState
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             "questions.horsePower".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -2643,7 +2647,7 @@ class _AccelerationQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
+          Text(
             "questions.acceleration".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -2802,7 +2806,7 @@ class _MaxSpeedQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
+          Text(
             "questions.maxSpeed".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -2960,7 +2964,7 @@ class _SpecialFeatureQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
+          Text(
             "questions.specialFeature".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -3423,7 +3427,7 @@ class _OriginCountryQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
+          Text(
             "questions.origin".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -3576,7 +3580,7 @@ class _ModelOnlyImageQuestionContentState
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             "questions.modelName".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
@@ -3713,7 +3717,7 @@ class _RandomCarImageQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt (changed)
-          const Text(
+          Text(
             "questions.whichCar".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,

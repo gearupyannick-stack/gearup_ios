@@ -212,50 +212,6 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
         .join();
   }
 
-  /// Build a static model image directly from assets/model (no service).
-  Widget _buildStaticModelImage(int i) {
-    // randomBrand/randomModel are guaranteed non-null when this is called
-    final base = _fileBase(randomBrand!, randomModel!);
-    final fileName = '$base$i.webp';
-    final assetPath = 'assets/model/$fileName';
-
-    return ColorFiltered(
-      colorFilter: const ColorFilter.matrix(<double>[
-        1.3, 0, 0, 0, 0,
-        0, 1.3, 0, 0, 0,
-        0, 0, 1.3, 0, 0,
-        0, 0, 0, 1, 0,
-      ]),
-      child: Image.asset(
-        assetPath,
-        height: 160,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          // helpful fallback for debugging missing assets
-          return Container(
-            height: 160,
-            width: double.infinity,
-            color: Colors.grey[900],
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.directions_car, color: Colors.white54, size: 28),
-                  const SizedBox(height: 6),
-                  Text(
-                    fileName,
-                    style: const TextStyle(color: Colors.white54, fontSize: 11),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -412,7 +368,7 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                     // ── IMAGE-GRID MODE ────────────────────────────────────────
                     const SizedBox(height: 16),
                     Text(
-                      'Which image is a $randomBrand?',
+                      'questions.brandImage'.tr(namedArgs: {'brand': randomBrand ?? ''}),
                       style: const TextStyle(fontSize: 20),
                       textAlign: TextAlign.center,
                     ),

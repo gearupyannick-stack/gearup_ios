@@ -334,11 +334,13 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Quiz Completed!'),
+        title: Text(tr('challenges.quizCompleted')),
         content: Text(
-          'You got $_correctAnswers/$_maxQuestions in '
-          '${_elapsedSeconds ~/ 60}m '
-          '${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s',
+          tr('challenges.resultMessage', namedArgs: {
+            'score': '$_correctAnswers',
+            'total': '$_maxQuestions',
+            'time': '${_elapsedSeconds ~/ 60}m ${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s'
+          }),
         ),
         actions: [
           TextButton(
@@ -346,7 +348,7 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
               Navigator.pop(ctx);
               widget.onDone();
             },
-            child: const Text('OK'),
+            child: Text(tr('common.ok')),
           ),
         ],
       ),
@@ -362,46 +364,6 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
         .join();
   }
 
-  Widget _buildStaticModelImage(int i) {
-    final fileBase = _formatImageName(widget.brand, _correctAnswer);
-    final assetPath = 'assets/model/$fileBase$i.webp';
-
-    return ColorFiltered(
-      colorFilter: const ColorFilter.matrix(<double>[
-        1.3, 0, 0, 0, 0,
-        0, 1.3, 0, 0, 0,
-        0, 0, 1.3, 0, 0,
-        0, 0, 0, 1, 0,
-      ]),
-      child: Image.asset(
-        assetPath,
-        height: 160,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-        return Container(
-          height: 160,
-          width: double.infinity,
-          color: Colors.grey[900],
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.directions_car, color: Colors.white54, size: 28),
-                const SizedBox(height: 6),
-                Text(
-                  '$fileBase$i.webp',
-                  style: const TextStyle(color: Colors.white54, fontSize: 11),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-      ),
-    );
-  }
 
   void _onOptionTap(String selection) {
     
@@ -422,7 +384,7 @@ if (_answered) return;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Models by Brand'),
+        title: Text(tr('challenges.modelsByBrandChallenge')),
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -446,9 +408,9 @@ if (_answered) return;
             const SizedBox(height: 16),
 
             if (_isImageToModel) ...[
-              const Text(
-                'Which model of this brand is shown?',
-                style: TextStyle(fontSize: 20),
+              Text(
+                tr("challenges.whichModelOfBrand"),
+                style: const TextStyle(fontSize: 20),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),

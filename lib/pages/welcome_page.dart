@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../main.dart';
 import '../services/lives_storage.dart';
 import '../services/analytics_service.dart';
+import '../services/language_service.dart';
 
 class Slide {
   final String imagePath;
@@ -109,6 +110,62 @@ class _WelcomePageState extends State<WelcomePage> {
     }
   }
 
+  void _showLanguageSelector() {
+    final currentLang = LanguageService.getCurrentLanguageCode(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: Text('language.selectLanguage'.tr(), style: const TextStyle(color: Colors.white)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: LanguageService.availableLanguages.length,
+              itemBuilder: (context, index) {
+                final langCode = LanguageService.availableLanguages.keys.elementAt(index);
+                final langName = LanguageService.availableLanguages[langCode]!;
+                final flag = LanguageService.getLanguageFlag(langCode);
+                final isSelected = langCode == currentLang;
+
+                return ListTile(
+                  leading: Text(flag, style: const TextStyle(fontSize: 24)),
+                  title: Text(langName, style: const TextStyle(color: Colors.white)),
+                  trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    try {
+                      await LanguageService.changeLanguage(context, langCode);
+                      if (!mounted) return;
+                      setState(() {}); // Refresh the welcome page text
+                      final languageName = LanguageService.getLanguageName(langCode);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('language.languageChanged'.tr(namedArgs: {'language': languageName}))),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('language.languageChangeFailed'.tr())),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('common.close'.tr()),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
@@ -146,6 +203,28 @@ class _WelcomePageState extends State<WelcomePage> {
                 shadows: [
                   Shadow(blurRadius: 4, offset: Offset(2, 2), color: Colors.black54),
                 ],
+              ),
+            ),
+          ),
+
+          // Language selector button - top right
+          Positioned(
+            top: 40,
+            right: 16,
+            child: Material(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                onTap: _showLanguageSelector,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  child: const Icon(
+                    Icons.language,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
               ),
             ),
           ),

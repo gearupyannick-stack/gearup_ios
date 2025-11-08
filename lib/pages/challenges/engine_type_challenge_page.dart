@@ -166,11 +166,13 @@ if (_answered) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Quiz Completed!'),
+        title: Text(tr('challenges.quizCompleted')),
         content: Text(
-          'You got $_correctAnswers/20 in '
-          '${_elapsedSeconds ~/ 60}m '
-          '${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s',
+          tr('challenges.resultMessage', namedArgs: {
+            'score': '$_correctAnswers',
+            'total': '20',
+            'time': '${_elapsedSeconds ~/ 60}m ${(_elapsedSeconds % 60).toString().padLeft(2, '0')}s'
+          }),
         ),
         actions: [
           TextButton(
@@ -182,7 +184,7 @@ if (_answered) return;
                 '${(_elapsedSeconds % 60).toString().padLeft(2, '0')}\'\'',
               );
             },
-            child: const Text('OK'),
+            child: Text(tr('common.ok')),
           ),
         ],
       ),
@@ -257,7 +259,7 @@ if (_answered) return;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Engine Type Challenge'),
+        title: Text(tr('challenges.engineTypeChallenge')),
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),

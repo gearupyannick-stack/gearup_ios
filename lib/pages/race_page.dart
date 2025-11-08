@@ -3,14 +3,16 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:csv/csv.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/audio_feedback.dart';
 import '../services/collab_wan_service.dart'; // <<-- NEW
 import '../services/ad_service.dart';
 import '../services/analytics_service.dart';
+import '../services/language_service.dart';
 
 class RacePage extends StatefulWidget {
   const RacePage({Key? key}) : super(key: key);
@@ -639,12 +641,36 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
     }
   }
 
-  /// Fetch the profile username from SharedPreferences (tries several common keys).
+  /// Fetch the profile username with priority:
+  /// 1. Firebase Auth displayName (if signed in)
+  /// 2. Last race player name (user's previous race name)
+  /// 3. Profile username from SharedPreferences
   /// Returns an empty string if not found or if value equals the default placeholder.
   Future<String> _fetchProfileUsername() async {
     try {
+      // Priority 1: Firebase Auth displayName (always use if available)
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null && firebaseUser.displayName != null) {
+        final displayName = firebaseUser.displayName!.trim();
+        if (displayName.isNotEmpty) {
+          debugPrint('Using Firebase Auth displayName: $displayName');
+          return displayName;
+        }
+      }
+
       final prefs = await SharedPreferences.getInstance();
-      // try several plausible keys used across the app
+
+      // Priority 2: Last race player name (user's previous choice)
+      final lastRaceName = prefs.getString('last_race_player_name');
+      if (lastRaceName != null) {
+        final v = lastRaceName.trim();
+        if (v.isNotEmpty && v.toLowerCase() != 'unnamed_carenthusiast') {
+          debugPrint('Using last race player name: $v');
+          return v;
+        }
+      }
+
+      // Priority 3: Profile username from various keys
       final candidates = <String?>[
         prefs.getString('username'),
         prefs.getString('displayName'),
@@ -658,12 +684,31 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
         if (v.isEmpty) continue;
         // don't treat the placeholder as a real name (case-insensitive)
         if (v.toLowerCase() == 'unnamed_carenthusiast') continue;
+        debugPrint('Using profile username: $v');
         return v;
       }
     } catch (e) {
       debugPrint('Failed to read profile username: $e');
     }
     return '';
+  }
+
+  /// Save the player name to be used as default for future races
+  /// Skips saving if the name is empty or matches random Player### pattern
+  Future<void> _saveLastRacePlayerName(String playerName) async {
+    try {
+      final trimmed = playerName.trim();
+      // Don't save if empty or matches random Player### pattern
+      if (trimmed.isEmpty) return;
+      if (RegExp(r'^Player\d{3}$').hasMatch(trimmed)) return;
+      if (trimmed.toLowerCase() == 'unnamed_carenthusiast') return;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_race_player_name', trimmed);
+      debugPrint('Saved last race player name: $trimmed');
+    } catch (e) {
+      debugPrint('Failed to save last race player name: $e');
+    }
   }
 
   void _unsubscribePublicTracks() {
@@ -1313,7 +1358,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                     Text(
                       "You're about to enter a private multiplayer game.\n\n"
                       "You will need to answer $qCount questions correctly to complete the lap.\n\n"
-                      "Choose your player name:",
+                      "${tr("race.choosePlayerName")}",
                       style: const TextStyle(color: Colors.white70),
                     ),
                     const SizedBox(height: 8),
@@ -1321,7 +1366,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                       controller: _nameController,
                       style: const TextStyle(color: Colors.white70),
                       decoration: InputDecoration(
-                        hintText: 'Enter your name',
+                        hintText: tr("race.enterYourName"),
                         hintStyle: const TextStyle(color: Colors.white38),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         border: OutlineInputBorder(
@@ -1344,6 +1389,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                             ? 'Player${Random().nextInt(900) + 100}'
                             : _nameController.text.trim();
                         debugPrint('Creating/joining private room: $roomCode as $playerName');
+                        await _saveLastRacePlayerName(playerName);
                         FocusScope.of(context).unfocus();
                         _joinPrivateGame(index, playerName, roomCode, isCreator: true);
                       },
@@ -1376,7 +1422,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     final playerName = _nameController.text.trim().isEmpty
                         ? 'Player${Random().nextInt(900) + 100}'
                         : _nameController.text.trim();
@@ -1388,6 +1434,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                       return;
                     }
                     debugPrint('Joining private room: $roomCode as $playerName');
+                    await _saveLastRacePlayerName(playerName);
                     FocusScope.of(context).unfocus();
                     Navigator.of(context).pop();
                     _joinPrivateGame(index, playerName, roomCode, isCreator: false);
@@ -1566,22 +1613,24 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
   Future<void> _loadCarData() async {
     try {
       final rawCsv = await rootBundle.loadString('assets/cars.csv');
-      final lines = const LineSplitter().convert(rawCsv).toList();
-      carData = lines.map<Map<String, String>>((line) {
-        final values = line.split(',');
-        if (values.length >= 11) {
+      final List<List<dynamic>> rows = const CsvToListConverter(eol: '\n').convert(rawCsv);
+      final descIndex = LanguageService.getDescriptionIndex(context);
+      final featureIndex = LanguageService.getSpecialFeatureIndex(context);
+
+      carData = rows.map<Map<String, String>>((values) {
+        if (values.length > descIndex && values.length > featureIndex) {
           return {
-            'brand': values[0],
-            'model': values[1],
-            'description': values[2],
-            'engineType': values[3],
-            'topSpeed': values[4],
-            'acceleration': values[5],
-            'horsepower': values[6],
-            'priceRange': values[7],
-            'year': values[8],
-            'origin': values[9],
-            'specialFeature': values[10],
+            'brand': values[0].toString(),
+            'model': values[1].toString(),
+            'description': values[descIndex].toString(),
+            'engineType': values[3].toString(),
+            'topSpeed': values[4].toString(),
+            'acceleration': values[5].toString(),
+            'horsepower': values[6].toString(),
+            'priceRange': values[7].toString(),
+            'year': values[8].toString(),
+            'origin': values[9].toString(),
+            'specialFeature': values[featureIndex].toString(),
           };
         }
         return <String, String>{};
@@ -1651,8 +1700,8 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _buildModeButton("Public Room", true),
-                              _buildModeButton("Private Room", false),
+                              _buildModeButton(tr("race.publicRoom"), true),
+                              _buildModeButton(tr("race.privateRoom"), false),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -1693,7 +1742,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'LEADERBOARD — COMING SOON',
+                  'race.leaderboardTitle'.tr(),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -1703,7 +1752,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'A space to see top players and your rank — stay tuned!',
+                  'race.leaderboardDesc'.tr(),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
@@ -1722,7 +1771,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'CLUBS — COMING SOON',
+                  'race.clubsTitle'.tr(),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -1732,7 +1781,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Create car-lover clubs and compete with other clubs — coming soon!',
+                  'race.clubsDesc'.tr(),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
@@ -1815,11 +1864,11 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
             children: [
               Icon(Icons.star, size: 14, color: Colors.amber[400]),
               const SizedBox(width: 4),
-              Text('${player.score} pts', style: TextStyle(fontSize: 12, color: Colors.grey[200])),
+              Text('${player.score} ' + 'race.ptsLabel'.tr(), style: TextStyle(fontSize: 12, color: Colors.grey[200])),
               const SizedBox(width: 8),
               Icon(Icons.error, size: 14, color: Colors.red[400]),
               const SizedBox(width: 4),
-              Text('${player.errors} err', style: TextStyle(fontSize: 12, color: Colors.grey[200])),
+              Text('${player.errors} ' + 'race.errLabel'.tr(), style: TextStyle(fontSize: 12, color: Colors.grey[200])),
             ],
           ),
         ],
@@ -1829,7 +1878,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
 
   // Remplace la fonction _buildTracksGrid par ceci :
   Widget _buildTracksGrid({required bool isPrivate}) {
-    final titles = ['Monza', 'Monaco', 'Suzuka', 'Spa', 'Silverstone', 'Random'];
+    final titles = ['Monza', 'Monaco', 'Suzuka', 'Spa', 'Silverstone', tr("race.random")];
 
     // On utilise CustomScrollView + SliverGrid pour que la grille soit scrollable
     // et qu'on puisse ajouter ensuite un SliverToBoxAdapter pour le promo.
@@ -1899,13 +1948,13 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "You're about to enter a multiplayer game.\n\n"
+                'race.aboutToEnterMultiplayer'.tr(namedArgs: {'count': qCount.toString()}) + "\n\n"
                 "You will need to answer $qCount questions correctly to complete the lap. Difficulty progresses from easy to hard.",
                 style: const TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 16),
-              const Text(
-                "Choose your player name:",
+              Text(
+                tr("race.choosePlayerName"),
                 style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
               ),
               const SizedBox(height: 8),
@@ -1913,7 +1962,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                 controller: _nameController,
                 style: const TextStyle(color: Colors.white70),
                 decoration: InputDecoration(
-                  hintText: 'Enter your name',
+                  hintText: tr("race.enterYourName"),
                   hintStyle: const TextStyle(color: Colors.white38),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1926,11 +1975,12 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
             TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('common.cancel'.tr())),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () {
+              onPressed: () async {
                 final playerName = _nameController.text.trim().isEmpty
                     ? 'Player${Random().nextInt(900) + 100}'
                     : _nameController.text.trim();
                 debugPrint('Joining as: $playerName (roomOverride=$roomCodeOverride)');
+                await _saveLastRacePlayerName(playerName);
                 FocusScope.of(context).unfocus();
                 Navigator.of(context).pop();
                 Future.delayed(const Duration(milliseconds: 250), () {
@@ -2476,8 +2526,8 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                         });
                         await _startQuizRace();
                       },
-                      child: const Text(
-                        'Start Race',
+                      child: Text(
+                        'race.startRace'.tr(),
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
@@ -2550,8 +2600,8 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                         color: Colors.black54,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
-                        'Waiting for another player...',
+                      child: Text(
+                        'race.waitingForPlayer'.tr(),
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
@@ -2578,8 +2628,8 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                           });
                           await _askNextQuestion();
                         },
-                        child: const Text(
-                          'Next Question',
+                        child: Text(
+                          'race.nextQuestion'.tr(),
                           style: TextStyle(color: Colors.white, fontSize: 14),
                         ),
                       ),
@@ -2598,8 +2648,8 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Room Code:',
+                          Text(
+                            'race.roomCode'.tr(),
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -2617,8 +2667,8 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Share this code with friends!',
+                          Text(
+                            'race.shareCode'.tr(),
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
@@ -2782,8 +2832,8 @@ class _RandomModelBrandQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
-            "What's the brand of this model ?",
+          Text(
+            "questions.brandOfModel".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -2918,7 +2968,7 @@ class _ModelNameToBrandQuestionContentState
           ),
           SizedBox(height: 30),
           Text(
-            "Which brand makes the model:",
+            "questions.brandMakesModel".tr(),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -3044,8 +3094,8 @@ class _DescriptionSlideshowQuestionContentState
           const SizedBox(height: 20),
 
           // ── Prompt ────────────────────────────────────────────────
-          const Text(
-            "Which description corresponds to this car ?",
+          Text(
+            "questions.descriptionMatch".tr(),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
             textAlign: TextAlign.center,
           ),
@@ -3221,8 +3271,8 @@ class _HorsepowerQuestionContentState
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
-          const Text(
-            "How many HorsePower does this car has ?",
+          Text(
+            "questions.horsePower".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -3452,8 +3502,8 @@ class _AccelerationQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
-            "What's the acceleration time (0-100km/h) of this car ?",
+          Text(
+            "questions.acceleration".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -3683,8 +3733,8 @@ class _MaxSpeedQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
-            "What's the max speed of this car ?",
+          Text(
+            "questions.maxSpeed".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -3913,8 +3963,8 @@ class _SpecialFeatureQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
-            "WHich special feature does this car has ?",
+          Text(
+            "questions.specialFeature".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -4595,8 +4645,8 @@ class _OriginCountryQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt
-          const Text(
-            "Which country does this car come from ?",
+          Text(
+            "questions.origin".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -4820,8 +4870,8 @@ class _ModelOnlyImageQuestionContentState
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 20),
-          const Text(
-            "What is this model ?",
+          Text(
+            "questions.modelName".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -5004,8 +5054,8 @@ class _RandomCarImageQuestionContentState
           const SizedBox(height: 20),
 
           // Prompt (changed)
-          const Text(
-            "Which car is this ?",
+          Text(
+            "questions.whichCar".tr(),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -5379,7 +5429,7 @@ class _RaceResultDialogContentState extends State<_RaceResultDialogContent>
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Text(
+                                        Text(
                                           '❌',
                                           style: TextStyle(fontSize: 12),
                                         ),
@@ -5423,7 +5473,7 @@ class _RaceResultDialogContentState extends State<_RaceResultDialogContent>
                     elevation: 5,
                   ),
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text(
+                  child: Text(
                     'Continue',
                     style: TextStyle(
                       fontSize: 18,
