@@ -1,0 +1,578 @@
+{
+  "AlfaRomeo": {
+    "name": "Alfa Romeo",
+    "country": "Italy",
+    "countryFlag": "🇮🇹",
+    "foundedYear": 1910,
+    "tagline": "Cuore Sportivo",
+    "specialty": "Sports Cars",
+    "description": "Italian manufacturer known for stylish design and sporty handling. Rich racing heritage combined with passionate engineering and distinctive Italian character."
+  },
+  "Alpine": {
+    "name": "Alpine",
+    "country": "France",
+    "countryFlag": "🇫🇷",
+    "foundedYear": 1955,
+    "tagline": "Pure driving pleasure",
+    "specialty": "Sports Cars",
+    "description": "French sports car manufacturer focused on lightweight performance. Famous for rally success and creating driver-focused, agile vehicles with racing DNA."
+  },
+  "AstonMartin": {
+    "name": "Aston Martin",
+    "country": "United Kingdom",
+    "countryFlag": "🇬🇧",
+    "foundedYear": 1913,
+    "tagline": "Power, Beauty and Soul",
+    "specialty": "Luxury Grand Tourers",
+    "description": "British luxury sports car manufacturer synonymous with James Bond. Combines elegant design, handcrafted luxury, and exhilarating performance in grand touring excellence."
+  },
+  "Audi": {
+    "name": "Audi",
+    "country": "Germany",
+    "countryFlag": "🇩🇪",
+    "foundedYear": 1909,
+    "tagline": "Vorsprung durch Technik",
+    "specialty": "Premium Vehicles",
+    "description": "German premium automaker pioneering Quattro all-wheel drive technology. Blends sophisticated design, cutting-edge technology, and refined performance across diverse lineup."
+  },
+  "Bentley": {
+    "name": "Bentley",
+    "country": "United Kingdom",
+    "countryFlag": "🇬🇧",
+    "foundedYear": 1919,
+    "tagline": "Be Extraordinary",
+    "specialty": "Ultra-Luxury",
+    "description": "British ultra-luxury car manufacturer crafting handmade masterpieces. Combines opulent interiors, powerful performance, and timeless elegance for discerning customers."
+  },
+  "BMW": {
+    "name": "BMW",
+    "country": "Germany",
+    "countryFlag": "🇩🇪",
+    "foundedYear": 1916,
+    "tagline": "The Ultimate Driving Machine",
+    "specialty": "Premium Sports Sedans",
+    "description": "Bavarian Motor Works creates driver-focused premium vehicles. Known for exceptional handling dynamics, powerful engines, and the iconic kidney grille design."
+  },
+  "Bugatti": {
+    "name": "Bugatti",
+    "country": "France",
+    "countryFlag": "🇫🇷",
+    "foundedYear": 1909,
+    "tagline": "Art, Forme, Technique",
+    "specialty": "Hypercars",
+    "description": "French manufacturer of ultra-exclusive hypercars. Engineering marvels combining unmatched speed, luxury craftsmanship, and artistic design in limited production masterpieces."
+  },
+  "Buick": {
+    "name": "Buick",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1899,
+    "tagline": "Experience the new Buick",
+    "specialty": "Premium Sedans & SUVs",
+    "description": "American premium brand offering refined comfort and quiet luxury. Focuses on sophisticated design, advanced technology, and smooth, comfortable driving experience."
+  },
+  "BYD": {
+    "name": "BYD",
+    "country": "China",
+    "countryFlag": "🇨🇳",
+    "foundedYear": 2003,
+    "tagline": "Build Your Dreams",
+    "specialty": "Electric Vehicles",
+    "description": "Chinese EV and battery technology leader. Pioneers affordable electric mobility with innovative blade battery technology and comprehensive electrified vehicle range."
+  },
+  "Cadillac": {
+    "name": "Cadillac",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1902,
+    "tagline": "Dare Greatly",
+    "specialty": "Luxury Vehicles",
+    "description": "American luxury brand representing bold design and innovation. Combines athletic performance, advanced technology, and distinctive styling in premium segment."
+  },
+  "Chevrolet": {
+    "name": "Chevrolet",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1911,
+    "tagline": "Find New Roads",
+    "specialty": "Mainstream Vehicles",
+    "description": "Iconic American brand offering diverse vehicle lineup. From legendary Corvette to reliable trucks, delivers accessible performance and innovative features for everyone."
+  },
+  "Chrysler": {
+    "name": "Chrysler",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1925,
+    "tagline": "Imported from Detroit",
+    "specialty": "Premium Sedans & Minivans",
+    "description": "American brand focusing on comfort and innovation. Pioneer of minivan segment, offering family-friendly vehicles with upscale features and refined driving dynamics."
+  },
+  "Citroen": {
+    "name": "Citroën",
+    "country": "France",
+    "countryFlag": "🇫🇷",
+    "foundedYear": 1919,
+    "tagline": "Inspired by You",
+    "specialty": "Innovative Comfort",
+    "description": "French manufacturer known for innovative technology and comfort. Famous for hydropneumatic suspension and quirky, distinctive designs that challenge automotive conventions."
+  },
+  "Cupra": {
+    "name": "Cupra",
+    "country": "Spain",
+    "countryFlag": "🇪🇸",
+    "foundedYear": 2018,
+    "tagline": "Another Way Forward",
+    "specialty": "Performance Vehicles",
+    "description": "Spanish performance brand spun from SEAT. Delivers sporty, electrified vehicles with bold design, racing heritage, and Mediterranean passion for driving excitement."
+  },
+  "Czinger": {
+    "name": "Czinger",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 2019,
+    "tagline": "Redefining Performance",
+    "specialty": "Hybrid Hypercars",
+    "description": "American hypercar manufacturer using 3D-printed components. Revolutionary approach combining hybrid technology, advanced manufacturing, and extreme performance engineering."
+  },
+  "Dacia": {
+    "name": "Dacia",
+    "country": "Romania",
+    "countryFlag": "🇷🇴",
+    "foundedYear": 1966,
+    "tagline": "Do the smart thing",
+    "specialty": "Value Vehicles",
+    "description": "Romanian brand offering exceptional value. Part of Renault Group, provides practical, reliable, and affordable vehicles with no-nonsense approach to mobility."
+  },
+  "DeTomaso": {
+    "name": "De Tomaso",
+    "country": "Italy",
+    "countryFlag": "🇮🇹",
+    "foundedYear": 1959,
+    "tagline": "Italian exotic legacy",
+    "specialty": "Exotic Sports Cars",
+    "description": "Italian sports car maker famous for Pantera. Legendary for combining Italian styling with American V8 power in affordable exotic package."
+  },
+  "Dodge": {
+    "name": "Dodge",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1900,
+    "tagline": "American Muscle",
+    "specialty": "Performance Vehicles",
+    "description": "American muscle car icon producing high-horsepower vehicles. Known for Challenger, Charger, and raw V8 power delivering straight-line performance and aggressive attitude."
+  },
+  "DS": {
+    "name": "DS Automobiles",
+    "country": "France",
+    "countryFlag": "🇫🇷",
+    "foundedYear": 2009,
+    "tagline": "Spirit of Avant-Garde",
+    "specialty": "Premium French Cars",
+    "description": "French premium brand from Citroën heritage. Offers avant-garde design, refined luxury, and innovative technology with distinctive French elegance and craftsmanship."
+  },
+  "FaradayFuture": {
+    "name": "Faraday Future",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 2014,
+    "tagline": "A new species",
+    "specialty": "Electric Luxury",
+    "description": "American EV startup focused on intelligent luxury mobility. Developing connected, autonomous, and electric vehicles with futuristic technology and user experience."
+  },
+  "Ferrari": {
+    "name": "Ferrari",
+    "country": "Italy",
+    "countryFlag": "🇮🇹",
+    "foundedYear": 1947,
+    "tagline": "The Prancing Horse",
+    "specialty": "Luxury Sports Cars",
+    "description": "Italian luxury sports car manufacturer representing automotive excellence. Founded by Enzo Ferrari, combines racing heritage, iconic red color, and unmatched performance passion."
+  },
+  "Fiat": {
+    "name": "Fiat",
+    "country": "Italy",
+    "countryFlag": "🇮🇹",
+    "foundedYear": 1899,
+    "tagline": "Driven by Passion",
+    "specialty": "City Cars",
+    "description": "Italian manufacturer famous for compact, stylish city cars. Pioneer of affordable mobility with charming design, efficient engines, and Italian flair for urban driving."
+  },
+  "Ford": {
+    "name": "Ford",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1903,
+    "tagline": "Built Ford Tough",
+    "specialty": "Trucks & SUVs",
+    "description": "American automotive pioneer revolutionizing mass production. Legendary F-Series trucks, Mustang performance, and diverse lineup serving millions with reliable transportation."
+  },
+  "Genesis": {
+    "name": "Genesis",
+    "country": "South Korea",
+    "countryFlag": "🇰🇷",
+    "foundedYear": 2015,
+    "tagline": "Athletic Elegance",
+    "specialty": "Luxury Sedans",
+    "description": "Korean luxury brand from Hyundai Motor Group. Offers sophisticated design, cutting-edge technology, and exceptional value in premium segment with athletic elegance."
+  },
+  "GMC": {
+    "name": "GMC",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1912,
+    "tagline": "Professional Grade",
+    "specialty": "Trucks & SUVs",
+    "description": "American truck and SUV specialist emphasizing capability. Delivers rugged utility, premium features, and professional-grade performance for work and family needs."
+  },
+  "Hennessey": {
+    "name": "Hennessey",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1991,
+    "tagline": "Making Fast Cars Faster",
+    "specialty": "Performance Tuning",
+    "description": "American performance specialist creating extreme hypercars. World-renowned for record-breaking speed, outrageous horsepower, and pushing boundaries of automotive performance."
+  },
+  "Honda": {
+    "name": "Honda",
+    "country": "Japan",
+    "countryFlag": "🇯🇵",
+    "foundedYear": 1948,
+    "tagline": "The Power of Dreams",
+    "specialty": "Reliable Vehicles",
+    "description": "Japanese manufacturer legendary for reliability and engineering. VTEC technology, Civic and Accord icons, delivering efficient, dependable transportation with sporty character."
+  },
+  "Hyundai": {
+    "name": "Hyundai",
+    "country": "South Korea",
+    "countryFlag": "🇰🇷",
+    "foundedYear": 1967,
+    "tagline": "New Thinking. New Possibilities.",
+    "specialty": "Value & Innovation",
+    "description": "Korean manufacturer offering exceptional value and warranty. Rapidly advancing design, technology, and electrification with comprehensive lineup for every need."
+  },
+  "Jaguar": {
+    "name": "Jaguar",
+    "country": "United Kingdom",
+    "countryFlag": "🇬🇧",
+    "foundedYear": 1922,
+    "tagline": "Grace, Pace and Space",
+    "specialty": "Luxury Sports Cars",
+    "description": "British luxury brand combining elegance with performance. Distinctive design, refined interiors, and sporty dynamics create sophisticated driving experience with heritage."
+  },
+  "Jeep": {
+    "name": "Jeep",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1941,
+    "tagline": "Go Anywhere. Do Anything.",
+    "specialty": "Off-Road SUVs",
+    "description": "American off-road icon born from military heritage. Legendary Wrangler capability, adventure spirit, and go-anywhere attitude define authentic 4x4 experience."
+  },
+  "Kia": {
+    "name": "Kia",
+    "country": "South Korea",
+    "countryFlag": "🇰🇷",
+    "foundedYear": 1944,
+    "tagline": "Movement that inspires",
+    "specialty": "Affordable Vehicles",
+    "description": "Korean brand transforming with bold design and technology. Industry-leading warranty, value pricing, and increasingly sophisticated vehicles challenge premium competitors."
+  },
+  "Koenigsegg": {
+    "name": "Koenigsegg",
+    "country": "Sweden",
+    "countryFlag": "🇸🇪",
+    "foundedYear": 1994,
+    "tagline": "Megacars",
+    "specialty": "Hypercars",
+    "description": "Swedish hypercar manufacturer pushing technological boundaries. Innovative engineering, record-breaking performance, and exclusive production create automotive masterpieces."
+  },
+  "Lamborghini": {
+    "name": "Lamborghini",
+    "country": "Italy",
+    "countryFlag": "🇮🇹",
+    "foundedYear": 1963,
+    "tagline": "Expect the Unexpected",
+    "specialty": "Exotic Supercars",
+    "description": "Italian supercar maker born from rivalry with Ferrari. Dramatic angular design, thunderous V12 engines, and scissor doors create ultimate automotive drama."
+  },
+  "LandRover": {
+    "name": "Land Rover",
+    "country": "United Kingdom",
+    "countryFlag": "🇬🇧",
+    "foundedYear": 1948,
+    "tagline": "Above and Beyond",
+    "specialty": "Luxury Off-Road",
+    "description": "British luxury off-road specialist combining capability with refinement. From Defender ruggedness to Range Rover opulence, masters terrain with British sophistication."
+  },
+  "Lexus": {
+    "name": "Lexus",
+    "country": "Japan",
+    "countryFlag": "🇯🇵",
+    "foundedYear": 1989,
+    "tagline": "Experience Amazing",
+    "specialty": "Luxury Vehicles",
+    "description": "Toyota's luxury division pioneering hybrid luxury. Exceptional reliability, meticulous craftsmanship, and smooth refinement create serene premium experience."
+  },
+  "Lotus": {
+    "name": "Lotus",
+    "country": "United Kingdom",
+    "countryFlag": "🇬🇧",
+    "foundedYear": 1952,
+    "tagline": "For the Drivers",
+    "specialty": "Lightweight Sports Cars",
+    "description": "British sports car maker championing simplify, then add lightness. Pure driving dynamics, minimalist approach, and handling excellence define driver-focused philosophy."
+  },
+  "Lucid": {
+    "name": "Lucid",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 2007,
+    "tagline": "Dream Ahead",
+    "specialty": "Luxury Electric",
+    "description": "American luxury EV manufacturer challenging Tesla. Industry-leading range, exquisite craftsmanship, and advanced technology redefine electric luxury sedan segment."
+  },
+  "Maserati": {
+    "name": "Maserati",
+    "country": "Italy",
+    "countryFlag": "🇮🇹",
+    "foundedYear": 1914,
+    "tagline": "Excellence through Passion",
+    "specialty": "Luxury Sports Cars",
+    "description": "Italian luxury sports car maker with racing heritage. Distinctive exhaust note, elegant design, and passionate engineering create exclusive grand touring experience."
+  },
+  "Mazda": {
+    "name": "Mazda",
+    "country": "Japan",
+    "countryFlag": "🇯🇵",
+    "foundedYear": 1920,
+    "tagline": "Zoom-Zoom",
+    "specialty": "Sporty Vehicles",
+    "description": "Japanese manufacturer prioritizing driving pleasure. Rotary engine heritage, lightweight MX-5 icon, and Kodo design create engaging, driver-focused vehicles."
+  },
+  "McLaren": {
+    "name": "McLaren",
+    "country": "United Kingdom",
+    "countryFlag": "🇬🇧",
+    "foundedYear": 1963,
+    "tagline": "Fearlessly Forward",
+    "specialty": "Supercars",
+    "description": "British supercar maker applying Formula 1 technology. Carbon fiber expertise, precision engineering, and aerodynamic excellence create race-bred road cars."
+  },
+  "Mercedes": {
+    "name": "Mercedes-Benz",
+    "country": "Germany",
+    "countryFlag": "🇩🇪",
+    "foundedYear": 1926,
+    "tagline": "The Best or Nothing",
+    "specialty": "Luxury Vehicles",
+    "description": "German luxury pioneer inventing the automobile. Three-pointed star represents prestige, innovation, and engineering excellence across comprehensive luxury lineup."
+  },
+  "MG": {
+    "name": "MG",
+    "country": "United Kingdom",
+    "countryFlag": "🇬🇧",
+    "foundedYear": 1924,
+    "tagline": "Safety Fast",
+    "specialty": "Affordable Sports Cars",
+    "description": "British sports car heritage now Chinese-owned. Historic roadster legacy combined with modern affordable vehicles, offering accessible driving pleasure."
+  },
+  "MINI": {
+    "name": "MINI",
+    "country": "United Kingdom",
+    "countryFlag": "🇬🇧",
+    "foundedYear": 1959,
+    "tagline": "Designed to be driven",
+    "specialty": "Premium Small Cars",
+    "description": "British icon reimagined by BMW. Go-kart handling, customizable style, and premium compact package deliver fun, individual mobility with retro charm."
+  },
+  "Nissan": {
+    "name": "Nissan",
+    "country": "Japan",
+    "countryFlag": "🇯🇵",
+    "foundedYear": 1933,
+    "tagline": "Innovation that excites",
+    "specialty": "Diverse Lineup",
+    "description": "Japanese manufacturer from sports cars to crossovers. GT-R performance legend, pioneering EVs with Leaf, and reliable transportation across segments."
+  },
+  "Opel": {
+    "name": "Opel",
+    "country": "Germany",
+    "countryFlag": "🇩🇪",
+    "foundedYear": 1862,
+    "tagline": "Wir leben Autos",
+    "specialty": "Mainstream Vehicles",
+    "description": "German brand offering practical, efficient vehicles. Engineering quality, innovative technology, and value proposition serve European mainstream market effectively."
+  },
+  "Pagani": {
+    "name": "Pagani",
+    "country": "Italy",
+    "countryFlag": "🇮🇹",
+    "foundedYear": 1992,
+    "tagline": "Art and Science",
+    "specialty": "Hypercars",
+    "description": "Italian hypercar artisan crafting automotive sculptures. Extreme attention to detail, Mercedes-AMG power, and artistic design create exclusive mechanical masterpieces."
+  },
+  "Peugeot": {
+    "name": "Peugeot",
+    "country": "France",
+    "countryFlag": "🇫🇷",
+    "foundedYear": 1810,
+    "tagline": "Motion & Emotion",
+    "specialty": "Mainstream Vehicles",
+    "description": "Historic French manufacturer with lion emblem. Combines distinctive design, efficient powertrains, and innovative i-Cockpit for engaging European mobility."
+  },
+  "Polestar": {
+    "name": "Polestar",
+    "country": "Sweden",
+    "countryFlag": "🇸🇪",
+    "foundedYear": 2017,
+    "tagline": "Pure, Progressive, Performance",
+    "specialty": "Electric Performance",
+    "description": "Swedish electric performance brand from Volvo. Minimalist Scandinavian design, sustainable materials, and engaging electric driving redefine performance vehicles."
+  },
+  "Porsche": {
+    "name": "Porsche",
+    "country": "Germany",
+    "countryFlag": "🇩🇪",
+    "foundedYear": 1931,
+    "tagline": "There is no substitute",
+    "specialty": "Sports Cars",
+    "description": "German sports car icon with legendary 911. Combines everyday usability with thrilling performance, precision engineering, and timeless design philosophy."
+  },
+  "Ram": {
+    "name": "Ram",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 2010,
+    "tagline": "Guts. Glory. Ram.",
+    "specialty": "Pickup Trucks",
+    "description": "American truck brand spun from Dodge. Heavy-duty capability, luxurious interiors, and powerful engines serve demanding work and lifestyle truck needs."
+  },
+  "Renault": {
+    "name": "Renault",
+    "country": "France",
+    "countryFlag": "🇫🇷",
+    "foundedYear": 1899,
+    "tagline": "Passion for Life",
+    "specialty": "Mainstream & Performance",
+    "description": "French manufacturer from economy to Alpine performance. Innovative approach, electric pioneers, and Formula 1 heritage create diverse, accessible lineup."
+  },
+  "Rimac": {
+    "name": "Rimac",
+    "country": "Croatia",
+    "countryFlag": "🇭🇷",
+    "foundedYear": 2009,
+    "tagline": "Electrifying performance",
+    "specialty": "Electric Hypercars",
+    "description": "Croatian electric hypercar pioneer and technology supplier. Nevera showcases extreme electric performance, advanced battery tech, and innovative engineering excellence."
+  },
+  "Rivian": {
+    "name": "Rivian",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 2009,
+    "tagline": "Keep the world adventurous forever",
+    "specialty": "Electric Adventure",
+    "description": "American electric adventure vehicle manufacturer. Purpose-built electric trucks and SUVs combine outdoor capability, innovative features, and sustainable mobility."
+  },
+  "RollsRoyce": {
+    "name": "Rolls-Royce",
+    "country": "United Kingdom",
+    "countryFlag": "🇬🇧",
+    "foundedYear": 1904,
+    "tagline": "Strive for Perfection",
+    "specialty": "Ultra-Luxury",
+    "description": "British pinnacle of automotive luxury and craftsmanship. Bespoke creations, supreme comfort, and Spirit of Ecstasy emblem represent ultimate prestige and refinement."
+  },
+  "Skoda": {
+    "name": "Škoda",
+    "country": "Czech Republic",
+    "countryFlag": "🇨🇿",
+    "foundedYear": 1895,
+    "tagline": "Simply Clever",
+    "specialty": "Practical Vehicles",
+    "description": "Czech brand within Volkswagen Group offering smart value. Practical innovations, spacious interiors, and Volkswagen quality create clever, affordable transportation."
+  },
+  "Smart": {
+    "name": "Smart",
+    "country": "Germany",
+    "countryFlag": "🇩🇪",
+    "foundedYear": 1994,
+    "tagline": "Open your mind",
+    "specialty": "Urban Microcars",
+    "description": "German-Chinese urban mobility specialist. Compact electric vehicles perfect for city parking, combining efficiency, modern tech, and sustainable urban transportation."
+  },
+  "SSC": {
+    "name": "SSC North America",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 1998,
+    "tagline": "Ultimate Aero",
+    "specialty": "Hypercars",
+    "description": "American hypercar maker chasing speed records. Extreme performance, aerospace-inspired engineering, and record-breaking achievements define exclusive production vehicles."
+  },
+  "Subaru": {
+    "name": "Subaru",
+    "country": "Japan",
+    "countryFlag": "🇯🇵",
+    "foundedYear": 1953,
+    "tagline": "Love. It's what makes Subaru a Subaru.",
+    "specialty": "AWD Vehicles",
+    "description": "Japanese manufacturer championing symmetrical all-wheel drive. Boxer engines, rally heritage, and safe, capable vehicles create loyal following for adventure-ready transportation."
+  },
+  "Suzuki": {
+    "name": "Suzuki",
+    "country": "Japan",
+    "countryFlag": "🇯🇵",
+    "foundedYear": 1909,
+    "tagline": "Way of Life",
+    "specialty": "Compact Vehicles",
+    "description": "Japanese manufacturer specializing in small, efficient vehicles. Lightweight engineering, motorcycle expertise, and affordable mobility serve global markets effectively."
+  },
+  "Tesla": {
+    "name": "Tesla",
+    "country": "United States",
+    "countryFlag": "🇺🇸",
+    "foundedYear": 2003,
+    "tagline": "Accelerating sustainable transport",
+    "specialty": "Electric Vehicles",
+    "description": "American EV pioneer revolutionizing automotive industry. Cutting-edge technology, autonomous driving features, industry-leading range, and over-the-air updates redefine mobility."
+  },
+  "Toyota": {
+    "name": "Toyota",
+    "country": "Japan",
+    "countryFlag": "🇯🇵",
+    "foundedYear": 1937,
+    "tagline": "Let's Go Places",
+    "specialty": "Reliable Transportation",
+    "description": "World's largest automaker legendary for reliability. Hybrid pioneer with Prius, diverse lineup, and kaizen philosophy deliver dependable transportation for millions globally."
+  },
+  "Volkswagen": {
+    "name": "Volkswagen",
+    "country": "Germany",
+    "countryFlag": "🇩🇪",
+    "foundedYear": 1937,
+    "tagline": "Das Auto",
+    "specialty": "People's Cars",
+    "description": "German manufacturer meaning people's car. From Beetle heritage to modern Golf, combines quality engineering, practical design, and accessible premium features."
+  },
+  "Volvo": {
+    "name": "Volvo",
+    "country": "Sweden",
+    "countryFlag": "🇸🇪",
+    "foundedYear": 1927,
+    "tagline": "For Life",
+    "specialty": "Safe Luxury",
+    "description": "Swedish manufacturer pioneering automotive safety. Scandinavian design, comprehensive safety systems, and comfortable luxury create family-focused premium vehicles."
+  },
+  "Zenvo": {
+    "name": "Zenvo",
+    "country": "Denmark",
+    "countryFlag": "🇩🇰",
+    "foundedYear": 2004,
+    "tagline": "Handcrafted in Denmark",
+    "specialty": "Hypercars",
+    "description": "Danish hypercar manufacturer creating ultra-exclusive vehicles. Extreme power, bespoke craftsmanship, and limited production define Nordic approach to automotive extremes."
+  }
+}

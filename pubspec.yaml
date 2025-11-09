@@ -33,6 +33,7 @@ dependencies:
   audio_session: ^0.2.2
   cloud_firestore: ^6.0.3
   easy_localization: ^3.0.7
+  carousel_slider: ^5.0.0
 
 dev_dependencies:
   flutter_test:
@@ -48,6 +49,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/cars.csv
+    - assets/brands/
     - assets/home/
     - assets/icons/
     - assets/images/
