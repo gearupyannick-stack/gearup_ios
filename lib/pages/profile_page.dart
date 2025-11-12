@@ -315,82 +315,117 @@ class _ProfilePageState extends State<ProfilePage> {
         : username;
 
     final statusChip = _googleSignedIn
-        ? Chip(label: Text(_googleEmail ?? 'profile.googleUser'.tr(), style: const TextStyle(color: Colors.white70)), avatar: const Icon(Icons.check_circle, size: 16), backgroundColor: const Color(0xFF1E1E1E))
+        ? Chip(label: Text(_googleEmail ?? 'profile.googleUser'.tr(), style: const TextStyle(color: Colors.white70)), avatar: const Icon(Icons.check_circle, size: 16, color: Colors.green), backgroundColor: const Color(0xFF1E1E1E))
         : (_isGuest ? Chip(label: Text('profile.guest'.tr(), style: const TextStyle(color: Colors.white70)), backgroundColor: const Color(0xFF1E1E1E)) : const SizedBox.shrink());
 
-    return Center(
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: _showAccountDialog,
-            child: Stack(
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF2A2A2A),
+            const Color(0xFF1E1E1E),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Stack(
               clipBehavior: Clip.none,
               children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.transparent,
-                  child: avatarImage,
-                ),
-                Positioned(
-                  top: -6,
-                  right: -6,
-                  child: Material(
-                    color: Colors.black.withOpacity(0.05),
-                    shape: const CircleBorder(),
-                    child: IconButton(
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.edit, size: 18),
-                      tooltip: 'profile.editProfileTooltip'.tr(),
-                      onPressed: _showEditProfileDialog,
-                    ),
+                GestureDetector(
+                  onTap: _showAccountDialog,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.transparent,
+                    child: avatarImage,
                   ),
                 ),
-                // Language selector button
                 Positioned(
                   top: -6,
                   left: -6,
                   child: Material(
-                    color: Colors.black.withOpacity(0.05),
+                    color: const Color(0xFF1A1A1A),
                     shape: const CircleBorder(),
                     child: IconButton(
                       visualDensity: VisualDensity.compact,
                       constraints: const BoxConstraints.tightFor(width: 36, height: 36),
                       padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.language, size: 18),
+                      icon: const Icon(Icons.language, size: 18, color: Colors.white70),
                       tooltip: 'language.title'.tr(),
                       onPressed: _showLanguageSelector,
                     ),
                   ),
                 ),
+                Positioned(
+                  top: -6,
+                  right: -6,
+                  child: Material(
+                    color: const Color(0xFF1A1A1A),
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.edit, size: 18, color: Colors.white70),
+                      tooltip: 'profile.editProfileTooltip'.tr(),
+                      onPressed: _showEditProfileDialog,
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
 
-          const SizedBox(height: 10),
-          GestureDetector(
-            onTap: _showAccountDialog,
-            child: Column(
-              children: [
-                Text(displayName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text('profile.memberSince'.tr(namedArgs: {'date': memSince}), style: const TextStyle(fontSize: 14, color: Colors.grey)),
-              ],
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: _showAccountDialog,
+              child: Column(
+                children: [
+                  Text(displayName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const SizedBox(height: 4),
+                  Text('profile.memberSince'.tr(namedArgs: {'date': memSince}), style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          statusChip,
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.local_fire_department, color: Colors.orange),
-              const SizedBox(width: 6),
-              Text('profile.streakDays'.tr(namedArgs: {'count': dailyStreak.toString()}), style: const TextStyle(fontSize: 16)),
-            ],
-          ),
-        ],
+            const SizedBox(height: 8),
+            statusChip,
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: _showStreakPopup,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.local_fire_department, color: Colors.orange, size: 20),
+                    const SizedBox(width: 6),
+                    Text(
+                      'profile.streakDays'.tr(namedArgs: {'count': dailyStreak.toString()}),
+                      style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.touch_app, size: 14, color: Colors.white38),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -939,7 +974,10 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (!_isDataLoaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Color(0xFF1A1A1A),
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     // Member since formatting
@@ -981,155 +1019,41 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
+      backgroundColor: const Color(0xFF1A1A1A),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 16),
 
-                  // <-- replaced avatar block with the helper
-                  _buildAvatarHeader(memSince),
+            // Profile Header Card
+            _buildAvatarHeader(memSince),
 
-                  const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-                  Text(
-                    'profile.trackLevelProgress'.tr(namedArgs: {
-                      'track': _currentTrack.toString(),
-                      'level': (_sessionsCompleted + 1).toString(),
-                      'current': _currentLevelGears.toString(),
-                      'required': _requiredGearsForCurrentLevel.toString()
-                    }),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: _progressValue,
-                    backgroundColor: Colors.grey[300],
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                  ),
-                  const SizedBox(height: 24),
-                  Text('profile.yourStats'.tr(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildStatCard('profile.trainingCompleted'.tr(), trainingCompletedCount.toString(), Icons.fitness_center),
-                        _buildStatCard('profile.correctAnswers'.tr(), correctAnswerCount.toString(), Icons.check_circle),
-                        _buildStatCard('profile.categoriesMasteredLabel'.tr(), '$categoriesMastered/8', Icons.category),
-                        _buildStatCard('profile.challengesAttemptedLabel'.tr(), challengesAttemptedCount.toString(), Icons.flag),
-                        _buildStatCard('profile.accuracyRate'.tr(), '$accuracy%', Icons.bar_chart),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text('profile.achievements'.tr(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
+            // Track Progress Card
+            _buildProgressCard(),
 
-                  if (unlocked.isNotEmpty)
-                    GridView.count(
-                      crossAxisCount: 3,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 1,
-                      children: List.generate(3, (i) {
-                        final name = topRow[i];
-                        if (name.isEmpty) return const SizedBox();
-                        final isLast = i == 2;
-                        return GestureDetector(
-                          onTap: () {
-                            if (isLast) {
-                              _showUnlockedAchievementsPopup(context);
-                            } else {
-                              _showAchievementPopup(context, name);
-                            }
-                          },
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.emoji_events, size: 60, color: Colors.yellow[700]!),
-                                  const SizedBox(height: 6),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                                    child: Text(
-                                      name.split("–")[0].trim(),
-                                      style: const TextStyle(fontSize: 12),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (isLast)
-                                const Positioned(top: 4, right: 4, child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey)),
-                            ],
-                          ),
-                        );
-                      }),
-                    ),
+            const SizedBox(height: 20),
 
-                  GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1,
-                    children: List.generate(3, (i) {
-                      final name = (i < locked.length) ? locked[i] : '';
-                      if (name.isEmpty) return const SizedBox();
-                      final isLast = i == 2;
-                      return GestureDetector(
-                        onTap: () {
-                          if (isLast) {
-                            _showLockedAchievementsPopup(context);
-                          } else {
-                            _showAchievementPopup(context, name);
-                          }
-                        },
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.emoji_events, size: 60, color: Colors.grey),
-                                const SizedBox(height: 6),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                                  child: Text(
-                                    name.split("–")[0].trim(),
-                                    style: const TextStyle(fontSize: 12),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (isLast)
-                              const Positioned(top: 4, right: 4, child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey)),
-                          ],
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-            ),
-          ),
+            // Knowledge Mastered Section
+            _buildKnowledgeMasteredSection(),
 
-          // "Ensure All Images Are Loaded" — changed to a no-op informational action
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton(
+            const SizedBox(height: 20),
+
+            // Stats Section
+            _buildStatsSection(accuracy),
+
+            const SizedBox(height: 20),
+
+            // Achievements Section
+            _buildAchievementsSection(unlocked, locked, topRow),
+
+            const SizedBox(height: 20),
+
+            // "Ensure All Images Are Loaded" — moved inside scroll
+            ElevatedButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -1138,26 +1062,773 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 );
               },
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 40)),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 40),
+                backgroundColor: const Color(0xFF2A2A2A),
+                foregroundColor: Colors.white,
+              ),
               child: Text('profile.ensureImagesLoaded'.tr()),
             ),
+
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            'profile.trackLevelProgress'.tr(namedArgs: {
+              'track': _currentTrack.toString(),
+              'level': (_sessionsCompleted + 1).toString(),
+              'current': _currentLevelGears.toString(),
+              'required': _requiredGearsForCurrentLevel.toString()
+            }),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: _showGearProgressPopup,
+            child: SizedBox(
+              width: 120,
+              height: 120,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: CircularProgressIndicator(
+                      value: _progressValue,
+                      backgroundColor: Colors.grey[800],
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
+                      strokeWidth: 12,
+                    ),
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${(_progressValue * 100).toInt()}%',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        '$_currentLevelGears/$_requiredGearsForCurrentLevel',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Positioned(
+                    bottom: 5,
+                    child: Icon(Icons.touch_app, size: 16, color: Colors.white38),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.settings, color: Colors.amber, size: 20),
+              const SizedBox(width: 6),
+              Text(
+                'Total Gears: $_gearCount',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon) {
+  void _showGearProgressPopup() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2A2A2A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.settings, color: Colors.amber, size: 28),
+              const SizedBox(width: 12),
+              Text(
+                'Total Gears: $_gearCount',
+                style: const TextStyle(color: Colors.white, fontSize: 20),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildTrackCard(1, 'Beginner', 0, 750, const Color(0xFF2196F3)),
+                  const SizedBox(height: 12),
+                  _buildTrackCard(2, 'Intermediate', 750, 3250, const Color(0xFFFF9800)),
+                  const SizedBox(height: 12),
+                  _buildTrackCard(3, 'Advanced', 3250, 999999, const Color(0xFF9C27B0)),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('common.close'.tr(), style: const TextStyle(color: Colors.white70)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTrackCard(int trackNumber, String trackName, int minGears, int maxGears, Color color) {
+    final isCurrentTrack = trackNumber == _currentTrack;
+    final isUnlocked = _gearCount >= minGears;
+    final isCompleted = _gearCount >= maxGears && maxGears < 999999;
+
+    int levelsInTrack = trackNumber == 1 ? 10 : trackNumber == 2 ? 20 : 30;
+    int currentLevel = 0;
+    int gearsInTrack = max(0, min(_gearCount, maxGears) - minGears);
+
+    if (isUnlocked) {
+      int remainingGears = gearsInTrack;
+      for (int lvl = 1; lvl <= levelsInTrack; lvl++) {
+        int req = (trackNumber == 3 && lvl >= 20) ? 220 : (30 + (lvl - 1) * 10);
+        if (remainingGears >= req) {
+          remainingGears -= req;
+          currentLevel = lvl;
+        } else {
+          break;
+        }
+      }
+    }
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: isCurrentTrack
+            ? LinearGradient(
+                colors: [color.withOpacity(0.3), color.withOpacity(0.1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: isCurrentTrack ? null : const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isCurrentTrack ? color : Colors.grey.withOpacity(0.2),
+          width: isCurrentTrack ? 2 : 1,
+        ),
+      ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 36, color: Colors.blue),
-          const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 2),
-          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isCompleted ? Icons.check_circle : (isUnlocked ? Icons.lock_open : Icons.lock),
+                    color: isCompleted ? Colors.green : (isUnlocked ? color : Colors.grey),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Track $trackNumber: $trackName',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isUnlocked ? Colors.white : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+              if (isCurrentTrack)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'CURRENT',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            maxGears < 999999 ? '$minGears - $maxGears gears' : '$minGears+ gears',
+            style: TextStyle(fontSize: 12, color: isUnlocked ? Colors.white70 : Colors.grey),
+          ),
+          if (isUnlocked && !isCompleted) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Level $currentLevel/$levelsInTrack',
+              style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            LinearProgressIndicator(
+              value: currentLevel / levelsInTrack,
+              backgroundColor: Colors.grey[800],
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              minHeight: 8,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$gearsInTrack gears collected',
+              style: const TextStyle(fontSize: 12, color: Colors.white54),
+            ),
+          ],
+          if (isCompleted) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.emoji_events, color: Colors.amber, size: 16),
+                const SizedBox(width: 6),
+                const Text(
+                  'Track Completed!',
+                  style: TextStyle(fontSize: 12, color: Colors.amber, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showStreakPopup() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2A2A2A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.local_fire_department, color: Colors.orange, size: 32),
+              const SizedBox(width: 12),
+              const Text(
+                'Your Streak',
+                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF6B00), Color(0xFFFF9500)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          '$dailyStreak',
+                          style: const TextStyle(
+                            fontSize: 64,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          dailyStreak == 1 ? 'Day Streak' : 'Days Streak',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildStreakStatRow(Icons.trending_up, 'Current Streak', '$dailyStreak days'),
+                  const Divider(color: Colors.white24),
+                  _buildStreakStatRow(Icons.emoji_events, 'Longest Streak', '$dailyStreak days'),
+                  const Divider(color: Colors.white24),
+                  _buildStreakStatRow(Icons.calendar_today, 'Total Active Days', '$dailyStreak'),
+                  const SizedBox(height: 20),
+                  if (dailyStreak >= 7)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.celebration, color: Colors.amber, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              dailyStreak >= 30
+                                  ? '🔥 Amazing! You\'re on fire! Keep it up!'
+                                  : '🎉 Great job! Keep going!',
+                              style: const TextStyle(color: Colors.white70, fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.blue, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              dailyStreak == 0
+                                  ? 'Start your streak today! Come back daily to build it up.'
+                                  : 'Keep going! ${7 - dailyStreak} more days to reach a week!',
+                              style: const TextStyle(color: Colors.white70, fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('common.close'.tr(), style: const TextStyle(color: Colors.white70)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStreakStatRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white70, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, color: Colors.white70),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsSection(int accuracy) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'profile.yourStats'.tr(),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _buildModernStatCard('profile.trainingCompleted'.tr(), trainingCompletedCount.toString(), Icons.fitness_center, const Color(0xFF2196F3)),
+              _buildModernStatCard('profile.correctAnswers'.tr(), correctAnswerCount.toString(), Icons.check_circle, const Color(0xFF4CAF50)),
+              _buildModernStatCard('profile.categoriesMasteredLabel'.tr(), '$categoriesMastered/8', Icons.category, const Color(0xFFFF9800)),
+              _buildModernStatCard('profile.challengesAttemptedLabel'.tr(), challengesAttemptedCount.toString(), Icons.flag, const Color(0xFFE91E63)),
+              _buildModernStatCard('profile.accuracyRate'.tr(), '$accuracy%', Icons.bar_chart, const Color(0xFF9C27B0)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernStatCard(String title, String value, IconData icon, Color color) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final parentWidth = MediaQuery.of(context).size.width - 32;
+        final cardWidth = (parentWidth - 20 - 12) / 2;
+
+        return Container(
+          width: cardWidth,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.3), width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 32, color: color),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildKnowledgeMasteredSection() {
+    final categories = {
+      'Brand': {'icon': Icons.local_offer},
+      'Model': {'icon': Icons.directions_car},
+      'Origin': {'icon': Icons.flag},
+      'Engine Type': {'icon': Icons.settings},
+      'Max Speed': {'icon': Icons.speed},
+      'Acceleration': {'icon': Icons.flash_on},
+      'Power': {'icon': Icons.bolt},
+      'Special Feature': {'icon': Icons.star},
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '📚 Knowledge Mastered',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              Text(
+                '$categoriesMastered/8',
+                style: const TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...categories.entries.map((entry) {
+            final icon = entry.value['icon'] as IconData;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildKnowledgeRow(entry.key, icon),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKnowledgeRow(String title, IconData icon) {
+    return FutureBuilder<int>(
+      future: _getCategoryScore(title),
+      builder: (context, snapshot) {
+        final score = snapshot.data ?? 0;
+        final progress = score / 20.0;
+        final isMastered = score == 20;
+
+        return Column(
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 20, color: isMastered ? Colors.amber : Colors.white70),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isMastered ? Colors.white : Colors.white70,
+                      fontWeight: isMastered ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                if (isMastered)
+                  const Icon(Icons.emoji_events, size: 20, color: Colors.amber)
+                else
+                  Text(
+                    '$score/20',
+                    style: const TextStyle(fontSize: 12, color: Colors.white54),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.grey[800],
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  isMastered ? Colors.green : (score > 0 ? Colors.orange : Colors.grey[700]!),
+                ),
+                minHeight: 6,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<int> _getCategoryScore(String categoryName) async {
+    final prefs = await SharedPreferences.getInstance();
+    final keyMap = {
+      'Brand': 'best_Brand',
+      'Model': 'best_Model',
+      'Origin': 'best_Origin',
+      'Engine Type': 'best_EngineType',
+      'Max Speed': 'best_MaxSpeed',
+      'Acceleration': 'best_Acceleration',
+      'Power': 'best_Power',
+      'Special Feature': 'best_SpecialFeature',
+    };
+
+    final key = keyMap[categoryName];
+    if (key == null) return 0;
+
+    final value = prefs.getString(key);
+    if (value == null) return 0;
+
+    final match = RegExp(r'(\d+)/20').firstMatch(value);
+    if (match != null) {
+      return int.parse(match.group(1) ?? '0');
+    }
+
+    return 0;
+  }
+
+  Widget _buildAchievementsSection(List<String> unlocked, List<String> locked, List<String> topRow) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'profile.achievements'.tr(),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              Text(
+                '${unlocked.length}/${unlocked.length + locked.length}',
+                style: const TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (unlocked.isNotEmpty) ...[
+            Text(
+              'Unlocked',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.amber[400]),
+            ),
+            const SizedBox(height: 8),
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 1,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              children: List.generate(3, (i) {
+                final name = topRow[i];
+                if (name.isEmpty) return const SizedBox();
+                final isLast = i == 2;
+                return GestureDetector(
+                  onTap: () {
+                    if (isLast) {
+                      _showUnlockedAchievementsPopup(context);
+                    } else {
+                      _showAchievementPopup(context, name);
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.withOpacity(0.3), width: 1),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.emoji_events, size: 40, color: Colors.yellow[700]!),
+                            const SizedBox(height: 6),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: Text(
+                                name.split("–")[0].trim(),
+                                style: const TextStyle(fontSize: 11, color: Colors.white),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isLast)
+                          const Positioned(top: 4, right: 4, child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.white70)),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
+          if (locked.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Locked',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 8),
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 1,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              children: List.generate(3, (i) {
+                final name = (i < locked.length) ? locked[i] : '';
+                if (name.isEmpty) return const SizedBox();
+                final isLast = i == 2;
+                return GestureDetector(
+                  onTap: () {
+                    if (isLast) {
+                      _showLockedAchievementsPopup(context);
+                    } else {
+                      _showAchievementPopup(context, name);
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.emoji_events, size: 40, color: Colors.grey),
+                            const SizedBox(height: 6),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: Text(
+                                name.split("–")[0].trim(),
+                                style: const TextStyle(fontSize: 11, color: Colors.white54),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isLast)
+                          const Positioned(top: 4, right: 4, child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
         ],
       ),
     );
