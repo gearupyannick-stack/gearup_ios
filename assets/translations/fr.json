@@ -159,7 +159,15 @@
     "resultMessage": "Vous avez obtenu {score}/{total} en {time}",
     "timeLabel": "Temps: ",
     "questionLabel": "Q: ",
-    "scoreLabel": "Score: "
+    "scoreLabel": "Score: ",
+    "perfect": "Parfait !",
+    "excellent": "Excellent !",
+    "great": "Super !",
+    "good": "Bien !",
+    "notBad": "Pas Mal !",
+    "totalTime": "Temps Total",
+    "avgTime": "Temps Moyen",
+    "accuracy": "Précision"
   },
   "training": {
     "title": "Mode Entraînement",
@@ -364,7 +372,7 @@
   "preload": {
     "title": "Chargement",
     "loadingAssets": "Chargement des ressources du jeu...",
-    "downloadingCars": "Téléchargement des images de voitures...",
+    "downloadingCars": "Télécharger des images de voiture",
     "almostReady": "Presque prêt...",
     "progress": "{current} sur {total}",
     "percentComplete": "{percent}% terminé",
@@ -539,6 +547,56 @@
       "sharpshooter": "Tireur d'élite – Maintenez une précision ≥ 90% sur 200 tentatives de questions au total.",
       "allRounder": "Polyvalent – En une journée, obtenez ≥ 10/20 dans les 8 modules.",
       "trainingAllStar": "Étoile de l'entraînement – Obtenez 20/20 dans les 8 modules (au moins une fois chacun)."
+    }
+  },
+  "profileProgress": {
+    "totalGears": "Total d'engrenages : {count}",
+    "trackNames": {
+      "beginner": "Débutant",
+      "intermediate": "Intermédiaire",
+      "advanced": "Avancé"
+    },
+    "trackCard": {
+      "current": "ACTUEL",
+      "trackLabel": "Piste {number} : {name}",
+      "gearsRange": "{min} - {max} engrenages",
+      "gearsPlusRange": "{min}+ engrenages",
+      "levelProgress": "Niveau {current}/{total}",
+      "gearsCollected": "{count} engrenages collectés",
+      "trackCompleted": "Piste terminée !"
+    },
+    "streak": {
+      "title": "Votre série",
+      "dayStreak": "Jour de série",
+      "daysStreak": "Jours de série",
+      "currentStreak": "Série actuelle",
+      "longestStreak": "Plus longue série",
+      "totalActiveDays": "Jours actifs totaux",
+      "streakDays": "{count} jours",
+      "encouragement": {
+        "onFire": "🔥 Incroyable ! Vous êtes en feu ! Continuez !",
+        "greatJob": "🎉 Excellent travail ! Continuez !",
+        "startToday": "Commencez votre série aujourd'hui ! Revenez tous les jours pour la construire.",
+        "keepGoing": "Continuez ! Encore {remaining} jours pour atteindre une semaine !"
+      }
+    },
+    "knowledge": {
+      "title": "📚 Connaissances maîtrisées",
+      "categories": {
+        "brand": "Marque",
+        "model": "Modèle",
+        "origin": "Origine",
+        "engineType": "Type de moteur",
+        "maxSpeed": "Vitesse maximale",
+        "acceleration": "Accélération",
+        "power": "Puissance",
+        "specialFeature": "Caractéristique spéciale"
+      },
+      "scoreFormat": "{score}/20"
+    },
+    "achievements": {
+      "unlocked": "Débloqué",
+      "locked": "Verrouillé"
     }
   }
 }

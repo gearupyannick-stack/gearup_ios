@@ -1,6 +1,7 @@
 // training_page.dart
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Keep existing relative imports to your challenge pages:
 import 'challenges/brand_challenge_page.dart';
@@ -88,6 +89,31 @@ class _TrainingPageState extends State<TrainingPage> {
     }
   }
 
+  IconData _getIconForChallenge(String title) {
+    switch (title) {
+      case 'Brand':
+        return Icons.business;
+      case 'Model':
+        return Icons.directions_car;
+      case 'Models by Brand':
+        return Icons.collections;
+      case 'Origin':
+        return Icons.public;
+      case 'Engine Type':
+        return Icons.settings;
+      case 'Max Speed':
+        return Icons.speed;
+      case 'Acceleration':
+        return Icons.flash_on;
+      case 'Power':
+        return Icons.bolt;
+      case 'Special Feature':
+        return Icons.star;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
   Future<void> _maybeStartChallenge(String title, Widget page) async {
     final premium = PremiumService.instance;
 
@@ -148,8 +174,14 @@ class _TrainingPageState extends State<TrainingPage> {
       await premium.recordTrainingStart();
     }
 
-    // Navigate to challenge
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+    // Navigate to challenge and capture result
+    final result = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+
+    // If challenge returned a result, save it
+    if (result is String && result.isNotEmpty) {
+      await _updateBestResult(title, result);
+      await _updateTrainingCounters(result);
+    }
 
     // optional callback
     widget.recordChallengeCompletion?.call();
@@ -160,6 +192,73 @@ class _TrainingPageState extends State<TrainingPage> {
     } catch (e) {
       debugPrint('AdService.incrementChallengeAndMaybeShow error: $e');
     }
+  }
+
+  /// Map challenge title to SharedPreferences key
+  String _getCategoryKey(String title) {
+    switch (title) {
+      case 'Brand': return 'best_Brand';
+      case 'Model': return 'best_Model';
+      case 'Origin': return 'best_Origin';
+      case 'Engine Type': return 'best_EngineType';
+      case 'Max Speed': return 'best_MaxSpeed';
+      case 'Acceleration': return 'best_Acceleration';
+      case 'Power': return 'best_Power';
+      case 'Special Feature': return 'best_SpecialFeature';
+      default: return 'best_${title.replaceAll(" ", "")}';
+    }
+  }
+
+  /// Parse score from result string (e.g., "15/20 in 2'30''" -> 15)
+  int _parseScore(String result) {
+    final match = RegExp(r'(\d+)/20').firstMatch(result);
+    if (match != null) {
+      return int.parse(match.group(1) ?? '0');
+    }
+    return 0;
+  }
+
+  /// Update best result for a category if new score is better
+  Future<void> _updateBestResult(String title, String result) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _getCategoryKey(title);
+
+    // Get current best
+    final currentBest = prefs.getString(key);
+    final newScore = _parseScore(result);
+
+    // If no previous best, or new score is better, save it
+    bool shouldUpdate = false;
+    if (currentBest == null) {
+      shouldUpdate = true;
+    } else {
+      final oldScore = _parseScore(currentBest);
+      shouldUpdate = newScore > oldScore;
+    }
+
+    if (shouldUpdate) {
+      final formattedResult = 'Best score : $result';
+      await prefs.setString(key, formattedResult);
+      debugPrint('Updated $key to: $formattedResult');
+    }
+  }
+
+  /// Update training statistics counters
+  Future<void> _updateTrainingCounters(String result) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Increment training completed count
+    final trainingCount = prefs.getInt('trainingCompletedCount') ?? 0;
+    await prefs.setInt('trainingCompletedCount', trainingCount + 1);
+
+    // Add correct answers to total
+    final score = _parseScore(result);
+    final correctCount = prefs.getInt('correctAnswerCount') ?? 0;
+    await prefs.setInt('correctAnswerCount', correctCount + score);
+
+    // Add 20 to question attempt count (each training has 20 questions)
+    final questionCount = prefs.getInt('questionAttemptCount') ?? 0;
+    await prefs.setInt('questionAttemptCount', questionCount + 20);
   }
 
   @override
@@ -212,22 +311,71 @@ class _TrainingPageState extends State<TrainingPage> {
                 itemBuilder: (context, index) {
                   final c = _challenges[index];
                   final bool isGatedItem = _gatedTitles.contains(c.title);
-                  return ElevatedButton(
-                    onPressed: () => _maybeStartChallenge(c.title, c.page),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.all(12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: Stack(
-                      children: [
-                        Center(child: Text(_translateModuleName(c.title), textAlign: TextAlign.center, style: const TextStyle(fontSize: 16))),
-                        if (isGatedItem)
-                          Positioned(
-                            right: 6,
-                            top: 6,
-                            child: Icon(Icons.lock, size: 16, color: premium.isPremium ? Colors.amber : Colors.white70),
+                  return Material(
+                    elevation: 2,
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
+                      onTap: () => _maybeStartChallenge(c.title, c.page),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E1E1E),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFF3D0000),
+                            width: 2,
                           ),
-                      ],
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        child: Stack(
+                          children: [
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _getIconForChallenge(c.title),
+                                    size: 36,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    _translateModuleName(c.title),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isGatedItem)
+                              Positioned(
+                                right: 6,
+                                top: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black26,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.lock,
+                                    size: 16,
+                                    color: premium.isPremium ? Colors.amber : Colors.white,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 },

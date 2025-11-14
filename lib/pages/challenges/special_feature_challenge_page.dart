@@ -8,6 +8,9 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:csv/csv.dart';
 import '../../services/audio_feedback.dart'; // added by audio patch
 import '../../services/language_service.dart';
+import '../../widgets/enhanced_answer_button.dart';
+import '../../widgets/question_progress_bar.dart';
+import '../../widgets/animated_score_display.dart';
 
 class SpecialFeatureChallengePage extends StatefulWidget {
   @override
@@ -40,6 +43,14 @@ class _SpecialFeatureChallengePageState
   // Answer highlighting
   bool _answered = false;
   String? _selectedFeature;
+
+  // Answer history for progress bar
+  List<bool> _answerHistory = [];
+
+  // Streak tracking for animated score display
+  int _currentStreak = 0;
+  bool _showScoreChange = false;
+  bool _wasLastAnswerCorrect = false;
 
   @override
   void initState() {
@@ -142,17 +153,33 @@ super.dispose();
   }
 
   void _onTap(String feature) {
-    
+
     try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
 if (_answered) return;
+    final isCorrect = feature == _correctFeature;
     setState(() {
       _answered = true;
       _selectedFeature = feature;
-      if (feature == _correctFeature) {
+      if (isCorrect) {
         _correctAnswers++;
+        _currentStreak++;
+      } else {
+        _currentStreak = 0;
+      }
+      _answerHistory.add(isCorrect);
+      _wasLastAnswerCorrect = isCorrect;
+      _showScoreChange = true;
+    });
+
+    // Reset the animation flag after a short delay
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        setState(() {
+          _showScoreChange = false;
+        });
       }
     });
-    
+
     // audio: answer feedback
     try {
       if (_selectedFeature == _correctFeature) { AudioFeedback.instance.playEvent(SoundEvent.answerCorrect); } else { AudioFeedback.instance.playEvent(SoundEvent.answerWrong); }
@@ -269,11 +296,27 @@ Future.delayed(const Duration(seconds: 1), _nextQuestion);
       ),
       body: _currentBrand == null
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : Column(
+              children: [
+                QuestionProgressBar(
+                  currentQuestion: _questionCount,
+                  totalQuestions: 20,
+                  answeredCorrectly: _answerHistory,
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  AnimatedScoreDisplay(
+                    currentScore: _correctAnswers,
+                    totalQuestions: 20,
+                    currentStreak: _currentStreak,
+                    showScoreChange: _showScoreChange,
+                    wasCorrect: _wasLastAnswerCorrect,
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     'What notable feature does\n'
                     '${_currentBrand!} ${_currentModel!} have?',
@@ -331,39 +374,23 @@ Future.delayed(const Duration(seconds: 1), _nextQuestion);
 
                   // ---- Updated option buttons ----
                   for (var feature in _options)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6.0),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Material(
-                          color: _answered
-                              ? (feature == _correctFeature
-                                  ? Colors.green
-                                  : (feature == _selectedFeature
-                                      ? Colors.red
-                                      : Colors.grey[800]!))
-                              : Colors.grey[800],
-                          child: InkWell(
-                            onTap: _answered ? null : () => _onTap(feature),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12.0, horizontal: 16.0),
-                              child: Text(
-                                feature,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                    EnhancedAnswerButton(
+                      text: feature,
+                      backgroundColor: _answered
+                          ? (feature == _correctFeature
+                              ? Colors.green
+                              : (feature == _selectedFeature
+                                  ? Colors.red
+                                  : Colors.grey[800]!))
+                          : Colors.grey[800]!,
+                      onTap: () => _onTap(feature),
+                      isDisabled: _answered,
                     ),
                 ],
               ),
+            ),
+                ),
+              ],
             ),
     );
   }

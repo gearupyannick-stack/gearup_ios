@@ -159,7 +159,15 @@
     "resultMessage": "You got {score}/{total} in {time}",
     "timeLabel": "Time: ",
     "questionLabel": "Q: ",
-    "scoreLabel": "Score: "
+    "scoreLabel": "Score: ",
+    "perfect": "Perfect!",
+    "excellent": "Excellent!",
+    "great": "Great!",
+    "good": "Good!",
+    "notBad": "Not Bad!",
+    "totalTime": "Total Time",
+    "avgTime": "Avg Time",
+    "accuracy": "Accuracy"
   },
   "training": {
     "title": "Training Mode",
@@ -375,7 +383,7 @@
   "preload": {
     "title": "Loading",
     "loadingAssets": "Loading game assets...",
-    "downloadingCars": "Downloading car images...",
+    "downloadingCars": "Download car images",
     "almostReady": "Almost ready...",
     "progress": "{current} of {total}",
     "percentComplete": "{percent}% complete",
@@ -565,6 +573,56 @@
       "sharpshooter": "Sharpshooter – Maintain ≥ 90% accuracy over 200 total question attempts.",
       "allRounder": "All-Rounder – On one day, score ≥ 10/20 in all 8 modules.",
       "trainingAllStar": "Training All-Star – Earn 20/20 in all 8 modules (at least once each)."
+    }
+  },
+  "profileProgress": {
+    "totalGears": "Total Gears: {count}",
+    "trackNames": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "trackCard": {
+      "current": "CURRENT",
+      "trackLabel": "Track {number}: {name}",
+      "gearsRange": "{min} - {max} gears",
+      "gearsPlusRange": "{min}+ gears",
+      "levelProgress": "Level {current}/{total}",
+      "gearsCollected": "{count} gears collected",
+      "trackCompleted": "Track Completed!"
+    },
+    "streak": {
+      "title": "Your Streak",
+      "dayStreak": "Day Streak",
+      "daysStreak": "Days Streak",
+      "currentStreak": "Current Streak",
+      "longestStreak": "Longest Streak",
+      "totalActiveDays": "Total Active Days",
+      "streakDays": "{count} days",
+      "encouragement": {
+        "onFire": "🔥 Amazing! You're on fire! Keep it up!",
+        "greatJob": "🎉 Great job! Keep going!",
+        "startToday": "Start your streak today! Come back daily to build it up.",
+        "keepGoing": "Keep going! {remaining} more days to reach a week!"
+      }
+    },
+    "knowledge": {
+      "title": "📚 Knowledge Mastered",
+      "categories": {
+        "brand": "Brand",
+        "model": "Model",
+        "origin": "Origin",
+        "engineType": "Engine Type",
+        "maxSpeed": "Max Speed",
+        "acceleration": "Acceleration",
+        "power": "Power",
+        "specialFeature": "Special Feature"
+      },
+      "scoreFormat": "{score}/20"
+    },
+    "achievements": {
+      "unlocked": "Unlocked",
+      "locked": "Locked"
     }
   }
 }

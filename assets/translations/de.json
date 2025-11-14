@@ -159,7 +159,15 @@
     "resultMessage": "Sie haben {score}/{total} in {time} erreicht",
     "timeLabel": "Zeit: ",
     "questionLabel": "F: ",
-    "scoreLabel": "Punkte: "
+    "scoreLabel": "Punkte: ",
+    "perfect": "Perfekt!",
+    "excellent": "Ausgezeichnet!",
+    "great": "Großartig!",
+    "good": "Gut!",
+    "notBad": "Nicht Schlecht!",
+    "totalTime": "Gesamtzeit",
+    "avgTime": "Durchschn. Zeit",
+    "accuracy": "Genauigkeit"
   },
   "training": {
     "title": "Trainingsmodus",
@@ -362,7 +370,7 @@
   "preload": {
     "title": "Lädt",
     "loadingAssets": "Spiel-Assets werden geladen...",
-    "downloadingCars": "Auto-Bilder werden heruntergeladen...",
+    "downloadingCars": "Autobilder herunterladen",
     "almostReady": "Fast bereit...",
     "progress": "{current} von {total}",
     "percentComplete": "{percent}% abgeschlossen",
@@ -537,6 +545,56 @@
       "sharpshooter": "Scharfschütze – Halten Sie eine Genauigkeit ≥ 90% über 200 Frageversuche.",
       "allRounder": "Allrounder – Erzielen Sie an einem Tag ≥ 10/20 in allen 8 Modulen.",
       "trainingAllStar": "Trainings-Star – Erzielen Sie 20/20 in allen 8 Modulen (mindestens einmal pro Modul)."
+    }
+  },
+  "profileProgress": {
+    "totalGears": "Gesamt-Gänge: {count}",
+    "trackNames": {
+      "beginner": "Anfänger",
+      "intermediate": "Fortgeschritten",
+      "advanced": "Experte"
+    },
+    "trackCard": {
+      "current": "AKTUELL",
+      "trackLabel": "Strecke {number}: {name}",
+      "gearsRange": "{min} - {max} Gänge",
+      "gearsPlusRange": "{min}+ Gänge",
+      "levelProgress": "Level {current}/{total}",
+      "gearsCollected": "{count} Gänge gesammelt",
+      "trackCompleted": "Strecke abgeschlossen!"
+    },
+    "streak": {
+      "title": "Ihre Serie",
+      "dayStreak": "Tag Serie",
+      "daysStreak": "Tage Serie",
+      "currentStreak": "Aktuelle Serie",
+      "longestStreak": "Längste Serie",
+      "totalActiveDays": "Aktive Tage gesamt",
+      "streakDays": "{count} Tage",
+      "encouragement": {
+        "onFire": "🔥 Fantastisch! Sie sind im Flow! Weiter so!",
+        "greatJob": "🎉 Großartige Arbeit! Weiter so!",
+        "startToday": "Starten Sie heute Ihre Serie! Kommen Sie täglich zurück, um sie aufzubauen.",
+        "keepGoing": "Weiter so! Noch {remaining} Tage bis zu einer Woche!"
+      }
+    },
+    "knowledge": {
+      "title": "📚 Gemeistertes Wissen",
+      "categories": {
+        "brand": "Marke",
+        "model": "Modell",
+        "origin": "Herkunft",
+        "engineType": "Motortyp",
+        "maxSpeed": "Höchstgeschwindigkeit",
+        "acceleration": "Beschleunigung",
+        "power": "Leistung",
+        "specialFeature": "Besonderes Merkmal"
+      },
+      "scoreFormat": "{score}/20"
+    },
+    "achievements": {
+      "unlocked": "Freigeschaltet",
+      "locked": "Gesperrt"
     }
   }
 }
