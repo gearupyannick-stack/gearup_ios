@@ -64,8 +64,13 @@ class _EnhancedAnswerButtonState extends State<EnhancedAnswerButton>
 
   @override
   Widget build(BuildContext context) {
+    // Determine if this is a correct/incorrect answer based on color
+    final bool isCorrect = widget.backgroundColor == Colors.green;
+    final bool isIncorrect = widget.backgroundColor == Colors.red;
+    final bool isAnswered = isCorrect || isIncorrect;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: AnimatedBuilder(
         animation: _scaleAnimation,
         builder: (context, child) {
@@ -73,37 +78,83 @@ class _EnhancedAnswerButtonState extends State<EnhancedAnswerButton>
             scale: _scaleAnimation.value,
             child: Container(
               width: double.infinity,
-              height: 50,
+              height: 60,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isAnswered
+                      ? (isCorrect ? Colors.green : Colors.red)
+                      : Colors.white.withOpacity(0.2),
+                  width: isAnswered ? 3 : 2,
+                ),
                 boxShadow: widget.isDisabled
                     ? []
                     : [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
                         ),
                       ],
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isAnswered
+                      ? (isCorrect
+                          ? [Colors.green.shade600, Colors.green.shade800]
+                          : [Colors.red.shade600, Colors.red.shade800])
+                      : [
+                          widget.backgroundColor,
+                          widget.backgroundColor.withOpacity(0.8),
+                        ],
+                ),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 child: Material(
-                  color: widget.backgroundColor,
+                  color: Colors.transparent,
                   elevation: 0,
                   child: InkWell(
                     onTap: widget.isDisabled ? null : widget.onTap,
                     onTapDown: _handleTapDown,
                     onTapUp: _handleTapUp,
                     onTapCancel: _handleTapCancel,
-                    child: Center(
-                      child: Text(
-                        widget.text,
-                        style: TextStyle(
-                          color: widget.textColor,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    splashColor: Colors.white.withOpacity(0.2),
+                    highlightColor: Colors.white.withOpacity(0.1),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (isAnswered) ...[
+                            Icon(
+                              isCorrect ? Icons.check_circle : Icons.cancel,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          Flexible(
+                            child: Text(
+                              widget.text,
+                              style: TextStyle(
+                                color: widget.textColor,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 2,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

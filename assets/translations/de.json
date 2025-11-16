@@ -31,7 +31,16 @@
     "earnedOne": "Toll — Sie haben 1 Leben verdient!",
     "adUnavailable": "Werbung nicht verfügbar — bitte versuchen Sie es später noch einmal.",
     "loadingAd": "Lade Werbung...",
-    "adError": "Fehler beim Anzeigen der Werbung: {error}"
+    "adError": "Fehler beim Anzeigen der Werbung: {error}",
+    "allHeartsFull": "Alle Herzen Voll!",
+    "readyToPlay": "Du bist bereit zu spielen!",
+    "heartsCount": "{lives} von {max} Herzen",
+    "nextHeartIn": "Nächstes Herz in",
+    "getMoreHearts": "Mehr Herzen erhalten:",
+    "watchAdPlusOne": "Werbung Ansehen (+1 Herz)",
+    "practiceToEarn": "Üben, um Herzen zu Verdienen",
+    "completeTrainingHint": "Schließe das Training ab, um ein Herz zu verdienen!",
+    "unlimitedHearts": "Unbegrenzte Herzen"
   },
   "streak": {
     "title": "Ihre Serie",
@@ -81,7 +90,8 @@
     "vintageCars": "Oldtimer",
     "motorsport": "Motorsport",
     "comingSoon": "Demnächst",
-    "stayTuned": "Bleiben Sie dran für neue Kategorien!"
+    "stayTuned": "Bleiben Sie dran für neue Kategorien!",
+    "modernCars": "Moderne Autos"
   },
   "tutorial": {
     "skip": "ÜBERSPRINGEN",
@@ -167,7 +177,8 @@
     "notBad": "Nicht Schlecht!",
     "totalTime": "Gesamtzeit",
     "avgTime": "Durchschn. Zeit",
-    "accuracy": "Genauigkeit"
+    "accuracy": "Genauigkeit",
+    "guessTheBrand": "Errate die Marke anhand dieses Fotos:"
   },
   "training": {
     "title": "Trainingsmodus",
@@ -196,6 +207,7 @@
     "lifeEarned": "Sie haben 1 Leben verdient!",
     "almostThere": "Fast geschafft! Versuchen Sie es erneut.",
     "accuracy": "Genauigkeit: {percent}%",
+    "guessTheBrand": "Errate die Marke anhand dieses Fotos:",
     "backToModules": "Zurück zu Modulen",
     "correctAnswer": "Richtige Antwort",
     "yourAnswer": "Ihre Antwort",
@@ -252,6 +264,7 @@
     "challengesAttempted": "Versuchte Herausforderungen",
     "challenges": "{count} Herausforderungen",
     "accuracy": "Gesamtgenauigkeit",
+    "guessTheBrand": "Errate die Marke anhand dieses Fotos:",
     "percent": "{value}%",
     "categoriesMastered": "Gemeisterte Kategorien",
     "categories": "{count}/8",
@@ -445,7 +458,7 @@
     "unableToJoinRoom": "Beitritt zur Lobby fehlgeschlagen: {error}",
     "choosePlayerName": "Wähle deinen Spielernamen:",
     "startRace": "Rennen starten",
-    "waitingForPlayer": "Warten auf einen weiteren Spieler...",
+    "waitingForPlayer": "Warten auf einen weiteren \n Spieler...",
     "nextQuestion": "Nächste Frage",
     "shareCode": "Teile diesen Code mit Freunden!",
     "leaderboardTitle": "BESTENLISTE — BALD",

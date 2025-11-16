@@ -31,7 +31,16 @@
     "earnedOne": "Legal — você ganhou 1 vida!",
     "adUnavailable": "Anúncio indisponível — tente novamente mais tarde.",
     "loadingAd": "Carregando anúncio...",
-    "adError": "Erro ao exibir anúncio: {error}"
+    "adError": "Erro ao exibir anúncio: {error}",
+    "allHeartsFull": "Todos os Corações Cheios!",
+    "readyToPlay": "Você está pronto para jogar!",
+    "heartsCount": "{lives} de {max} corações",
+    "nextHeartIn": "Próximo coração em",
+    "getMoreHearts": "Consiga mais corações:",
+    "watchAdPlusOne": "Assistir Anúncio (+1 Coração)",
+    "practiceToEarn": "Pratique para Ganhar Corações",
+    "completeTrainingHint": "Complete o treinamento para ganhar um coração!",
+    "unlimitedHearts": "Corações Ilimitados"
   },
   "streak": {
     "title": "Sua Sequência",
@@ -81,7 +90,8 @@
     "vintageCars": "Carros Clássicos",
     "motorsport": "Automobilismo",
     "comingSoon": "Em Breve",
-    "stayTuned": "Fique atento para novas categorias!"
+    "stayTuned": "Fique atento para novas categorias!",
+    "modernCars": "Carros Modernos"
   },
   "tutorial": {
     "skip": "PULAR",
@@ -167,7 +177,8 @@
     "notBad": "Nada Mal!",
     "totalTime": "Tempo Total",
     "avgTime": "Tempo Médio",
-    "accuracy": "Precisão"
+    "accuracy": "Precisão",
+    "guessTheBrand": "Adivinhe a marca desta foto:"
   },
   "training": {
     "title": "Modo Treino",
@@ -196,6 +207,7 @@
     "lifeEarned": "Você ganhou 1 vida!",
     "almostThere": "Quase lá! Tente novamente.",
     "accuracy": "Precisão: {percent}%",
+    "guessTheBrand": "Adivinhe a marca desta foto:",
     "backToModules": "Voltar aos Módulos",
     "correctAnswer": "Resposta Correta",
     "yourAnswer": "Sua Resposta",
@@ -252,6 +264,7 @@
     "challengesAttempted": "Desafios Tentados",
     "challenges": "{count} desafios",
     "accuracy": "Precisão Geral",
+    "guessTheBrand": "Adivinhe a marca desta foto:",
     "percent": "{value}%",
     "categoriesMastered": "Categorias Dominadas",
     "categories": "{count}/8",
@@ -445,7 +458,7 @@
     "unableToJoinRoom": "Não foi possível entrar na sala: {error}",
     "choosePlayerName": "Escolha seu nome de jogador:",
     "startRace": "Iniciar corrida",
-    "waitingForPlayer": "Aguardando outro jogador...",
+    "waitingForPlayer": "Aguardando outro \n jogador...",
     "nextQuestion": "Próxima pergunta",
     "shareCode": "Compartilhe este código com amigos!",
     "leaderboardTitle": "CLASSIFICAÇÃO — EM BREVE",

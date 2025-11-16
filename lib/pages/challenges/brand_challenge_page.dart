@@ -262,15 +262,35 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
 
                   // ── TEXT-BUTTON MODE ─────────────────────────────────────────
                   if (isBrandQuestion) ...[
-                    const Text(
-                      'Guess the brand from this photo:',
-                      style: TextStyle(fontSize: 20),
+                    Text(
+                      'challenges.guessTheBrand'.tr(),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                        letterSpacing: 0.3,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: AnimatedSwitcher(
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.5),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 500),
                         transitionBuilder: (child, anim) =>
                             FadeTransition(opacity: anim, child: child),
@@ -300,6 +320,7 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                             },
                           ),
                         ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -314,7 +335,10 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                         Text(
                           '${_brandQuestionImageIndex + 1}/$_maxFrames',
                           style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.arrow_forward_ios, size: 20),
@@ -360,7 +384,12 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                     const SizedBox(height: 16),
                     Text(
                       'questions.brandImage'.tr(namedArgs: {'brand': randomBrand ?? ''}),
-                      style: const TextStyle(fontSize: 20),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                        letterSpacing: 0.3,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
@@ -384,16 +413,45 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
 
                         return AspectRatio(
                           aspectRatio: 1,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Material(
-                              elevation: 4,
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.grey[900],
-                              child: InkWell(
-                                onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
-                              _onModelTap(m['model']!); },
-                              child: AnimatedSwitcher(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _answered
+                                    ? (isCorrect
+                                        ? Colors.green
+                                        : (isSelected
+                                            ? Colors.red
+                                            : Colors.white.withOpacity(0.2)))
+                                    : Colors.white.withOpacity(0.3),
+                                width: _answered && (isCorrect || isSelected) ? 4 : 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _answered
+                                      ? (isCorrect
+                                          ? Colors.green.withOpacity(0.5)
+                                          : (isSelected
+                                              ? Colors.red.withOpacity(0.5)
+                                              : Colors.black.withOpacity(0.3)))
+                                      : Colors.black.withOpacity(0.5),
+                                  blurRadius: _answered && (isCorrect || isSelected) ? 16 : 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Material(
+                                elevation: 0,
+                                borderRadius: BorderRadius.circular(14),
+                                color: Colors.grey[900],
+                                child: InkWell(
+                                  onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
+                                _onModelTap(m['model']!); },
+                                  splashColor: Colors.white.withOpacity(0.2),
+                                  highlightColor: Colors.white.withOpacity(0.1),
+                                  child: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 500),
                                 transitionBuilder: (child, animation) => FadeTransition(
                                   opacity: animation,
@@ -446,10 +504,11 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                                   ),
                                 ),
                               ),
-                              ),
                             ),
                           ),
-                        );
+                        ),
+                      ),
+                    );
                       },
                     ),
                     const SizedBox(height: 12),

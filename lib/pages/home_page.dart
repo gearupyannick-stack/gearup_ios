@@ -598,41 +598,129 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<void> _showStuckPopup({required Future<void> Function() onPassAction}) async {
     await showDialog(
       context: context,
+      barrierColor: Colors.black.withOpacity(0.7),
       builder: (ctx) => AlertDialog(
-        title: Text('home.feelingStuck'.tr()),
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.lightbulb_outline, color: Colors.amber.shade400, size: 28),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Need a Little Help?',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.amber.withOpacity(0.3), width: 2),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.emoji_objects, color: Colors.amber.shade300, size: 48),
+                  const SizedBox(height: 12),
+                  Text(
+                    'This one\'s tricky! 🤔',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber.shade200,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No worries - everyone learns at their own pace!',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             Text(
-              'You failed several times on this flag. Watch a short video to skip this question and automatically get full credit for it.',
-              textAlign: TextAlign.center,
+              'Choose an option:',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withOpacity(0.9),
+              ),
             ),
             const SizedBox(height: 12),
-            // Big buttons styled like the lives popup
+            // Watch ad for hint button
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.video_library, size: 22),
+                label: const Text('Watch Video for Hint'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: const Color(0xFFE53935),
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 onPressed: () {
                   Navigator.pop(ctx);
-                  // call the ad flow, passing the async onPassAction
                   _onWatchAdToPass(onPassAction);
                 },
-                child: Text('home.watchAdToPass'.tr()),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.refresh, color: Colors.white, size: 22),
+                label: const Text(
+                  'Keep Trying',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
                 style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.grey[850],
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: Color(0xFFE53935), width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 onPressed: () => Navigator.pop(ctx),
-                child: Text('common.close'.tr()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey[900]!.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE53935).withOpacity(0.3), width: 1),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.school, color: Colors.grey[300], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tip: Look closely at the car\'s unique features!',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[300],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1843,35 +1931,101 @@ Future<void> _loadConsecutiveFails() async {
             child: GestureDetector(
               key: widget.levelProgressKey,
               onTap: _showTrackPopup,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'home.level'.tr(namedArgs: {'number': (_sessionsCompleted + 1).toString()}),
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: (_sessionsCompleted + 1 == 1)
-                          ? Colors.white
-                          : (_currentTrack == 3
-                              ? Colors.white
-                              : const Color.fromARGB(255, 255, 255, 255)),
-                    ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E).withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF3D0000).withOpacity(0.5),
+                    width: 1,
                   ),
-                  SizedBox(height: 2),
-                  Container(
-                    width: 100,
-                    height: 4,
-                    child: LinearProgressIndicator(
-                      value: (_gearCount - _gearCountBeforeLevel) /
-                          _requiredGearsForCurrentLevel(),
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        const Color.fromARGB(255, 0, 255, 13),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Level text with trophy icon
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.emoji_events,
+                          color: Colors.amber,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'home.level'.tr(namedArgs: {'number': (_sessionsCompleted + 1).toString()}),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.5),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Progress bar with animation
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeInOut,
+                      width: 140,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(
+                          color: Colors.black.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(5),
+                        child: LinearProgressIndicator(
+                          value: (_gearCount - _gearCountBeforeLevel) /
+                              _requiredGearsForCurrentLevel(),
+                          backgroundColor: Colors.transparent,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFF3D0000),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+
+                    // Gear count display
+                    Text(
+                      '${(_gearCount - _gearCountBeforeLevel)}/${_requiredGearsForCurrentLevel()} ⚙',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[400],
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.5),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

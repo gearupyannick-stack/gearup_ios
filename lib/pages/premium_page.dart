@@ -209,30 +209,56 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildFeatureRow(IconData icon, String title, String subtitle) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white10,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          padding: const EdgeInsets.all(8),
-          child: Icon(icon, size: 20, color: Colors.white70),
+  Widget _buildFeatureRow(IconData icon, String title, String subtitle, Color accentColor) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: accentColor.withOpacity(0.3),
+          width: 1.5,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-            ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.all(10),
+            child: Icon(icon, size: 24, color: accentColor),
           ),
-        ),
-      ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.check_circle, color: accentColor, size: 20),
+        ],
+      ),
     );
   }
 
@@ -255,19 +281,44 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                   ),
                   child: Center(child: Text('premium.alreadyPremium'.tr(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
                 )
-              : ElevatedButton(
+              : Container(
                   key: const ValueKey('buy'),
-                  onPressed: (_loading || _processing || _product == null) ? null : _buy,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    backgroundColor: Colors.redAccent,
-                    foregroundColor: Colors.white,
-                    textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [const Color(0xFFE53935), const Color(0xFFC62828)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFE53935).withOpacity(0.5),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                  child: _processing
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text('premium.purchaseButton'.tr(namedArgs: {'price': priceLabel})),
+                  child: ElevatedButton(
+                    onPressed: (_loading || _processing || _product == null) ? null : _buy,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    ),
+                    child: _processing
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.star, size: 24),
+                              const SizedBox(width: 10),
+                              Text('premium.purchaseButton'.tr(namedArgs: {'price': priceLabel})),
+                            ],
+                          ),
+                  ),
                 ),
         ),
         const SizedBox(height: 10),
@@ -328,12 +379,12 @@ class _PremiumPageState extends State<PremiumPage> with SingleTickerProviderStat
                         const SizedBox(height: 12),
 
                         // Features list
-                        _buildFeatureRow(Icons.favorite, 'premium.unlimitedLives'.tr(), 'premium.unlimitedLivesDesc'.tr()),
-                        const SizedBox(height: 12),
-                        _buildFeatureRow(Icons.block, 'premium.noAds'.tr(), 'premium.noAdsDesc'.tr()),
-                        const SizedBox(height: 12),
-                        _buildFeatureRow(Icons.fitness_center, 'premium.unlimitedTraining'.tr(), 'premium.unlimitedTrainingDesc'.tr()),
-                        const SizedBox(height: 16),
+                        _buildFeatureRow(Icons.favorite, 'premium.unlimitedLives'.tr(), 'premium.unlimitedLivesDesc'.tr(), Colors.red.shade400),
+                        const SizedBox(height: 14),
+                        _buildFeatureRow(Icons.block, 'premium.noAds'.tr(), 'premium.noAdsDesc'.tr(), Colors.blue.shade400),
+                        const SizedBox(height: 14),
+                        _buildFeatureRow(Icons.fitness_center, 'premium.unlimitedTraining'.tr(), 'premium.unlimitedTrainingDesc'.tr(), Colors.green.shade400),
+                        const SizedBox(height: 20),
 
                         // Price and CTA
                         _buildBuyArea(context),

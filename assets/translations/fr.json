@@ -31,7 +31,16 @@
     "earnedOne": "Super — vous avez gagné 1 vie!",
     "adUnavailable": "Pub non disponible — réessayez plus tard.",
     "loadingAd": "Chargement de la pub...",
-    "adError": "Erreur d'affichage de la pub: {error}"
+    "adError": "Erreur d'affichage de la pub: {error}",
+    "allHeartsFull": "Tous les Cœurs Pleins!",
+    "readyToPlay": "Vous êtes prêt à jouer!",
+    "heartsCount": "{lives} de {max} cœurs",
+    "nextHeartIn": "Prochain cœur dans",
+    "getMoreHearts": "Obtenez plus de cœurs:",
+    "watchAdPlusOne": "Regarder Pub (+1 Cœur)",
+    "practiceToEarn": "Pratiquez pour Gagner des Cœurs",
+    "completeTrainingHint": "Terminez l'entraînement pour gagner un cœur!",
+    "unlimitedHearts": "Cœurs Illimités"
   },
   "streak": {
     "title": "Votre Série",
@@ -81,7 +90,8 @@
     "vintageCars": "Voitures Vintage",
     "motorsport": "Sport Automobile",
     "comingSoon": "Bientôt Disponible",
-    "stayTuned": "Restez à l'écoute pour de nouvelles catégories!"
+    "stayTuned": "Restez à l'écoute pour de nouvelles catégories!",
+    "modernCars": "Voitures Modernes"
   },
   "tutorial": {
     "skip": "PASSER",
@@ -167,7 +177,8 @@
     "notBad": "Pas Mal !",
     "totalTime": "Temps Total",
     "avgTime": "Temps Moyen",
-    "accuracy": "Précision"
+    "accuracy": "Précision",
+    "guessTheBrand": "Devinez la marque à partir de cette photo:"
   },
   "training": {
     "title": "Mode Entraînement",
@@ -447,7 +458,7 @@
     "unableToJoinRoom": "Impossible de rejoindre la salle : {error}",
     "choosePlayerName": "Choisissez votre pseudonyme :",
     "startRace": "Démarrer la course",
-    "waitingForPlayer": "En attente d'un autre joueur...",
+    "waitingForPlayer": "En attente d'un autre \n joueur...",
     "nextQuestion": "Question suivante",
     "shareCode": "Partagez ce code avec des amis !",
     "leaderboardTitle": "CLASSEMENT — BIENTÔT",

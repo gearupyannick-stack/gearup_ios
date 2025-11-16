@@ -205,11 +205,19 @@ class CarLearningApp extends StatelessWidget {
       supportedLocales: EasyLocalization.of(context)!.supportedLocales,
       locale: EasyLocalization.of(context)!.currentLocale,
       theme: ThemeData(
-        brightness: Brightness.light,
+        brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF121212),
         primaryColor: const Color(0xFF3D0000),
+        colorScheme: ColorScheme.dark(
+          primary: const Color(0xFF3D0000),
+          surface: const Color(0xFF1E1E1E),
+          background: const Color(0xFF121212),
+          onPrimary: Colors.white,
+          onSurface: Colors.white,
+          onBackground: Colors.white,
+        ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF3D0000),
+          backgroundColor: Color(0xFF1E1E1E),
           titleTextStyle: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
@@ -219,19 +227,21 @@ class CarLearningApp extends StatelessWidget {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF3D0000),
+            backgroundColor: const Color(0xFFE53935),
             foregroundColor: Colors.white,
-            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
+            elevation: 6,
             minimumSize: const Size(double.infinity, 50),
           ),
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color(0xFF1E1E1E),
-          selectedItemColor: Colors.redAccent,
+          selectedItemColor: Color(0xFF3D0000),
           unselectedItemColor: Colors.white70,
+          selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
         ),
         cardColor: const Color(0xFF1E1E1E),
         textTheme: const TextTheme(
@@ -242,6 +252,12 @@ class CarLearningApp extends StatelessWidget {
           backgroundColor: Color(0xFF1E1E1E),
           titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
           contentTextStyle: TextStyle(fontSize: 16, color: Colors.white70),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFFE53935),
+            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
         ),
       ),
 
@@ -1323,9 +1339,18 @@ class _MainPageState extends State<MainPage> {
   void _showCategorySelectionPopup() {
     showDialog(
       context: context,
+      barrierColor: Colors.black.withOpacity(0.7),
       builder: (context) {
         return AlertDialog(
-          title: Text('categories.title'.tr()),
+          backgroundColor: const Color(0xFF1E1E1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(Icons.category, color: Colors.blue.shade400, size: 24),
+              const SizedBox(width: 8),
+              Expanded(child: Text('categories.title'.tr())),
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1391,7 +1416,7 @@ class _MainPageState extends State<MainPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('calendar.close'.tr()),
+              child: Text('calendar.close'.tr(), style: const TextStyle(fontSize: 16)),
             ),
           ],
         );
@@ -1448,19 +1473,73 @@ class _MainPageState extends State<MainPage> {
 
     return showDialog(
       context: context,
+      barrierColor: Colors.black.withOpacity(0.7),
       builder: (context) {
         if (lives >= _maxLives) {
           return AlertDialog(
-            title: Text('lives.title'.tr()),
-            content: Text('lives.full'.tr()),
+            backgroundColor: const Color(0xFF1E1E1E),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Text('🎉 '),
+                Expanded(child: Text('lives.title'.tr())),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.green.withOpacity(0.5), width: 2),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.favorite, color: Colors.red.shade400, size: 48),
+                      const SizedBox(height: 12),
+                      Text(
+                        'lives.allHeartsFull'.tr(),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade300,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'lives.readyToPlay'.tr(),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('common.ok'.tr())),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('common.ok'.tr(), style: const TextStyle(fontSize: 16)),
+              ),
             ],
           );
         } else {
           // inside the AlertDialog you return when lives < _maxLives
           return AlertDialog(
-            title: Text('lives.title'.tr()),
+            backgroundColor: const Color(0xFF1E1E1E),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Icon(Icons.favorite, color: Colors.red.shade400, size: 24),
+                const SizedBox(width: 8),
+                Expanded(child: Text('lives.title'.tr())),
+              ],
+            ),
             content: ValueListenableBuilder<int>(
               valueListenable: _lifeTimerRemaining,
               builder: (context, remaining, child) {
@@ -1469,58 +1548,132 @@ class _MainPageState extends State<MainPage> {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("lives.remaining".tr(namedArgs: {'count': lives.toString(), 'max': _maxLives.toString()})),
-                    const SizedBox(height: 8),
-                    Text("lives.nextIn".tr(namedArgs: {'minutes': minutes.toString(), 'seconds': seconds.toString()})),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(_maxLives, (index) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: Icon(
+                                  index < lives ? Icons.favorite : Icons.favorite_border,
+                                  color: index < lives ? Colors.red.shade400 : Colors.grey.shade600,
+                                  size: 32,
+                                ),
+                              );
+                            }),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'lives.heartsCount'.tr(namedArgs: {'lives': lives.toString(), 'max': _maxLives.toString()}),
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          if (lives < _maxLives) ...[
+                            Text(
+                              'lives.nextHeartIn'.tr(),
+                              style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.7)),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange.shade300,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'lives.getMoreHearts'.tr(),
+                      style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.9), fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 12),
 
                     // Watch ad button to recover 1 life
                     if (!PremiumService.instance.isPremium)
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.play_arrow),
-                        label: Text("lives.watchAd".tr()),
-                        onPressed: () {
-                          Navigator.of(context).pop();  // close popup first
-                          _onWatchAdForLife();
-                        },
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.video_library),
+                          label: Text('lives.watchAdPlusOne'.tr()),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            backgroundColor: const Color(0xFFE53935),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _onWatchAdForLife();
+                          },
+                        ),
                       ),
 
                     const SizedBox(height: 8),
 
                     // TRAINING CTA: jump to Training tab so user can earn a life
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.fitness_center),
-                      label: Text("lives.trainForLife".tr()),
-                      onPressed: () {
-                        Navigator.of(context).pop();               // close the popup
-                        setState(() { _currentIndex = 1; });       // switch to Training tab (index 1)
-                        scaffoldMessengerKey.currentState?.showSnackBar(
-                          SnackBar(
-                            content: Text('training.completeToEarnLife'.tr()),
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                      },
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.school),
+                        label: Text('lives.practiceToEarn'.tr()),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          minimumSize: const Size(double.infinity, 50),
+                          backgroundColor: const Color(0xFFE53935),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          setState(() { _currentIndex = 1; });
+                          scaffoldMessengerKey.currentState?.showSnackBar(
+                            SnackBar(
+                              content: Text('lives.completeTrainingHint'.tr()),
+                              backgroundColor: const Color(0xFFE53935),
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 8),
 
                     // Upgrade hint inside popup
                     if (!PremiumService.instance.isPremium)
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.upgrade),
-                        label: Text("lives.unlimited".tr()),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          Navigator.of(context).pushNamed('/premium');
-                        },
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.star, color: Colors.white),
+                          label: Text('lives.unlimitedHearts'.tr()),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: const BorderSide(color: Color(0xFFE53935), width: 2),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).pushNamed('/premium');
+                          },
+                        ),
                       ),
                   ],
                 );
               },
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('common.ok'.tr())),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('common.ok'.tr(), style: const TextStyle(fontSize: 16)),
+              ),
             ],
           );
         }
@@ -1537,22 +1690,59 @@ class _MainPageState extends State<MainPage> {
     final Map<String, dynamic> dailyCounts = json.decode(rawJson);
     showDialog(
       context: context,
+      barrierColor: Colors.black.withOpacity(0.7),
       builder: (_) => AlertDialog(
-        title: Text("calendar.title".tr()),
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.calendar_today, color: Colors.orange.shade400, size: 24),
+            const SizedBox(width: 8),
+            Expanded(child: Text("calendar.title".tr())),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             PlayCalendarWidget(
               dailyCounts: dailyCounts.cast<String,int>(),
             ),
-            const SizedBox(height: 12),
-            Text("calendar.complete5".tr(),
-                  style: const TextStyle(fontSize:11, color:Colors.grey)),
-            const SizedBox(height: 6),
-            LinearProgressIndicator(value: (dailyCounts[DateTime.now().toIso8601String().split('T').first] ?? 0).clamp(0,5)/5),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withOpacity(0.3), width: 1),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    "calendar.complete5".tr(),
+                    style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.9)),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: (dailyCounts[DateTime.now().toIso8601String().split('T').first] ?? 0).clamp(0,5)/5,
+                      backgroundColor: Colors.grey.shade800,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange.shade400),
+                      minHeight: 8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
-        actions: [ TextButton(onPressed: () => Navigator.pop(context), child: Text("calendar.close".tr())) ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("calendar.close".tr(), style: const TextStyle(fontSize: 16)),
+          ),
+        ],
       ),
     );
   }
@@ -1562,57 +1752,118 @@ class _MainPageState extends State<MainPage> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Gear count
-            GestureDetector(
-              onTap: _showCategorySelectionPopup,
-              child: Row(
-                key: _gearKey,
-                children: [
-                  Image.asset('assets/icons/gear.png', height: 24),
-                  const SizedBox(width: 4),
-                  Text('$gearCount', style: const TextStyle(fontSize: 18)),
-                ],
-              ),
-            ),
-            // Daily streak
-            Row(
-              key: _streakKey,
-              children: [
-                Icon(Icons.local_fire_department,
-                    color: challengesCompletedToday ? Colors.orange : Colors.grey),
-                const SizedBox(width: 4),
-                GestureDetector(
-                  onTap: _showCalendarPopup,
-                  child: Container(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      '$dayStreak 🔥 $streakTitle',
-                      style: const TextStyle(
-                          fontSize: 16, decoration: TextDecoration.underline),
+        elevation: 0,
+        title: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Mode selector button (Modern Cars)
+              GestureDetector(
+                onTap: _showCategorySelectionPopup,
+                child: Container(
+                  key: _gearKey,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
                     ),
                   ),
-                ),
-              ],
-            ),
-            // Lives indicator
-            GestureDetector(
-              key: _livesKey,
-              onTap: _showLivesPopup,
-              child: Row(
-                children: [
-                  Image.asset(_heartImagePath, height: 24),
-                  const SizedBox(width: 8),
-                  Text(
-                    PremiumService.instance.isPremium ? '∞' : '$lives',
-                    style: const TextStyle(fontSize: 18),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.directions_car,
+                        size: 20,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_drop_down,
+                        size: 18,
+                        color: Colors.white.withOpacity(0.7),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+              // Daily streak with background container
+              GestureDetector(
+                key: _streakKey,
+                onTap: _showCalendarPopup,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$dayStreak',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.local_fire_department,
+                        size: 20,
+                        color: challengesCompletedToday ? Colors.orange : Colors.grey,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        streakTitle,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Lives indicator with background container
+              GestureDetector(
+                key: _livesKey,
+                onTap: _showLivesPopup,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(_heartImagePath, height: 22),
+                      const SizedBox(width: 6),
+                      Text(
+                        PremiumService.instance.isPremium ? '∞' : '$lives',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         centerTitle: true,
       ),

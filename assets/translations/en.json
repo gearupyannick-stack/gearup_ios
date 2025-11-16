@@ -31,7 +31,16 @@
     "earnedOne": "Nice — you earned 1 life!",
     "adUnavailable": "Ad unavailable — please try again later.",
     "loadingAd": "Loading ad...",
-    "adError": "Error showing ad: {error}"
+    "adError": "Error showing ad: {error}",
+    "allHeartsFull": "All Hearts Full!",
+    "readyToPlay": "You're ready to play!",
+    "heartsCount": "{lives} of {max} hearts",
+    "nextHeartIn": "Next heart in",
+    "getMoreHearts": "Get more hearts:",
+    "watchAdPlusOne": "Watch Ad (+1 Heart)",
+    "practiceToEarn": "Practice to Earn Hearts",
+    "completeTrainingHint": "Complete training to earn a heart!",
+    "unlimitedHearts": "Unlimited Hearts"
   },
   "streak": {
     "title": "Your Streak",
@@ -81,7 +90,8 @@
     "vintageCars": "Vintage Cars",
     "motorsport": "Motorsport",
     "comingSoon": "Coming Soon",
-    "stayTuned": "Stay tuned for new categories!"
+    "stayTuned": "Stay tuned for new categories!",
+    "modernCars": "Modern Cars"
   },
   "tutorial": {
     "skip": "SKIP",
@@ -167,7 +177,8 @@
     "notBad": "Not Bad!",
     "totalTime": "Total Time",
     "avgTime": "Avg Time",
-    "accuracy": "Accuracy"
+    "accuracy": "Accuracy",
+    "guessTheBrand": "Guess the brand from this photo:"
   },
   "training": {
     "title": "Training Mode",
@@ -473,7 +484,7 @@
     "unableToJoinRoom": "Unable to join room: {error}",
     "choosePlayerName": "Choose your player name:",
     "startRace": "Start Race",
-    "waitingForPlayer": "Waiting for another player...",
+    "waitingForPlayer": "Waiting for another \n player...",
     "nextQuestion": "Next Question",
     "shareCode": "Share this code with friends!",
     "leaderboardTitle": "LEADERBOARD — COMING SOON",

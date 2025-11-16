@@ -31,7 +31,16 @@
     "earnedOne": "Fantastico — hai guadagnato 1 vita!",
     "adUnavailable": "Annuncio non disponibile — riprova più tardi.",
     "loadingAd": "Caricamento annuncio...",
-    "adError": "Errore nella visualizzazione dell'annuncio: {error}"
+    "adError": "Errore nella visualizzazione dell'annuncio: {error}",
+    "allHeartsFull": "Tutti i Cuori Pieni!",
+    "readyToPlay": "Sei pronto per giocare!",
+    "heartsCount": "{lives} di {max} cuori",
+    "nextHeartIn": "Prossimo cuore tra",
+    "getMoreHearts": "Ottieni più cuori:",
+    "watchAdPlusOne": "Guarda Annuncio (+1 Cuore)",
+    "practiceToEarn": "Esercitati per Guadagnare Cuori",
+    "completeTrainingHint": "Completa l'allenamento per guadagnare un cuore!",
+    "unlimitedHearts": "Cuori Illimitati"
   },
   "streak": {
     "title": "La Tua Serie",
@@ -81,7 +90,8 @@
     "vintageCars": "Auto d'Epoca",
     "motorsport": "Motorsport",
     "comingSoon": "Prossimamente",
-    "stayTuned": "Resta sintonizzato per nuove categorie!"
+    "stayTuned": "Resta sintonizzato per nuove categorie!",
+    "modernCars": "Auto Moderne"
   },
   "tutorial": {
     "skip": "SALTA",
@@ -167,7 +177,8 @@
     "notBad": "Non Male!",
     "totalTime": "Tempo Totale",
     "avgTime": "Tempo Medio",
-    "accuracy": "Precisione"
+    "accuracy": "Precisione",
+    "guessTheBrand": "Indovina la marca da questa foto:"
   },
   "training": {
     "title": "Modalità Allenamento",
@@ -196,6 +207,7 @@
     "lifeEarned": "Hai guadagnato 1 vita!",
     "almostThere": "Quasi! Riprova.",
     "accuracy": "Precisione: {percent}%",
+    "guessTheBrand": "Indovina la marca da questa foto:",
     "backToModules": "Torna ai Moduli",
     "correctAnswer": "Risposta Corretta",
     "yourAnswer": "La Tua Risposta",
@@ -253,6 +265,7 @@
     "challengesAttempted": "Sfide Tentate",
     "challenges": "{count} sfide",
     "accuracy": "Precisione Totale",
+    "guessTheBrand": "Indovina la marca da questa foto:",
     "percent": "{value}%",
     "categoriesMastered": "Categorie Padroneggiate",
     "categories": "{count}/8",
@@ -446,7 +459,7 @@
     "unableToJoinRoom": "Impossibile entrare nella stanza: {error}",
     "choosePlayerName": "Scegli il tuo nome giocatore:",
     "startRace": "Avvia gara",
-    "waitingForPlayer": "In attesa di un altro giocatore...",
+    "waitingForPlayer": "In attesa di un altro \n giocatore...",
     "nextQuestion": "Prossima domanda",
     "shareCode": "Condividi questo codice con gli amici!",
     "leaderboardTitle": "CLASSIFICA — PROSSIMAMENTE",
