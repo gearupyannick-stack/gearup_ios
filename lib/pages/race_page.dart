@@ -2864,48 +2864,6 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                     ),
                   ),
                 ),
-                // Room code overlay (only for private rooms)
-                if (_currentRoomCode != null && !_raceStarted && !isPublicMode)
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.black87,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'race.roomCode'.tr(),
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _currentRoomCode!,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'race.shareCode'.tr(),
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
             ],
           ),
         ),
