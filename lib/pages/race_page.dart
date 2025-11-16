@@ -1358,12 +1358,18 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
               }).toList();
             });
           } else if (msg.payload['type'] == 'start_race') {
+            // Skip own start_race message (room creator already starts locally via button)
+            if (msg.senderId == _collab.localPlayerId) {
+              debugPrint('Skipping own start_race message to prevent duplicate race start');
+              continue;
+            }
             // Start the race for all players when the message is received
             if (!_raceStarted) {
-              // PHASE 2 FIX: Synchronize session ID BEFORE await to prevent race window
+              // CRITICAL: Validate session ID to prevent processing old messages from previous sessions
               final String? messageSessionId = msg.payload['raceSessionId']?.toString();
-              if (messageSessionId != null) {
-                _currentRaceSessionId = messageSessionId;  // Direct assignment - synchronous
+              if (messageSessionId == null || messageSessionId != _currentRaceSessionId) {
+                debugPrint('Ignoring start_race: session ID mismatch (message: $messageSessionId, current: $_currentRaceSessionId)');
+                continue;
               }
               debugPrint('Received start_race message (session: $_currentRaceSessionId), starting race!');
               await _startQuizRace();
@@ -2427,12 +2433,18 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
               }).toList();
             });
           } else if (msg.payload['type'] == 'start_race') {
+            // Skip own start_race message (room creator already starts locally via button)
+            if (msg.senderId == _collab.localPlayerId) {
+              debugPrint('Skipping own start_race message to prevent duplicate race start');
+              continue;
+            }
             // Start the race for all players when the message is received
             if (!_raceStarted) {
-              // PHASE 2 FIX: Synchronize session ID BEFORE await to prevent race window
+              // CRITICAL: Validate session ID to prevent processing old messages from previous sessions
               final String? messageSessionId = msg.payload['raceSessionId']?.toString();
-              if (messageSessionId != null) {
-                _currentRaceSessionId = messageSessionId;  // Direct assignment - synchronous
+              if (messageSessionId == null || messageSessionId != _currentRaceSessionId) {
+                debugPrint('Ignoring start_race: session ID mismatch (message: $messageSessionId, current: $_currentRaceSessionId)');
+                continue;
               }
               debugPrint('Received start_race message (session: $_currentRaceSessionId), starting race!');
               await _startQuizRace();
