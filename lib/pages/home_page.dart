@@ -198,9 +198,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   static const List<Offset> _flagFractionsTrack1 = [
     Offset(0.0977, 0.0000),
     Offset(0.1025, 0.0208),
-    Offset(0.1270, 0.0300),
-    Offset(0.1465, 0.0300),
-    Offset(0.1768, 0.0300),
+    Offset(0.1270, 0.0500),
+    Offset(0.1465, 0.0550),
+    Offset(0.1768, 0.0550),
     Offset(0.2070, 0.0658),
     Offset(0.2100, 0.0964),
     Offset(0.1807, 0.1230),

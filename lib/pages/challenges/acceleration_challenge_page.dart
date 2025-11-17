@@ -165,13 +165,15 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
 
   void _onTap(String accel) {
     if (_answered) return;
+    final isCorrect = accel == _correctAcceleration;
 
-    // play tap immediately (non-blocking)
+    // Play appropriate answer feedback sound
     try {
-      AudioFeedback.instance.playEvent(SoundEvent.tap);
+      AudioFeedback.instance.playEvent(
+        isCorrect ? SoundEvent.answerCorrect : SoundEvent.answerWrong
+      );
     } catch (_) {}
 
-    final isCorrect = accel == _correctAcceleration;
     setState(() {
       _answered = true;
       _selectedAcceleration = accel;
@@ -196,21 +198,6 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
         });
       }
     });
-
-    // Feedback sounds for correct / incorrect
-    if (accel == _correctAcceleration) {
-      try {
-        AudioFeedback.instance.playEvent(SoundEvent.answerCorrect);
-        // streak milestone audio
-        if (_streak == 3 || _streak == 5 || _streak == 10) {
-          AudioFeedback.instance.playEvent(SoundEvent.streak);
-        }
-      } catch (_) {}
-    } else {
-      try {
-        AudioFeedback.instance.playEvent(SoundEvent.answerWrong);
-      } catch (_) {}
-    }
 
     // move to next question after a short delay (preserves existing UX)
     Future.delayed(const Duration(seconds: 1), _nextQuestion);

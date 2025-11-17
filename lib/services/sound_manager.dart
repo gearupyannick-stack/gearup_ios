@@ -11,29 +11,52 @@ import 'package:audio_session/audio_session.dart';
 
 /// All SFX variants present in assets/sounds/ (match your file names).
 /// Keep names short but explicit, PascalCase to match file naming.
+///
+/// Sound Design Notes:
+/// - Consider replacing current sounds with softer, more pleasant alternatives
+/// - Use lower frequencies and gentler attack/decay for educational app context
+/// - Target audience: learners in a focused, non-competitive environment
 enum Sfx {
+  // === UI Interactions ===
+  // Button taps, menu selections (should be subtle, non-intrusive)
   SfxTap,
   SfxTap2,
   SfxTap3,
+
+  // === Quiz Feedback ===
+  // Correct answers (positive reinforcement, uplifting but not jarring)
   SfxCorrect,
   SfxCorrect2,
   SfxCorrect3,
+  // Incorrect answers (gentle discouragement, educational tone)
   SfxIncorrect,
   SfxIncorrectSoft,
+
+  // === Game Progress Events ===
+  // Progression indicators (motivational, celebratory)
   SfxStreakUp,
   SfxLifeGained,
   SfxLifeLost,
+
+  // === Achievements & Rewards ===
+  // Major accomplishments (celebratory, memorable)
   SfxAchievement,
-  SfxFanfareSmall,
-  SfxFanfareMedium,
-  SfxFanfareBig,
+  SfxNewHighScore,
+  SfxFanfareSmall,    // 1 star
+  SfxFanfareMedium,   // 2 stars
+  SfxFanfareBig,      // 3 stars
+
+  // === Page Transitions ===
+  // Navigation feedback (smooth, fluid)
   SfxWhooshIn,
   SfxWhooshOut,
+  SfxPageFlip,
+
+  // === System Notifications ===
+  // Alerts and errors (attention-getting but not alarming)
   SfxNotification,
   SfxError,
-  SfxNewHighScore,
   SfxCountdownTick,
-  SfxPageFlip,
 }
 
 class SoundManager with WidgetsBindingObserver {
@@ -87,12 +110,31 @@ class SoundManager with WidgetsBindingObserver {
     }
   }
 
-  static String _musicPathTraining() => 'assets/sounds/SfxWhooshIn.wav'; // placeholder
+  // TODO: Add proper background music tracks
+  // Music tracks should be in OGG format for smaller file size
+  // Recommended tracks:
+  //   - Menu/Home: Upbeat, welcoming (90-110 BPM)
+  //   - Training/Quiz: Focused, calm (70-90 BPM)
+  //   - Challenges: Energetic, motivating (110-130 BPM)
+  //   - Race Mode: Fast-paced, exciting (130-150 BPM)
+  //
+  // Example implementation:
+  // static String _musicPathMenu() => 'assets/music/menu_theme.ogg';
+  // static String _musicPathTraining() => 'assets/music/training_theme.ogg';
+  // static String _musicPathChallenge() => 'assets/music/challenge_theme.ogg';
+  // static String _musicPathRace() => 'assets/music/race_theme.ogg';
 
   Future<void> init() async {
     WidgetsBinding.instance.addObserver(this);
 
     // Audio session configuration
+    // Using .ambient + mixWithOthers allows users to play their own music (Spotify, etc.)
+    // while using the app. For a learning app, this is often preferred behavior.
+    //
+    // Alternative: Use .soloAmbient (no mixWithOthers) for full audio control:
+    // - Respects device silent switch
+    // - Stops other audio when app starts
+    // - More appropriate if you add prominent background music
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration(
       avAudioSessionCategory: AVAudioSessionCategory.ambient,
@@ -192,18 +234,35 @@ class SoundManager with WidgetsBindingObserver {
   }
 
   /// Music controls (looped)
-  Future<void> playMusicTraining() async {
+  /// TODO: Implement once background music tracks are added
+  ///
+  /// Usage examples:
+  /// - await SoundManager.instance.playMusic(MusicTrack.menu);
+  /// - await SoundManager.instance.playMusic(MusicTrack.training);
+  /// - await SoundManager.instance.stopMusic();
+  ///
+  /// Consider creating a MusicTrack enum similar to Sfx enum:
+  /// enum MusicTrack { menu, training, challenge, race }
+  Future<void> playMusic(String assetPath) async {
     try {
-      await _musicPlayer.setAsset(_musicPathTraining());
+      await _musicPlayer.setAsset(assetPath);
       await _musicPlayer.setLoopMode(LoopMode.one);
       await _musicPlayer.setVolume(_musicEnabled ? _musicVolume : 0.0);
       if (_musicEnabled) await _musicPlayer.play();
     } catch (e) {
-      debugPrint('SoundManager.playMusicTraining error: $e');
+      debugPrint('SoundManager.playMusic error: $e');
     }
   }
 
   Future<void> stopMusic() async => _musicPlayer.stop();
+
+  Future<void> pauseMusic() async => _musicPlayer.pause();
+
+  Future<void> resumeMusic() async {
+    if (_musicEnabled && _musicPlayer.audioSource != null) {
+      await _musicPlayer.play();
+    }
+  }
 
   /// Play an Sfx enum (picks a free pooled player and plays asset).
   Future<void> playSfx(Sfx s) async {

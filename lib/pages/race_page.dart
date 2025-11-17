@@ -5449,7 +5449,7 @@ class _RaceResultDialogContentState extends State<_RaceResultDialogContent>
                         // Staggered animation for each item
                         final delay = i * 0.15;
                         final animationValue = (_listController.value - delay).clamp(0.0, 1.0);
-                        final slideAnimation = Curves.easeOut.transform(animationValue);
+                        final slideAnimation = Curves.easeOut.transform(animationValue).clamp(0.0, 1.0);
 
                         return Transform.translate(
                           offset: Offset(0, 30 * (1 - slideAnimation)),

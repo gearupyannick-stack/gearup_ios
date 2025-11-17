@@ -378,10 +378,16 @@ class _BrandModelQuizPageState extends State<BrandModelQuizPage> {
 
 
   void _onOptionTap(String selection) {
-
-    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
-if (_answered) return;
+    if (_answered) return;
     final isCorrect = selection == _correctAnswer;
+
+    // Play appropriate answer feedback sound
+    try {
+      AudioFeedback.instance.playEvent(
+        isCorrect ? SoundEvent.answerCorrect : SoundEvent.answerWrong
+      );
+    } catch (_) {}
+
     setState(() {
       _answered = true;
       _selectedModel = selection;
@@ -568,8 +574,7 @@ if (_answered) return;
                   final isSelected = model == _selectedModel;
 
                   return GestureDetector(
-                    onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
-                              _onOptionTap(model); },
+                    onTap: () => _onOptionTap(model),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Material(

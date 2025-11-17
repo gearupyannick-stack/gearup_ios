@@ -237,10 +237,16 @@ class _ModelChallengePageState extends State<ModelChallengePage> {
   }
 
   void _onTap(String selection) {
-
-    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
-if (_answered) return;
+    if (_answered) return;
     final isCorrect = selection == _correctAnswer;
+
+    // Play appropriate answer feedback sound
+    try {
+      AudioFeedback.instance.playEvent(
+        isCorrect ? SoundEvent.answerCorrect : SoundEvent.answerWrong
+      );
+    } catch (_) {}
+
     setState(() {
       _answered = true;
       _selectedAnswer = selection;
@@ -429,8 +435,7 @@ if (_answered) return;
                         final isSelected =
                             '${opt['brand']} ${opt['model']}' == _selectedAnswer;
                         return GestureDetector(
-                          onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
-                              _onTap('${opt['brand']} ${opt['model']}'); },
+                          onTap: () => _onTap('${opt['brand']} ${opt['model']}'),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: AnimatedSwitcher(

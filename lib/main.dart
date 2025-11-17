@@ -112,6 +112,15 @@ void main() async {
   await AnalyticsService.instance.init();
 
   await SoundManager.instance.init();
+
+  // Preload frequently-used sounds for low-latency playback
+  // This warms up the audio decoders for the most common sounds
+  await SoundManager.instance.preloadSfx([
+    Sfx.SfxTap, Sfx.SfxTap2, Sfx.SfxTap3,           // UI interactions
+    Sfx.SfxCorrect, Sfx.SfxCorrect2, Sfx.SfxCorrect3, // Quiz feedback
+    Sfx.SfxIncorrect, Sfx.SfxIncorrectSoft,
+  ]);
+
   // --------------------------
   // App Check: DEBUG provider (local dev)
   // --------------------------

@@ -42,10 +42,10 @@ class AudioFeedback {
     SoundEvent.challengeComplete: [Sfx.SfxFanfareSmall, Sfx.SfxFanfareMedium, Sfx.SfxFanfareBig],
     SoundEvent.notification: [Sfx.SfxNotification],
     SoundEvent.error: [Sfx.SfxError],
-    SoundEvent.pageOpen: [],
-    SoundEvent.pageClose: [],
+    SoundEvent.pageOpen: [Sfx.SfxWhooshIn],
+    SoundEvent.pageClose: [Sfx.SfxWhooshOut],
     SoundEvent.countdownTick: [Sfx.SfxCountdownTick],
-    SoundEvent.pageFlip: [],
+    SoundEvent.pageFlip: [Sfx.SfxPageFlip],
     SoundEvent.newHighscore: [Sfx.SfxNewHighScore, Sfx.SfxAchievement],
   };
 

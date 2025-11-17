@@ -447,8 +447,7 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
                                 borderRadius: BorderRadius.circular(14),
                                 color: Colors.grey[900],
                                 child: InkWell(
-                                  onTap: () { try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {};
-                                _onModelTap(m['model']!); },
+                                  onTap: () => _onModelTap(m['model']!),
                                   splashColor: Colors.white.withOpacity(0.2),
                                   highlightColor: Colors.white.withOpacity(0.1),
                                   child: AnimatedSwitcher(
@@ -561,10 +560,16 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
   }
 
   void _onBrandTap(String brand) {
-
-    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
-if (_answered) return;
+    if (_answered) return;
     final isCorrect = brand == randomBrand;
+
+    // Play appropriate answer feedback sound
+    try {
+      AudioFeedback.instance.playEvent(
+        isCorrect ? SoundEvent.answerCorrect : SoundEvent.answerWrong
+      );
+    } catch (_) {}
+
     setState(() {
       _selectedBrand = brand;
       _answered = true;
@@ -592,10 +597,16 @@ if (_answered) return;
   }
 
   void _onModelTap(String model) {
-
-    try { AudioFeedback.instance.playEvent(SoundEvent.tap); } catch (_) {}
-if (_answered) return;
+    if (_answered) return;
     final isCorrect = model == randomModel;
+
+    // Play appropriate answer feedback sound
+    try {
+      AudioFeedback.instance.playEvent(
+        isCorrect ? SoundEvent.answerCorrect : SoundEvent.answerWrong
+      );
+    } catch (_) {}
+
     setState(() {
       _selectedModel = model;
       _answered = true;
