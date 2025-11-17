@@ -1,7 +1,7 @@
 name: car_learning_app
 description: A Flutter app to help users learn about cars and their specifications.
 publish_to: "none"
-version: 1.2025.12+24
+version: 1.2025.13+25
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
