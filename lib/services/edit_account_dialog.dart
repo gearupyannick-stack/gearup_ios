@@ -56,7 +56,7 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
     setState(() => _loadingConnect = true);
     try {
       // Utilise la méthode qui retourne un UserCredential (compatible avec ton code)
-      final auth = AuthService();
+      final auth = AuthService.instance;
       final UserCredential cred = await auth.signInWithAppleCredential();
 
       // Sécurité : récupère l'utilisateur soit depuis le credential soit le currentUser

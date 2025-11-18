@@ -191,7 +191,7 @@ class CarLearningApp extends StatelessWidget {
     // Auto-authenticate returning users silently in background
     if (onboarded) {
       try {
-        final auth = AuthService();
+        final auth = AuthService.instance;
         if (auth.currentUser == null) {
           await auth.signInAnonymously();
         }
