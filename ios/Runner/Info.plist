@@ -112,5 +112,19 @@
 			<string>4468km3ulz.skadnetwork</string>
 		</dict>
 	</array>
+
+	<!-- Google Sign-In URL Scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Reversed client ID from GoogleService-Info.plist -->
+				<string>com.googleusercontent.apps.947361107260-ava4aoun4v5mvepdtshqk1n27jlvuu7t</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
