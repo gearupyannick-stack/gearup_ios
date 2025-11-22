@@ -108,7 +108,16 @@
     "multiplayerTip": "Tip: Use quick matches to jump in fast, or create a private room to play with friends.",
     "libraryTab": "Browse all cars and learn their specs here.",
     "profileTab": "Check your achievements and stats in your profile. Replay this intro anytime from your profile settings.",
-    "firstFlag": "Tap this first flag to start your race!"
+    "firstFlag": "Tap this first flag to start your race!",
+    "prompt": {
+      "tapTab": "Tap this tab to continue"
+    },
+    "tabs": {
+      "training": "Here you can practice with 20-question quizzes to test your knowledge and earn extra lives. Perfect your skills!",
+      "race": "This is the Race mode where you can compete against other players. Challenge your friends or race against random opponents!",
+      "library": "Browse through all available cars and learn detailed specifications. Explore different brands and models!",
+      "profile": "View your achievements, stats, and progress. You can replay this tutorial anytime from your profile settings."
+    }
   },
   "anonymousUpgrade": {
     "title": "Save Your Progress",

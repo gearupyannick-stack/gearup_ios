@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:easy_localization/easy_localization.dart';
 import '../../services/audio_feedback.dart';
+import '../../services/tutorial_service.dart';
 import '../../widgets/enhanced_answer_button.dart';
 import '../../widgets/question_progress_bar.dart';
 import '../../widgets/animated_score_display.dart';
@@ -189,8 +190,15 @@ class _BrandChallengePageState extends State<BrandChallengePage> {
         correctAnswers: correctAnswers,
         totalQuestions: 20,
         totalSeconds: elapsedSeconds,
-        onClose: () {
+        onClose: () async {
           Navigator.pop(ctx);
+          final tutorialService = TutorialService.instance;
+          final bool started = await tutorialService.isFirstFlagStarted();
+          if (started) {
+            await tutorialService.advanceToTabsStage();
+            await tutorialService.setFirstFlagStarted(false);
+            await tutorialService.resetTabIntros();
+          }
           Navigator.pop(
             context,
             '$correctAnswers/20 in '

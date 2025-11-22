@@ -108,7 +108,16 @@
     "multiplayerTip": "Tipp: Verwenden Sie schnelle Matches, um schnell einzusteigen, oder erstellen Sie einen privaten Raum, um mit Freunden zu spielen.",
     "libraryTab": "Durchsuchen Sie hier alle Autos und lernen Sie ihre Spezifikationen.",
     "profileTab": "Überprüfen Sie Ihre Erfolge und Statistiken in Ihrem Profil. Wiederholen Sie diese Einführung jederzeit in Ihren Profileinstellungen.",
-    "firstFlag": "Tippen Sie auf diese erste Flagge, um Ihr Rennen zu starten!"
+    "firstFlag": "Tippen Sie auf diese erste Flagge, um Ihr Rennen zu starten!",
+    "prompt": {
+      "tapTab": "Tippen Sie auf diese Registerkarte, um fortzufahren"
+    },
+    "tabs": {
+      "training": "Hier können Sie mit 20-Fragen-Quiz üben, um Ihr Wissen zu testen und zusätzliche Leben zu verdienen. Perfektionieren Sie Ihre Fähigkeiten!",
+      "race": "Dies ist der Rennmodus, in dem Sie gegen andere Spieler antreten können. Fordern Sie Ihre Freunde heraus oder fahren Sie gegen zufällige Gegner!",
+      "library": "Durchsuchen Sie alle verfügbaren Autos und lernen Sie detaillierte Spezifikationen. Entdecken Sie verschiedene Marken und Modelle!",
+      "profile": "Sehen Sie Ihre Erfolge, Statistiken und Fortschritte ein. Sie können dieses Tutorial jederzeit in Ihren Profileinstellungen wiederholen."
+    }
   },
   "anonymousUpgrade": {
     "title": "Speichern Sie Ihren Fortschritt",

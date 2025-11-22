@@ -108,7 +108,16 @@
     "multiplayerTip": "Astuce: Utilisez les parties rapides pour entrer rapidement, ou créez une salle privée pour jouer avec des amis.",
     "libraryTab": "Parcourez toutes les voitures et apprenez leurs spécifications ici.",
     "profileTab": "Consultez vos succès et statistiques dans votre profil. Rejouez cette introduction à tout moment depuis les paramètres de votre profil.",
-    "firstFlag": "Touchez ce premier drapeau pour commencer votre course!"
+    "firstFlag": "Touchez ce premier drapeau pour commencer votre course!",
+    "prompt": {
+      "tapTab": "Touchez cet onglet pour continuer"
+    },
+    "tabs": {
+      "training": "Ici vous pouvez vous entraîner avec des quiz de 20 questions pour tester vos connaissances et gagner des vies supplémentaires. Perfectionnez vos compétences!",
+      "race": "C'est le mode Course où vous pouvez affronter d'autres joueurs. Défiez vos amis ou courez contre des adversaires aléatoires!",
+      "library": "Parcourez toutes les voitures disponibles et découvrez leurs spécifications détaillées. Explorez différentes marques et modèles!",
+      "profile": "Consultez vos succès, statistiques et progression. Vous pouvez rejouer ce tutoriel à tout moment depuis les paramètres de votre profil."
+    }
   },
   "anonymousUpgrade": {
     "title": "Sauvegardez Votre Progression",

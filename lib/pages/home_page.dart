@@ -10,6 +10,20 @@ import '../services/audio_feedback.dart';
 import '../services/ad_service.dart';
 import '../services/analytics_service.dart';
 import '../services/language_service.dart';
+import '../services/tutorial_service.dart';
+
+class HomePageTutorialBridge {
+  final void Function() startFirstFlagChallenge;
+  final Future<void> Function()? showLevelProgress;
+
+  HomePageTutorialBridge({
+    required this.startFirstFlagChallenge,
+    this.showLevelProgress,
+  });
+}
+
+// Global bridge used by MainPage tutorial
+HomePageTutorialBridge? homePageTutorialBridge;
 
 /// Raw track point definitions for tracks 2 & 3.
 final Map<int, List<Offset>> _tracks = {
@@ -310,8 +324,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   // ignore: unused_field
   bool _awaitingFlagTap = false;
   bool _retryButtonActive = false;
-  // ignore: unused_field
-  bool _showRetryButton = false;
   late Set<int> _flagIndices;
   final Map<int, String> _flagStatus     = {};
   final Map<int, String> _challengeColors = {};
@@ -342,6 +354,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   int _requiredGearsForCurrentLevel() => getGearRequirement();
+
+  void _startFirstFlagFromTutorial() {
+    if (!mounted) return;
+
+    final indices = _flagIndicesSorted;
+    if (indices.isEmpty) return;
+
+    final int firstIdx = indices.first;
+
+    _onFlagTap(firstIdx);
+  }
+
+  Future<void> _maybePromoteTutorialAfterChallenge() async {
+    final tutorialService = TutorialService.instance;
+    if (await tutorialService.isFirstFlagStarted()) {
+      await tutorialService.advanceToTabsStage();
+      await tutorialService.setFirstFlagStarted(false);
+      await tutorialService.resetTabIntros();
+    }
+  }
 
   int _calculateGearCountBeforeLevel(int lvl) {
     int total = 0;
@@ -495,6 +527,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     for (int idx in _flagIndices) {
       _flagStatus[idx] = 'red';
     }
+
+    // Register tutorial bridge so MainPage can trigger the first flag
+    homePageTutorialBridge = HomePageTutorialBridge(
+      startFirstFlagChallenge: _startFirstFlagFromTutorial,
+      showLevelProgress: _showTrackPopup,
+    );
+
+    // Removed: SnackBar intro - now handled by TutorialOverlay in MainPage
+    // WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowHomeTabIntro());
   }
 
   Future<void> _saveGearCount() async {
@@ -803,7 +844,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       }
     }
     if (_currentIndex == _finalFlagIndex && _challengeColors[_challengeNumberForFlag(_currentIndex)] != 'green') {
-      _showRetryButton = true;
     }
     setState(() {});
   }
@@ -1054,6 +1094,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             widget.onGearUpdate(_gearCount);
             _retryButtonActive = false;
             _animateToNextPoint();
+            await _maybePromoteTutorialAfterChallenge();
             widget.recordChallengeCompletion?.call();
           } else {
             _consecutiveFails++;
@@ -1063,6 +1104,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             _challengeColors[challengeNumber] = 'red';
             widget.onChallengeFail();
             _retryButtonActive = false;
+
+            // Advance tutorial even on failure
+            await _maybePromoteTutorialAfterChallenge();
+            widget.recordChallengeCompletion?.call();
 
             if (_consecutiveFails >= 3) {
               // Offer the stuck popup and provide a pass-action that grants full success:
@@ -1088,6 +1133,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   widget.onGearUpdate(_gearCount);
                   _trackGearUpdate(previousGearCount, _gearCount, source: 'ad_pass');
                   // count as a completed challenge for daily streaks / history
+                  await _maybePromoteTutorialAfterChallenge();
                   widget.recordChallengeCompletion?.call();
                 }
 
@@ -1110,11 +1156,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               lostLife = true;
               _flagStatus[flagIndex] = 'red';
               _challengeColors[challengeNumber] = 'red';
-              widget.onChallengeFail();
-              _retryButtonActive = false;
-              _showRetryButton = true;
-              await _saveProgressToStorage();
-              setState(() {});
+            widget.onChallengeFail();
+            _retryButtonActive = false;
+
+            // Advance tutorial even on failure
+            await _maybePromoteTutorialAfterChallenge();
+            widget.recordChallengeCompletion?.call();
+
+            await _saveProgressToStorage();
+            setState(() {});
               return;
             }
 
@@ -1137,7 +1187,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             _challengeColors[challengeNumber] = 'red';
             widget.onChallengeFail();
             _retryButtonActive = false;
-            _showRetryButton = true;
+
+            // Advance tutorial even on failure
+            await _maybePromoteTutorialAfterChallenge();
+            widget.recordChallengeCompletion?.call();
           }
         }
       } else {
@@ -1168,6 +1221,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           await _saveGearCount();
           widget.onGearUpdate(_gearCount);
 
+          await _maybePromoteTutorialAfterChallenge();
           widget.recordChallengeCompletion?.call();
 
           if (_flagStatus[flagIndex] == 'green') {
@@ -1177,7 +1231,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               // ✅ Final flag reached
               _awaitingFlagTap = false;
               _retryButtonActive = false;
-              _showRetryButton = false;
               await _saveProgressToStorage();
               setState(() {});
             } else {
@@ -1669,8 +1722,8 @@ Future<void> _loadConsecutiveFails() async {
         .join();
   }
 
-  void _showTrackPopup() {
-    showDialog(
+  Future<void> _showTrackPopup() {
+    return showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -1797,6 +1850,9 @@ Future<void> _loadConsecutiveFails() async {
 
   @override
   void dispose() {
+    if (homePageTutorialBridge?.startFirstFlagChallenge == _startFirstFlagFromTutorial) {
+      homePageTutorialBridge = null;
+    }
     try { AudioFeedback.instance.playEvent(SoundEvent.pageClose); } catch (_) {}
     // Si CETTE classe a des contrôleurs, dispose-les ici (sinon ne mets rien).
     super.dispose();
@@ -1885,15 +1941,13 @@ Future<void> _loadConsecutiveFails() async {
                 left: screenPoints[idx].dx - tapSize/2,
                 top:  screenPoints[idx].dy - tapSize/2,
                 child: GestureDetector(
+                  key: (widget.firstFlagKey != null && idx == _flagIndicesSorted.first)
+                      ? widget.firstFlagKey
+                      : null,
                   behavior: HitTestBehavior.translucent,
                   onTap: (widget.currentLives == 0 || _retryButtonActive)
                         ? null
-                        : () {
-                            setState(() {
-                              _showRetryButton = false;  // on désactive le flag “Retry”  
-                            });
-                            _onFlagTap(idx);             // et relance directement le challenge
-                          },
+                        : () => _onFlagTap(idx),
                   child: SizedBox(
                     width: tapSize,
                     height: tapSize,
@@ -1907,7 +1961,7 @@ Future<void> _loadConsecutiveFails() async {
                   ),
                 ),
               ),
-
+              
           // ─── CAR ────────────────────────────────────────────────
           Positioned(
             left: carScreen.dx - carSize/2,
@@ -2126,7 +2180,6 @@ Future<void> _loadConsecutiveFails() async {
                           setState(() {
                             _isCorrectionRun = true;
                             _retryButtonActive = false;
-                            _showRetryButton = false;
                           });
                           _correctMistakes();
                         },

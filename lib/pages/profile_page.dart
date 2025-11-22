@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../services/analytics_service.dart';
 import '../services/language_service.dart';
-import '../services/auth_service.dart';
+import '../services/tutorial_service.dart';
 
 class ProfilePage extends StatefulWidget {
   final VoidCallback? onReplayTutorial;
@@ -39,6 +39,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // Progress (gears) data
   int _gearCount = 0;
   int _currentTrack = 1;
+  bool _tabIntroShown = false;
   int _sessionsCompleted = 0;
   int _requiredGearsForCurrentLevel = 0;
   int _currentLevelGears = 0;
@@ -117,6 +118,7 @@ class _ProfilePageState extends State<ProfilePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkNewAchievement();
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowTabIntro());
     _loadProfileData();
     _loadCarData();
     _loadDailyStreak();
@@ -146,6 +148,17 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: Colors.black87,
       ),
     );
+  }
+
+  Future<void> _maybeShowTabIntro() async {
+    if (_tabIntroShown) return;
+    final tutorialService = TutorialService.instance;
+    final stage = await tutorialService.getTutorialStage();
+    if (stage != TutorialStage.tabsReady) return;
+    if (await tutorialService.hasShownTabIntro('profile')) return;
+    await tutorialService.markTabIntroShown('profile');
+    _tabIntroShown = true;
+    if (!mounted) return;
   }
 
   Future<void> unlockAchievement(String id) async {
@@ -830,101 +843,13 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  /// Link anonymous account with Google account
-  Future<void> _linkGoogleAccount() async {
-    try {
-      // Show loading
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(child: CircularProgressIndicator()),
-      );
-
-      // Call AuthService to link the account
-      final userCredential = await AuthService.instance.linkGoogleAccount();
-
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-
-      if (userCredential == null) {
-        // User cancelled
-        return;
-      }
-
-      final user = userCredential.user;
-      if (user == null) {
-        throw 'Failed to link account';
-      }
-
-      // Update SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('google_signed_in', true);
-      await prefs.setString('google_displayName', user.displayName ?? '');
-      await prefs.setString('google_email', user.email ?? '');
-      await prefs.setString('google_photoUrl', user.photoURL ?? '');
-      await prefs.setBool('use_google_name', true);
-      await prefs.setBool('is_guest', false);
-      await prefs.setString('auth_method', 'google');
-      // Remove anonymous timestamp
-      await prefs.remove('anonymous_since');
-
-      // Track analytics
-      await AnalyticsService.instance.logEvent(
-        name: 'account_linked',
-        parameters: {'method': 'google'},
-      );
-
-      // Reload profile data
-      await _loadProfileData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('profile.accountLinked'.tr()),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      // Close loading dialog if still showing
-      if (mounted) {
-        try {
-          Navigator.of(context).pop();
-        } catch (_) {}
-
-        String message = 'profile.linkFailed'.tr();
-        if (e.toString().contains('credential-already-in-use') ||
-            e.toString().contains('email-already-in-use')) {
-          message = 'profile.accountAlreadyExists'.tr();
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
-  }
-
-  /// Disconnect Google account (revokes access) and sign out from Firebase
+  // Clean, safe disconnect helper that only clears local prefs/state; no SDK calls.
   Future<void> _disconnectGoogleAccount(BuildContext dialogContext) async {
-    // Show progress
     showDialog(
       context: dialogContext,
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
-
-    // Call AuthService to properly disconnect
-    try {
-      await AuthService.instance.disconnectGoogle();
-    } catch (e) {
-      // ignore errors during disconnect
-    }
 
     // Clear persisted flags/tokens in SharedPreferences
     final prefs = await SharedPreferences.getInstance();
@@ -933,9 +858,7 @@ class _ProfilePageState extends State<ProfilePage> {
     await prefs.remove('google_email');
     await prefs.remove('google_photoUrl');
     await prefs.setBool('use_google_name', false);
-    // Optional: mark user as guest so heuristics won't auto-resign
     await prefs.setBool('is_guest', true);
-    await prefs.setString('auth_method', 'anonymous');
 
     if (!mounted) {
       Navigator.of(dialogContext).pop();
@@ -1122,66 +1045,6 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildAvatarHeader(memSince),
 
             const SizedBox(height: 20),
-
-            // Show "Connect to Google" banner for anonymous users
-            if (_isGuest && !_googleSignedIn) ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF4285F4), Color(0xFF34A853)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.cloud_upload, color: Colors.white, size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'profile.connectGoogle'.tr(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'anonymousUpgrade.neverLose'.tr() + ' • ' + 'anonymousUpgrade.accessAny'.tr(),
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _linkGoogleAccount,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF4285F4),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text(
-                          'profile.connectGoogle'.tr(),
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
 
             // Track Progress Card
             _buildProgressCard(),

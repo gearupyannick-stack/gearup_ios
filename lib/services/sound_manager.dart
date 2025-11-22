@@ -110,7 +110,6 @@ class SoundManager with WidgetsBindingObserver {
     }
   }
 
-  // TODO: Add proper background music tracks
   // Music tracks should be in OGG format for smaller file size
   // Recommended tracks:
   //   - Menu/Home: Upbeat, welcoming (90-110 BPM)
@@ -234,7 +233,6 @@ class SoundManager with WidgetsBindingObserver {
   }
 
   /// Music controls (looped)
-  /// TODO: Implement once background music tracks are added
   ///
   /// Usage examples:
   /// - await SoundManager.instance.playMusic(MusicTrack.menu);

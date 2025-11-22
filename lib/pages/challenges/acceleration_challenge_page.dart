@@ -43,9 +43,6 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
   bool _answered = false;
   String? _selectedAcceleration;
 
-  // simple streak tracker for streak audio
-  int _streak = 0;
-
   // Answer history for progress bar
   List<bool> _answerHistory = [];
 
@@ -179,10 +176,8 @@ class _AccelerationChallengePageState extends State<AccelerationChallengePage> {
       _selectedAcceleration = accel;
       if (isCorrect) {
         _correctAnswers++;
-        _streak += 1;
         _currentStreak++;
       } else {
-        _streak = 0;
         _currentStreak = 0;
       }
       _answerHistory.add(isCorrect);

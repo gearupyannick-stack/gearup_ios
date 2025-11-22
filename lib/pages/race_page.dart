@@ -13,6 +13,7 @@ import '../services/collab_wan_service.dart'; // <<-- NEW
 import '../services/ad_service.dart';
 import '../services/analytics_service.dart';
 import '../services/language_service.dart';
+import '../services/tutorial_service.dart';
 
 // Design System imports
 import '../design_system/tokens.dart';
@@ -82,6 +83,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
   bool isPublicMode = true;
   int? _activeTrackIndex;
   bool _inPublicRaceView = false;
+  bool _tabIntroShown = false;
 
   // signal to abort the current race / quiz (set when user taps Leave inside a question)
   bool _raceAborted = false;
@@ -1904,6 +1906,18 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
     // Subscribe to public track presence streams so the track buttons update live.
     // We always subscribe so the UI reflects other players even if the user hasn't joined.
     _subscribePublicTracks();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowTabIntro());
+  }
+
+  Future<void> _maybeShowTabIntro() async {
+    if (_tabIntroShown) return;
+    final tutorialService = TutorialService.instance;
+    final stage = await tutorialService.getTutorialStage();
+    if (stage != TutorialStage.tabsReady) return;
+    if (await tutorialService.hasShownTabIntro('race')) return;
+    await tutorialService.markTabIntroShown('race');
+    _tabIntroShown = true;
+    if (!mounted) return;
   }
 
   @override

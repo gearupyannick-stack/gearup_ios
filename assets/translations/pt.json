@@ -108,7 +108,16 @@
     "multiplayerTip": "Dica: Use partidas rápidas para entrar rapidamente, ou crie uma sala privada para jogar com amigos.",
     "libraryTab": "Navegue por todos os carros e aprenda suas especificações aqui.",
     "profileTab": "Confira suas conquistas e estatísticas no seu perfil. Repita esta introdução a qualquer momento nas configurações do seu perfil.",
-    "firstFlag": "Toque nesta primeira bandeira para começar sua corrida!"
+    "firstFlag": "Toque nesta primeira bandeira para começar sua corrida!",
+    "prompt": {
+      "tapTab": "Toque nesta aba para continuar"
+    },
+    "tabs": {
+      "training": "Aqui você pode praticar com questionários de 20 perguntas para testar seus conhecimentos e ganhar vidas extras. Aperfeiçoe suas habilidades!",
+      "race": "Este é o modo Corrida onde você pode competir contra outros jogadores. Desafie seus amigos ou corra contra oponentes aleatórios!",
+      "library": "Navegue por todos os carros disponíveis e aprenda especificações detalhadas. Explore diferentes marcas e modelos!",
+      "profile": "Veja suas conquistas, estatísticas e progresso. Você pode repetir este tutorial a qualquer momento nas configurações do seu perfil."
+    }
   },
   "anonymousUpgrade": {
     "title": "Salve Seu Progresso",

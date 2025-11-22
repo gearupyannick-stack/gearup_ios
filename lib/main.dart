@@ -18,6 +18,7 @@ import 'pages/premium_page.dart';
 import 'services/auth_service.dart';
 import 'services/lives_storage.dart';
 import 'services/language_service.dart';
+import 'services/tutorial_service.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'services/firebase_options.dart';
@@ -27,6 +28,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/analytics_service.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'widgets/tutorial_overlay.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -147,6 +149,7 @@ void main() async {
   // Track app open and set user properties
   final prefs = await SharedPreferences.getInstance();
   await _trackAppLaunch(prefs);
+  await TutorialService.instance.init();
   final bool areImagesLoaded = prefs.getBool('areImagesLoaded') ?? false;
   final bool shouldPreload = !areImagesLoaded;
 
@@ -191,7 +194,7 @@ class CarLearningApp extends StatelessWidget {
     // Auto-authenticate returning users silently in background
     if (onboarded) {
       try {
-        final auth = AuthService.instance;
+        final auth = AuthService();
         if (auth.currentUser == null) {
           await auth.signInAnonymously();
         }
@@ -380,7 +383,6 @@ class _MainPageState extends State<MainPage> {
   static const int _maxLives = 5;
   static const int _refillInterval = 600; // seconds per life
 
-  // ── STATE ──────────────────────────────────────────
   int _currentIndex = 0;
   int gearCount = 0;
   late int lives;
@@ -389,16 +391,36 @@ class _MainPageState extends State<MainPage> {
   bool _isShowingAdAction = false;
   final ValueNotifier<int> _lifeTimerRemaining = ValueNotifier<int>(0);
 
+  // Tutorial interaction flags
+  bool _tutorialWaitingForCategoryPopup = false;
+  bool _tutorialWaitingForCalendarPopup = false;
+  bool _tutorialWaitingForLivesPopup    = false;
+  int _tutorialCurrentStartIndex = 0;
+  static const List<String> _tutorialTargetOrder = [
+    "Gear",
+    "Streak",
+    "Lives",
+    "LevelProgress",
+    "FirstFlag",
+  ];
+  int _tutorialStage = TutorialStage.notStarted;
+  bool _isTabsTutorialActive = false;
+
+  // Tabs tutorial state
+  int _currentTabTutorialStep = 0; // 0=training, 1=race, 2=library, 3=profile
+  bool _showTabTutorialOverlay = false;
+  String? _tabTutorialOverlayText;
+
   // ── KEYS & PAGES ───────────────────────────────────
-  final GlobalKey _gearKey        = GlobalKey();
-  final GlobalKey _streakKey      = GlobalKey();
-  final GlobalKey _livesKey       = GlobalKey();
-  final GlobalKey _firstFlagKey   = GlobalKey();
-  final GlobalKey _tabHomeKey     = GlobalKey();
-  final GlobalKey _tabTrainingKey = GlobalKey();
-  final GlobalKey _tabRaceKey     = GlobalKey(); 
-  final GlobalKey _tabLibraryKey  = GlobalKey();
-  final GlobalKey _tabProfileKey  = GlobalKey();
+  final GlobalKey _gearKey          = GlobalKey();
+  final GlobalKey _streakKey        = GlobalKey();
+  final GlobalKey _livesKey         = GlobalKey();
+  final GlobalKey _firstFlagKey     = GlobalKey();
+  final GlobalKey _tabHomeKey       = GlobalKey();
+  final GlobalKey _tabTrainingKey   = GlobalKey();
+  final GlobalKey _tabRaceKey       = GlobalKey(); 
+  final GlobalKey _tabLibraryKey    = GlobalKey();
+  final GlobalKey _tabProfileKey    = GlobalKey();
   final GlobalKey _levelProgressKey = GlobalKey();
   final List<Widget> _pages = [];
 
@@ -673,42 +695,65 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
-  Future<void> _maybeShowTutorial({bool force = false}) async {
-    // Show the tutorial only when:
-    //  - force == true  (replay request from profile), OR
-    //  - there is no 'hasSeenTutorial' flag in SharedPreferences yet.
-    //
-    // When we decide to show it, we immediately set the flag to true so it
-    // won't reappear on subsequent app launches.
+  Future<void> _updateTutorialStage(int stage) async {
+    await TutorialService.instance.setTutorialStage(stage);
+    if (mounted) {
+      setState(() => _tutorialStage = stage);
+    } else {
+      _tutorialStage = stage;
+    }
+  }
 
-    final prefs = await SharedPreferences.getInstance();
-    final bool hasSeen = prefs.getBool('hasSeenTutorial') ?? false;
+  void _hideTutorialOverlay() {
+    _tutorialCoachMark?.removeOverlayEntry();
+    _tutorialCoachMark = null;
+  }
+
+  void _resumeTutorialFrom(int nextIndex) {
+    if (_tutorialStage != TutorialStage.topRow) return;
+    if (nextIndex >= _tutorialTargetOrder.length) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showTutorial(startIndex: nextIndex));
+  }
+
+  Future<void> _maybeShowTutorial({bool force = false}) async {
+    final tutorialService = TutorialService.instance;
 
     if (force) {
-      // Replay requested from profile: always show, and persist that user has seen it.
-      await prefs.setBool('hasSeenTutorial', true);
-      // Track tutorial replay
       AnalyticsService.instance.logTutorialReplayed();
+      await tutorialService.resetTutorial();
+    }
+
+    final int stage = await tutorialService.getTutorialStage();
+    if (mounted) {
+      setState(() => _tutorialStage = stage);
+    } else {
+      _tutorialStage = stage;
+    }
+
+    if (stage == TutorialStage.notStarted) {
+      AnalyticsService.instance.logTutorialBegin();
+      await _updateTutorialStage(TutorialStage.topRow);
       WidgetsBinding.instance.addPostFrameCallback((_) => _showTutorial());
       return;
     }
 
-    // Normal behaviour: if not seen before, mark seen and show once.
-    if (!hasSeen) {
-      await prefs.setBool('hasSeenTutorial', true);
-      // Track tutorial begin
-      AnalyticsService.instance.logTutorialBegin();
+    if (stage == TutorialStage.topRow) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _showTutorial());
+      return;
+    }
+
+    if (stage == TutorialStage.tabsReady) {
+      unawaited(_maybeStartTabsTutorial());
+      return;
     }
   }
 
-  void _showTutorial() {
+  void _showTutorial({int startIndex = 0}) {
+    _tutorialCurrentStartIndex = startIndex;
     // screen dimensions for centering text
     final size = MediaQuery.of(context).size;
     final middleTop = size.height * 0.5 - 50;
     final sidePadding = size.width * 0.1;
-    // you already changed this value — keep it
-    final skipYOffset = (50 / size.height) * 15.0; // Alignment y goes from -1 to 1
 
     // local reference to the coach mark so our Continue buttons can call next()/finish()
     // use the field instead of a local variable
@@ -721,7 +766,7 @@ class _MainPageState extends State<MainPage> {
       fontWeight: FontWeight.w500,
     );
 
-    final targets = <TargetFocus>[
+    final allTargets = <TargetFocus>[
       // 1) Gear
       TargetFocus(
         identify: "Gear",
@@ -743,20 +788,6 @@ class _MainPageState extends State<MainPage> {
                   style: tutorialTextStyle,
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.next(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.continue".tr()),
-                  ),
-                ),
               ],
             ),
           ),
@@ -784,20 +815,6 @@ class _MainPageState extends State<MainPage> {
                   style: tutorialTextStyle,
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.next(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.continue".tr()),
-                  ),
-                ),
               ],
             ),
           ),
@@ -825,20 +842,6 @@ class _MainPageState extends State<MainPage> {
                   style: tutorialTextStyle,
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.next(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.continue".tr()),
-                  ),
-                ),
               ],
             ),
           ),
@@ -872,239 +875,13 @@ class _MainPageState extends State<MainPage> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.next(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.continue".tr()),
-                  ),
-                ),
               ],
             ),
           ),
         ],
       ),
 
-      // 5) Home tab
-      TargetFocus(
-        identify: "HomeTab",
-        keyTarget: _tabHomeKey,
-        contents: [
-          TargetContent(
-            align: ContentAlign.custom,
-            customPosition: CustomTargetContentPosition(
-              top: middleTop,
-              left: sidePadding,
-              right: sidePadding,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "tutorial.homeTab".tr(),
-                  textAlign: TextAlign.center,
-                  style: tutorialTextStyle,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.next(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.continue".tr()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-
-      // 6) Training tab
-      TargetFocus(
-        identify: "TrainingTab",
-        keyTarget: _tabTrainingKey,
-        contents: [
-          TargetContent(
-            align: ContentAlign.custom,
-            customPosition: CustomTargetContentPosition(
-              top: middleTop,
-              left: sidePadding,
-              right: sidePadding,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "tutorial.trainingTab".tr(),
-                  textAlign: TextAlign.center,
-                  style: tutorialTextStyle,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.next(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.continue".tr()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-
-      // Multiplayer / Race (NEW)
-      TargetFocus(
-        identify: "Multiplayer",
-        keyTarget: _tabRaceKey, // reuses existing Race tab key
-        contents: [
-          TargetContent(
-            align: ContentAlign.custom,
-            customPosition: CustomTargetContentPosition(
-              top: middleTop,
-              left: sidePadding,
-              right: sidePadding,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "tutorial.multiplayer".tr(),
-                  textAlign: TextAlign.center,
-                  style: tutorialTextStyle,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "tutorial.multiplayerTip".tr(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.next(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.continue".tr()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-
-      // 7) Library tab
-      TargetFocus(
-        identify: "LibraryTab",
-        keyTarget: _tabLibraryKey,
-        contents: [
-          TargetContent(
-            align: ContentAlign.custom,
-            customPosition: CustomTargetContentPosition(
-              top: middleTop,
-              left: sidePadding,
-              right: sidePadding,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "tutorial.libraryTab".tr(),
-                  textAlign: TextAlign.center,
-                  style: tutorialTextStyle,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.next(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.continue".tr()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-
-      // 8) Profile tab (mention Replay)
-      TargetFocus(
-        identify: "ProfileTab",
-        keyTarget: _tabProfileKey,
-        contents: [
-          TargetContent(
-            align: ContentAlign.custom,
-            customPosition: CustomTargetContentPosition(
-              top: middleTop,
-              left: sidePadding,
-              right: sidePadding,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "tutorial.profileTab".tr(),
-                  textAlign: TextAlign.center,
-                  style: tutorialTextStyle,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.next(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.continue".tr()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-
-      // 9) FirstFlag (FINAL)
+      // 5) FirstFlag
       TargetFocus(
         identify: "FirstFlag",
         keyTarget: _firstFlagKey,
@@ -1125,20 +902,6 @@ class _MainPageState extends State<MainPage> {
                   style: tutorialTextStyle,
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _tutorialCoachMark?.finish(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("tutorial.finish".tr()),
-                  ),
-                ),
               ],
             ),
           ),
@@ -1146,25 +909,80 @@ class _MainPageState extends State<MainPage> {
       ),
     ];
 
-    // build and show
+    if (startIndex >= allTargets.length) {
+      return;
+    }
+
+    final targets = allTargets.sublist(startIndex);
+
     _tutorialCoachMark = TutorialCoachMark(
       targets: targets,
       colorShadow: Colors.black87,
-      textSkip: "tutorial.skip".tr(),
-      textStyleSkip: const TextStyle(color: Colors.white),
-      // Move SKIP to center + skipYOffset down
-      alignSkip: Alignment(0, skipYOffset),
-      showSkipInLastTarget: false,
+      hideSkip: true,
       paddingFocus: 10,
       onFinish: () {
-        print("Tutorial finished");
-        AnalyticsService.instance.logTutorialComplete();
+        _tutorialCoachMark = null;
+        debugPrint("Top-row tutorial finished");
       },
-      onClickTarget: (t) => print("Clicked on ${t.identify}"),
-      onSkip: () {
-        print("Tutorial skipped");
-        AnalyticsService.instance.logTutorialSkip();
-        return true;
+      onClickTarget: (t) {
+        final identify = t.identify?.toString();
+        final globalIndex = identify != null
+            ? _tutorialTargetOrder.indexOf(identify)
+            : -1;
+        final nextIndex =
+            globalIndex >= 0 ? globalIndex + 1 : _tutorialCurrentStartIndex + 1;
+
+        if (identify == "Gear") {
+          _tutorialWaitingForCategoryPopup = true;
+          _hideTutorialOverlay();
+          return _showCategorySelectionPopup().whenComplete(() {
+            if (_tutorialWaitingForCategoryPopup) {
+              _tutorialWaitingForCategoryPopup = false;
+            }
+            _resumeTutorialFrom(nextIndex);
+          });
+        } else if (identify == "Streak") {
+          _tutorialWaitingForCalendarPopup = true;
+          _hideTutorialOverlay();
+          return _showCalendarPopup().whenComplete(() {
+            if (_tutorialWaitingForCalendarPopup) {
+              _tutorialWaitingForCalendarPopup = false;
+            }
+            _resumeTutorialFrom(nextIndex);
+          });
+        } else if (identify == "Lives") {
+          _tutorialWaitingForLivesPopup = true;
+          _hideTutorialOverlay();
+          return _showLivesPopup().whenComplete(() {
+            if (_tutorialWaitingForLivesPopup) {
+              _tutorialWaitingForLivesPopup = false;
+            }
+            _resumeTutorialFrom(nextIndex);
+          });
+        } else if (identify == "LevelProgress") {
+          _hideTutorialOverlay();
+          final future = homePageTutorialBridge?.showLevelProgress?.call();
+          if (future != null) {
+            return future.whenComplete(() {
+              _resumeTutorialFrom(nextIndex);
+            });
+          } else {
+            _resumeTutorialFrom(nextIndex);
+          }
+        } else if (identify == "FirstFlag") {
+          // Finish the tutorial and start the first flag challenge
+          unawaited(TutorialService.instance.setFirstFlagStarted(true));
+          unawaited(_updateTutorialStage(TutorialStage.topRow));
+          _tutorialCoachMark?.finish();
+          try {
+            homePageTutorialBridge?.startFirstFlagChallenge();
+          } catch (e) {
+            debugPrint("Error starting first flag from tutorial: $e");
+          }
+        } else {
+          print("Clicked on ${t.identify}");
+        }
+        return null;
       },
     );
 
@@ -1172,6 +990,173 @@ class _MainPageState extends State<MainPage> {
       context: context,
       rootOverlay: true,
     );
+  }
+
+  Future<void> _maybeStartTabsTutorial() async {
+    if (_isTabsTutorialActive) return;
+    final stage = await TutorialService.instance.getTutorialStage();
+    if (stage != TutorialStage.tabsReady) return;
+    if (!mounted) return;
+    setState(() {
+      _tutorialStage = stage;
+      _isTabsTutorialActive = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showTabsTutorial());
+  }
+
+  void _showTabsTutorial() {
+    setState(() {
+      _currentTabTutorialStep = 0;
+      _isTabsTutorialActive = true;
+    });
+
+    // Show first tab coach mark
+    _showNextTabCoachMark();
+  }
+
+  /// Show the coach mark for the current tab step
+  void _showNextTabCoachMark() {
+    if (_currentTabTutorialStep >= 4) {
+      _completeTabsTutorial();
+      return;
+    }
+
+    // Determine which tab to highlight
+    GlobalKey targetKey;
+    String textKey;
+    int targetIndex;
+
+    switch (_currentTabTutorialStep) {
+      case 0:
+        targetKey = _tabTrainingKey;
+        textKey = 'tutorial.trainingTab';
+        targetIndex = 1;
+        break;
+      case 1:
+        targetKey = _tabRaceKey;
+        textKey = 'tutorial.multiplayer';
+        targetIndex = 2;
+        break;
+      case 2:
+        targetKey = _tabLibraryKey;
+        textKey = 'tutorial.libraryTab';
+        targetIndex = 3;
+        break;
+      case 3:
+        targetKey = _tabProfileKey;
+        textKey = 'tutorial.profileTab';
+        targetIndex = 4;
+        break;
+      default:
+        return;
+    }
+
+    final size = MediaQuery.of(context).size;
+    final middleTop = size.height * 0.5 - 50;
+    final sidePadding = size.width * 0.1;
+
+    const TextStyle tutorialTextStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.w500,
+    );
+
+    _tutorialCoachMark = TutorialCoachMark(
+      targets: [
+        TargetFocus(
+          identify: "Tab_$_currentTabTutorialStep",
+          keyTarget: targetKey,
+          contents: [
+            TargetContent(
+              align: ContentAlign.custom,
+              customPosition: CustomTargetContentPosition(
+                top: middleTop,
+                left: sidePadding,
+                right: sidePadding,
+              ),
+              child: Text(
+                textKey.tr(),
+                textAlign: TextAlign.center,
+                style: tutorialTextStyle,
+              ),
+            ),
+          ],
+        ),
+      ],
+      colorShadow: Colors.transparent, // No dark overlay - show pages clearly!
+      hideSkip: true,
+      paddingFocus: 10,
+      onClickTarget: (t) {
+        // Switch to that tab
+        setState(() {
+          _currentIndex = targetIndex;
+        });
+
+        // Close coach mark
+        _tutorialCoachMark?.finish();
+        _tutorialCoachMark = null;
+
+        // Show overlay with explanation
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && _isTabsTutorialActive) {
+            setState(() {
+              _showTabTutorialOverlay = true;
+              switch (_currentTabTutorialStep) {
+                case 0:
+                  _tabTutorialOverlayText = 'tutorial.tabs.training';
+                  break;
+                case 1:
+                  _tabTutorialOverlayText = 'tutorial.tabs.race';
+                  break;
+                case 2:
+                  _tabTutorialOverlayText = 'tutorial.tabs.library';
+                  break;
+                case 3:
+                  _tabTutorialOverlayText = 'tutorial.tabs.profile';
+                  break;
+              }
+            });
+          }
+        });
+      },
+    );
+
+    _tutorialCoachMark?.show(
+      context: context,
+      rootOverlay: true,
+    );
+  }
+
+  /// Advance to the next tab in the tutorial
+  void _advanceTabTutorial() {
+    setState(() {
+      _showTabTutorialOverlay = false;
+      _tabTutorialOverlayText = null;
+      _currentTabTutorialStep++;
+    });
+
+    // Show next tab coach mark
+    _showNextTabCoachMark();
+  }
+
+  Future<void> _completeTabsTutorial() async {
+    _tutorialCoachMark = null;
+    if (mounted) {
+      setState(() {
+        _isTabsTutorialActive = false;
+      });
+    } else {
+      _isTabsTutorialActive = false;
+    }
+    await TutorialService.instance.markTutorialCompleted();
+    if (mounted) {
+      setState(() {
+        _tutorialStage = TutorialStage.completed;
+      });
+    } else {
+      _tutorialStage = TutorialStage.completed;
+    }
+    AnalyticsService.instance.logTutorialComplete();
   }
 
   String _getStreakTitle(int streak) {
@@ -1337,16 +1322,20 @@ class _MainPageState extends State<MainPage> {
         await prefs.setStringList('playHistory', completionDays);
       }
     }
+
+    await _maybeStartTabsTutorial();
   }
 
   void _onTabTapped(int index) {
+    // During tabs tutorial, clicks are handled by TutorialCoachMark's onClickTarget
+    // Just do normal navigation
     setState(() {
       _currentIndex = index;
     });
   }
 
-  void _showCategorySelectionPopup() {
-    showDialog(
+  Future<void> _showCategorySelectionPopup() {
+    return showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.7),
       builder: (context) {
@@ -1424,7 +1413,9 @@ class _MainPageState extends State<MainPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
               child: Text('calendar.close'.tr(), style: const TextStyle(fontSize: 16)),
             ),
           ],
@@ -1532,7 +1523,9 @@ class _MainPageState extends State<MainPage> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
                 child: Text('common.ok'.tr(), style: const TextStyle(fontSize: 16)),
               ),
             ],
@@ -1680,7 +1673,9 @@ class _MainPageState extends State<MainPage> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
                 child: Text('common.ok'.tr(), style: const TextStyle(fontSize: 16)),
               ),
             ],
@@ -1690,14 +1685,14 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  void _showCalendarPopup() async {
+  Future<void> _showCalendarPopup() async {
     // Track calendar viewed
     AnalyticsService.instance.logCalendarViewed();
 
     final prefs = await SharedPreferences.getInstance();
     final rawJson   = prefs.getString('dailyCounts') ?? '{}';
     final Map<String, dynamic> dailyCounts = json.decode(rawJson);
-    showDialog(
+    return showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.7),
       builder: (_) => AlertDialog(
@@ -1748,7 +1743,9 @@ class _MainPageState extends State<MainPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(context);
+            },
             child: Text("calendar.close".tr(), style: const TextStyle(fontSize: 16)),
           ),
         ],
@@ -1877,7 +1874,19 @@ class _MainPageState extends State<MainPage> {
         centerTitle: true,
       ),
 
-      body: _pages[_currentIndex],
+      body: Stack(
+        children: [
+          _pages[_currentIndex],
+
+          // Tabs tutorial overlay (shown after tab switch)
+          if (_showTabTutorialOverlay && _tabTutorialOverlayText != null)
+            TutorialOverlay(
+              textKey: _tabTutorialOverlayText!,
+              onContinue: _advanceTabTutorial,
+              showContinueButton: true,
+            ),
+        ],
+      ),
 
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,

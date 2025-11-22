@@ -18,6 +18,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../services/premium_service.dart';
 import '../services/ad_service.dart';
 import '../services/audio_feedback.dart'; // keep your audio hook if used
+import '../services/tutorial_service.dart';
 
 typedef VoidAsync = Future<void> Function();
 
@@ -65,6 +66,7 @@ class _TrainingPageState extends State<TrainingPage> {
   ];
 
   // Free daily limit for gated challenges
+  bool _tabIntroShown = false;
 
   @override
   void initState() {
@@ -72,6 +74,18 @@ class _TrainingPageState extends State<TrainingPage> {
     try { AudioFeedback.instance.playEvent(SoundEvent.pageOpen); } catch (_) {}
 
     // Make sure PremiumService is initialized in app start (Main). If not, ensure init is called elsewhere.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowTabIntro());
+  }
+
+  Future<void> _maybeShowTabIntro() async {
+    if (_tabIntroShown) return;
+    final tutorialService = TutorialService.instance;
+    final stage = await tutorialService.getTutorialStage();
+    if (stage != TutorialStage.tabsReady) return;
+    if (await tutorialService.hasShownTabIntro('training')) return;
+    await tutorialService.markTabIntroShown('training');
+    _tabIntroShown = true;
+    if (!mounted) return;
   }
 
   String _translateModuleName(String title) {

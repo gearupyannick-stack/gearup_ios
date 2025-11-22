@@ -108,7 +108,16 @@
     "multiplayerTip": "Suggerimento: Usa le partite rapide per entrare velocemente, o crea una stanza privata per giocare con gli amici.",
     "libraryTab": "Sfoglia tutte le auto e impara le loro specifiche qui.",
     "profileTab": "Controlla i tuoi risultati e statistiche nel tuo profilo. Ripeti questa introduzione in qualsiasi momento dalle impostazioni del profilo.",
-    "firstFlag": "Tocca questa prima bandiera per iniziare la tua gara!"
+    "firstFlag": "Tocca questa prima bandiera per iniziare la tua gara!",
+    "prompt": {
+      "tapTab": "Tocca questa scheda per continuare"
+    },
+    "tabs": {
+      "training": "Qui puoi esercitarti con quiz da 20 domande per testare le tue conoscenze e guadagnare vite extra. Perfeziona le tue abilità!",
+      "race": "Questa è la modalità Gara dove puoi competere contro altri giocatori. Sfida i tuoi amici o gareggia contro avversari casuali!",
+      "library": "Sfoglia tutte le auto disponibili e impara specifiche dettagliate. Esplora diverse marche e modelli!",
+      "profile": "Visualizza i tuoi risultati, statistiche e progressi. Puoi ripetere questo tutorial in qualsiasi momento dalle impostazioni del profilo."
+    }
   },
   "anonymousUpgrade": {
     "title": "Salva i Tuoi Progressi",
