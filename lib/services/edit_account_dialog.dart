@@ -6,7 +6,6 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:easy_localization/easy_localization.dart';
-import '../services/auth_service.dart';
 
 class EditAccountDialog extends StatefulWidget {
   const EditAccountDialog({Key? key}) : super(key: key);
@@ -55,22 +54,6 @@ class _EditAccountDialogState extends State<EditAccountDialog> {
 
     setState(() => _loadingConnect = true);
     try {
-      // Utilise la méthode qui retourne un UserCredential (compatible avec ton code)
-      final auth = AuthService();
-      final UserCredential cred = await auth.signInWithAppleCredential();
-
-      // Sécurité : récupère l'utilisateur soit depuis le credential soit le currentUser
-      final user = cred.user ?? FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw 'Apple sign-in returned no user.';
-      }
-
-      // Met à jour les champs affichés si Apple fournit des infos
-      _displayNameController.text = user.displayName ?? _displayNameController.text;
-      _emailController.text = user.email ?? _emailController.text;
-
-      _showSnack('profile.connectedApple'.tr());
-      setState(() {}); // force refresh du UI (notamment _isLinkedWithApple)
     } on FirebaseAuthException catch (e) {
       _showSnack('profile.appleError'.tr(namedArgs: {'error': e.message ?? e.code}));
     } catch (e) {

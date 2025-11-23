@@ -1,5 +1,6 @@
 // lib/pages/welcome_page.dart
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -83,26 +84,91 @@ class _WelcomePageState extends State<WelcomePage> {
     );
   }
 
-  Future<void> _continueWithICloud() async {
+  Future<void> _continueAsGuest() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      // Automatically authenticate with Firebase Anonymous (iCloud data will sync)
-      final auth = AuthService();
-      final user = await auth.signInAnonymously();
+      // Sign in anonymously to Firebase
+      final credential = await AuthService.instance.signInAnonymously();
+      if (credential == null || credential.user == null) {
+        throw 'Failed to create anonymous account.';
+      }
+
+      final user = credential.user!;
+
+      // Persist auth state to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_guest', true);
+      await prefs.setString('auth_method', 'anonymous');
+      await prefs.setString('firebase_uid', user.uid);
+      await prefs.setBool('google_signed_in', false);
+
+      // Store timestamp for 2-day notification prompt
+      await prefs.setString('anonymous_since', DateTime.now().toIso8601String());
 
       // Track sign-up in Analytics
       await AnalyticsService.instance.logSignUp(method: 'anonymous');
-      if (user != null) {
-        await AnalyticsService.instance.setUserId(user.uid);
-      }
+      await AnalyticsService.instance.setUserId(user.uid);
 
       // Mark onboarding done and enter
       await _markOnboardedAndEnter();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('welcome.couldNotContinueAsGuest'.tr(namedArgs: {'error': e.toString()}))),
+          SnackBar(
+            content: Text('welcome.couldNotContinueAsGuest'.tr(namedArgs: {'error': e.toString()})),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+  
+  Future<void> _continueWithGoogle() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      if (!Platform.isAndroid) {
+        // Only Android for now (as requested)
+        throw 'Google sign-in is only enabled on Android for now.';
+      }
+
+      final credential = await AuthService.instance.signInWithGoogle();
+      if (credential == null) {
+        throw 'Sign-in cancelled.';
+      }
+
+      // Get user info from Firebase
+      final user = credential.user;
+
+      // CRITICAL: Persist auth state to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('google_signed_in', true);
+      await prefs.setString('google_displayName', user?.displayName ?? '');
+      await prefs.setString('google_email', user?.email ?? '');
+      await prefs.setString('google_photoUrl', user?.photoURL ?? '');
+      await prefs.setBool('use_google_name', true);
+      await prefs.setBool('is_guest', false);
+      await prefs.setString('auth_method', 'google');
+      await prefs.setString('firebase_uid', user?.uid ?? '');
+      // Remove anonymous timestamp if exists (user upgraded)
+      await prefs.remove('anonymous_since');
+
+      // Track sign-up in Analytics
+      await AnalyticsService.instance.logSignUp(method: 'google');
+      await AnalyticsService.instance.setUserId(user?.uid);
+
+      // Mark onboarding done and enter
+      await _markOnboardedAndEnter();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('welcome.signInFailed'.tr(namedArgs: {'error': e.toString()})),
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     } finally {
@@ -271,30 +337,55 @@ class _WelcomePageState extends State<WelcomePage> {
             ),
           ),
 
-          // Single "Get Started" button
+
+          // Bottom buttons
           Positioned(
             left: 16,
             right: 16,
             bottom: 24 + bottomPadding,
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _busy ? null : _continueWithICloud,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Continue with Google (Android only)
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : _continueWithGoogle,
+                    label: Text(
+                      "welcome.continueWithGoogle".tr(),
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white70),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor: Colors.white10,
+                    ),
                   ),
-                  elevation: 2,
                 ),
-                child: Text(
-                  "welcome.joinAsGuest".tr(),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                const SizedBox(height: 12),
+                // Join as a guest (primary)
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _busy ? null : _continueAsGuest,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      "welcome.joinAsGuest".tr(),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
 
