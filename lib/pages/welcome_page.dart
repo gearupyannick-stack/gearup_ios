@@ -125,7 +125,7 @@ class _WelcomePageState extends State<WelcomePage> {
       if (mounted) setState(() => _busy = false);
     }
   }
-  
+
   Future<void> _continueWithGoogle() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -341,25 +341,6 @@ class _WelcomePageState extends State<WelcomePage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Continue with Google (Android only)
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    onPressed: _busy ? null : _continueWithGoogle,
-                    label: Text(
-                      "welcome.continueWithGoogle".tr(),
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white70),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      backgroundColor: Colors.white10,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
                 // Join as a guest (primary)
                 SizedBox(
                   width: double.infinity,
