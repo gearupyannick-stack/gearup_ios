@@ -130,11 +130,6 @@ class _WelcomePageState extends State<WelcomePage> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      if (!Platform.isAndroid) {
-        // Only Android for now (as requested)
-        throw 'Google sign-in is only enabled on Android for now.';
-      }
-
       final credential = await AuthService.instance.signInWithGoogle();
       if (credential == null) {
         throw 'Sign-in cancelled.';
