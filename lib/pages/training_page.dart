@@ -24,7 +24,7 @@ typedef VoidAsync = Future<void> Function();
 
 class TrainingPage extends StatefulWidget {
   final VoidAsync? onLifeWon;
-  final VoidCallback? recordChallengeCompletion;
+  final VoidAsync? recordChallengeCompletion;
   const TrainingPage({Key? key, this.onLifeWon, this.recordChallengeCompletion}) : super(key: key);
 
   @override
@@ -198,7 +198,7 @@ class _TrainingPageState extends State<TrainingPage> {
     }
 
     // optional callback
-    widget.recordChallengeCompletion?.call();
+    await widget.recordChallengeCompletion?.call();
 
     // increment challenge counter (and show interstitial per your rule every 5)
     try {

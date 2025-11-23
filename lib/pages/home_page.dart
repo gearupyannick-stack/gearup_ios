@@ -97,7 +97,7 @@ class HomePage extends StatefulWidget {
   final dynamic livesStorage;
   final VoidCallback onChallengeFail;
   final ValueChanged<int> onGearUpdate;
-  final VoidCallback? recordChallengeCompletion;
+  final Future<void> Function()? recordChallengeCompletion;
   final GlobalKey? levelProgressKey;
 
   const HomePage({
@@ -997,6 +997,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     // ignore: unused_local_variable
     bool lostLife = false;
 
+    // Ensure tutorial state knows we've started the first flag (in case the coach mark was skipped)
+    final tutorialStage = await TutorialService.instance.getTutorialStage();
+    if (tutorialStage == TutorialStage.topRow) {
+      await TutorialService.instance.setFirstFlagStarted(true);
+    }
+
     await _incrementChallengesAttempted();
     int currentLives = widget.getLives();
     if (currentLives <= 0) return;
@@ -1095,7 +1101,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             _retryButtonActive = false;
             _animateToNextPoint();
             await _maybePromoteTutorialAfterChallenge();
-            widget.recordChallengeCompletion?.call();
+            await widget.recordChallengeCompletion?.call();
           } else {
             _consecutiveFails++;
             await _saveConsecutiveFails();
@@ -1107,7 +1113,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
             // Advance tutorial even on failure
             await _maybePromoteTutorialAfterChallenge();
-            widget.recordChallengeCompletion?.call();
+            await widget.recordChallengeCompletion?.call();
 
             if (_consecutiveFails >= 3) {
               // Offer the stuck popup and provide a pass-action that grants full success:
@@ -1134,7 +1140,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   _trackGearUpdate(previousGearCount, _gearCount, source: 'ad_pass');
                   // count as a completed challenge for daily streaks / history
                   await _maybePromoteTutorialAfterChallenge();
-                  widget.recordChallengeCompletion?.call();
+                  await widget.recordChallengeCompletion?.call();
                 }
 
                 // 3) Persist progress and move forward
@@ -1161,7 +1167,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
             // Advance tutorial even on failure
             await _maybePromoteTutorialAfterChallenge();
-            widget.recordChallengeCompletion?.call();
+            await widget.recordChallengeCompletion?.call();
 
             await _saveProgressToStorage();
             setState(() {});
@@ -1190,7 +1196,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
             // Advance tutorial even on failure
             await _maybePromoteTutorialAfterChallenge();
-            widget.recordChallengeCompletion?.call();
+            await widget.recordChallengeCompletion?.call();
           }
         }
       } else {
@@ -1222,7 +1228,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           widget.onGearUpdate(_gearCount);
 
           await _maybePromoteTutorialAfterChallenge();
-          widget.recordChallengeCompletion?.call();
+          await widget.recordChallengeCompletion?.call();
 
           if (_flagStatus[flagIndex] == 'green') {
             // Full success: Move forward

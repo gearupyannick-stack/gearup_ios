@@ -924,7 +924,7 @@ class _MainPageState extends State<MainPage> {
         _tutorialCoachMark = null;
         debugPrint("Top-row tutorial finished");
       },
-      onClickTarget: (t) {
+      onClickTarget: (t) async {
         final identify = t.identify?.toString();
         final globalIndex = identify != null
             ? _tutorialTargetOrder.indexOf(identify)
@@ -971,8 +971,8 @@ class _MainPageState extends State<MainPage> {
           }
         } else if (identify == "FirstFlag") {
           // Finish the tutorial and start the first flag challenge
-          unawaited(TutorialService.instance.setFirstFlagStarted(true));
-          unawaited(_updateTutorialStage(TutorialStage.topRow));
+          await TutorialService.instance.setFirstFlagStarted(true);
+          await _updateTutorialStage(TutorialStage.topRow);
           _tutorialCoachMark?.finish();
           try {
             homePageTutorialBridge?.startFirstFlagChallenge();
@@ -997,6 +997,9 @@ class _MainPageState extends State<MainPage> {
     final stage = await TutorialService.instance.getTutorialStage();
     if (stage != TutorialStage.tabsReady) return;
     if (!mounted) return;
+    // Ensure any previous coach mark is fully cleared before starting tabs tutorial
+    _tutorialCoachMark?.removeOverlayEntry();
+    _tutorialCoachMark = null;
     setState(() {
       _tutorialStage = stage;
       _isTabsTutorialActive = true;
@@ -1923,6 +1926,8 @@ class _MainPageState extends State<MainPage> {
 
   @override
   void dispose() {
+    _tutorialCoachMark?.removeOverlayEntry();
+    _tutorialCoachMark = null;
     _lifeTimer?.cancel();
     _lifeTimerRemaining.dispose();
     super.dispose();

@@ -39,7 +39,7 @@ class TutorialOverlay extends StatelessWidget {
     final size = MediaQuery.of(context).size;
 
     return Material(
-      color: Colors.black.withOpacity(0.85),
+      color: Colors.transparent,
       child: SafeArea(
         child: Stack(
           children: [
