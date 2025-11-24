@@ -206,4 +206,59 @@ class CollabWanService {
       } catch (_) {}
     }
   }
+
+  /// Update player's score in their player document (persistent, not message-based)
+  /// This ensures scores are reliably visible to all players in real-time via playersStream
+  Future<void> updatePlayerScore(String roomCode, int score) async {
+    final pid = await _getOrMakeLocalPlayerId();
+    final playerRef = _db.collection(roomsCollection).doc(roomCode).collection(playersSub).doc(pid);
+    await playerRef.set({'score': score}, SetOptions(merge: true));
+  }
+
+  /// Update player's errors in their player document
+  Future<void> updatePlayerErrors(String roomCode, int errors) async {
+    final pid = await _getOrMakeLocalPlayerId();
+    final playerRef = _db.collection(roomsCollection).doc(roomCode).collection(playersSub).doc(pid);
+    await playerRef.set({'errors': errors}, SetOptions(merge: true));
+  }
+
+  /// Create an immutable race result document with final scores and winner
+  /// This persists race data even after players leave the room
+  Future<void> createRaceResult({
+    required String roomCode,
+    required String raceSessionId,
+    required PlayerInfo winner,
+    required List<PlayerInfo> players,
+    required DateTime timestamp,
+  }) async {
+    final resultsRef = _db.collection('raceResults').doc(raceSessionId);
+    await resultsRef.set({
+      'roomCode': roomCode,
+      'winnerId': winner.id,
+      'winnerName': winner.displayName,
+      'winnerScore': winner.score,
+      'winnerErrors': winner.errors,
+      'timestamp': FieldValue.serverTimestamp(),
+      'createdAt': Timestamp.fromDate(timestamp),
+      'players': players.map((p) => {
+        'id': p.id,
+        'displayName': p.displayName,
+        'score': p.score,
+        'errors': p.errors,
+        'lastSeen': Timestamp.fromDate(p.lastSeen),
+      }).toList(),
+    });
+  }
+
+  /// Fetch a race result document by session ID
+  /// Returns null if the result doesn't exist yet
+  Future<Map<String, dynamic>?> getRaceResult(String raceSessionId) async {
+    try {
+      final doc = await _db.collection('raceResults').doc(raceSessionId).get();
+      return doc.exists ? doc.data() : null;
+    } catch (e) {
+      print('Error fetching race result: $e');
+      return null;
+    }
+  }
 }

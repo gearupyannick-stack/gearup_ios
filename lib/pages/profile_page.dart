@@ -9,6 +9,8 @@ import 'package:easy_localization/easy_localization.dart';
 import '../services/analytics_service.dart';
 import '../services/language_service.dart';
 import '../services/tutorial_service.dart';
+import '../services/leaderboard_service.dart';
+import '../widgets/country_picker_dialog.dart';
 
 class ProfilePage extends StatefulWidget {
   final VoidCallback? onReplayTutorial;
@@ -27,6 +29,8 @@ class _ProfilePageState extends State<ProfilePage> {
   String createdAt = '';
   bool _isDataLoaded = false;
   String? _justUnlockedAchievement;
+  String _country = 'XX'; // ISO country code
+  final LeaderboardService _leaderboardService = LeaderboardService();
 
   // Stats counters
   int dailyStreak = 0;
@@ -128,6 +132,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadChallengesAttemptedCount();
     _loadQuestionAttemptCount();
     _loadUnlockedAchievements();
+    _loadCountry();
   }
 
   List<String> unlockedAchievementIds = [];
@@ -137,6 +142,24 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() {
       unlockedAchievementIds = prefs.getStringList('unlockedAchievements') ?? [];
     });
+  }
+
+  Future<void> _loadCountry() async {
+    final savedCountry = await _leaderboardService.getSavedCountry();
+    if (savedCountry != null && mounted) {
+      setState(() {
+        _country = savedCountry;
+      });
+    }
+  }
+
+  String _getCountryFlag(String countryCode) {
+    if (countryCode == 'XX' || countryCode.length != 2) {
+      return '🏁';
+    }
+    final int firstLetter = countryCode.codeUnitAt(0) - 0x41 + 0x1F1E6;
+    final int secondLetter = countryCode.codeUnitAt(1) - 0x41 + 0x1F1E6;
+    return String.fromCharCode(firstLetter) + String.fromCharCode(secondLetter);
   }
 
   void showAchievementSnackBar(String title) {
@@ -887,6 +910,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!_isCarDataLoaded) return;
     String fb = favoriteBrand != 'N/A' && favoriteBrand.isNotEmpty ? favoriteBrand : _brandOptions.first;
     String fm = favoriteModel != 'N/A' && favoriteModel.isNotEmpty ? favoriteModel : _brandToModels[fb]!.first;
+    String country = _country;
 
     showDialog(
       context: context,
@@ -945,6 +969,49 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 12),
 
+                  // Country selection
+                  InkWell(
+                    onTap: () async {
+                      final selectedCountry = await showDialog<String>(
+                        context: ctx,
+                        builder: (dialogCtx) => CountryPickerDialog(initialCountry: country),
+                      );
+                      if (selectedCountry != null) {
+                        setSt(() {
+                          country = selectedCountry;
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                _getCountryFlag(country),
+                                style: const TextStyle(fontSize: 24),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                country == 'XX' ? 'Select Country' : 'Country',
+                                style: const TextStyle(color: Colors.white70, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white54),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
                   // NOTE: Google-related UI removed here to provide a clean ground for Apple ID integration.
                   // We still keep the localUseGoogleName toggle variable so user's preference persists if present,
                   // but we don't show Connect/Disconnect Google buttons in this dialog.
@@ -962,6 +1029,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   await prefs.setString('favoriteBrand', fb);
                   await prefs.setString('favoriteModel', fm);
                   await prefs.setBool('use_google_name', localUseGoogleName);
+                  await _leaderboardService.saveCountryLocally(country);
 
                   if (!mounted) return;
                   setState(() {
@@ -972,6 +1040,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         : u;
                     favoriteBrand = fb;
                     favoriteModel = fm;
+                    _country = country;
                   });
                   Navigator.pop(ctx);
                 },
