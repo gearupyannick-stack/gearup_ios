@@ -520,7 +520,28 @@
     "clubsTitle": "Clubs",
     "clubsDesc": "Create or join clubs to play with friends and organize private tournaments.",
     "roomCodeLabel": "Room Code:",
-    "shareRoomCode": "Share room code"
+    "shareRoomCode": "Share room code",
+    "quit": "Quit",
+    "finishRace": "Finish Race",
+    "continueOrQuitMessage": "You can continue racing for practice or quit now.",
+    "ratingLabel": "Rating:",
+    "scoreDisplay": "Score: {score}",
+    "enterRoomCodeTitle": "Enter Room Code",
+    "roomNotFoundMessage": "Room \"{code}\" not found. Please check the code.",
+    "pleaseEnterName": "Please enter your player name",
+    "failedToJoinRace": "Failed to join race. Please try again.",
+    "questionCount": "{count} Questions",
+    "difficultyProgression": "Difficulty progresses from easy to hard",
+    "questionsAwait": "{count} questions await",
+    "leaveLobby": "Leave Lobby",
+    "joinRace": "Join Race"
+  },
+  "leaderboard": {
+    "errorLoading": "Error loading leaderboard",
+    "noRankings": "No rankings yet",
+    "beTheFirst": "Be the first to compete in 1v1 races!",
+    "globalTitle": "Global Leaderboard",
+    "top10Subtitle": "Top 10 Competitive Racers"
   },
   "common": {
     "ok": "OK",
@@ -545,7 +566,9 @@
     "player": "Player",
     "youInParens": "(You)",
     "points": "points",
-    "errors": "errors"
+    "errors": "errors",
+    "moreInfo": "More info",
+    "errorOccurred": "An error occurred. Please try again."
   },
   "language": {
     "title": "Language",

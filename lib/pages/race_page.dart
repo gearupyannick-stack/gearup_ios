@@ -99,6 +99,9 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
   // Track if player already lost this race (prevents false "You won!" dialog)
   bool _alreadyLostRace = false;
 
+  // Track if we're currently showing the loser dialog (prevents multiple dialogs)
+  bool _showingLostDialog = false;
+
   // New: race / car animation state
   bool _raceStarted = false;
   late final AnimationController _carController;
@@ -371,7 +374,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                           Icon(Icons.emoji_events, color: Colors.amber, size: 28),
                           const SizedBox(width: 12),
                           Text(
-                            'Winner',
+                            'race.winnerFallback'.tr(),
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
@@ -389,7 +392,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                         ),
                       ),
                       Text(
-                        'Score: ${winner.score}',
+                        'race.scoreDisplay'.tr(namedArgs: {'score': winner.score.toString()}),
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: 14,
@@ -422,7 +425,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'Rating: ${ratingChange > 0 ? '+' : ''}$ratingChange',
+                          '${'race.ratingLabel'.tr()} ${ratingChange > 0 ? '+' : ''}$ratingChange',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -437,7 +440,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
 
                 // Info text
                 Text(
-                  'You can continue racing for practice or quit now.',
+                  'race.continueOrQuitMessage'.tr(),
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
@@ -449,18 +452,32 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                backgroundColor: Colors.grey.shade800,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               child: Text(
-                'Quit',
-                style: TextStyle(color: Colors.white70),
+                'race.quit'.tr(),
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ),
+            const SizedBox(width: 12),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                backgroundColor: Color(0xFFE74C3C),
                 foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: Text('Finish Race'),
+              child: Text('race.finishRace'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
             ),
           ],
         );
@@ -506,6 +523,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
         _waitingForNextQuestion = false;
         _roomCreatorId = null;
         _alreadyLostRace = false; // Reset flag
+        _showingLostDialog = false; // Reset dialog flag
       });
       return; // Exit early
     }
@@ -642,7 +660,9 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
       }
     }
 
-    // inform others that race ended (include leaderboard updated flag)
+    // Loser will detect via score check in players stream - no extra messages needed!
+
+    // Send end_race for backwards compatibility
     if (room != null) {
       try {
         await _collab.sendMessage(room, {
@@ -650,7 +670,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
           'winnerId': winner.id,
           'winnerName': winner.displayName,
           'raceSessionId': _currentRaceSessionId,
-          'leaderboardUpdated': playersSnapshot.length == 2, // Mark if we updated leaderboard
+          'leaderboardUpdated': playersSnapshot.length == 2,
         });
       } catch (e) {
         debugPrint('Failed to send end_race message: $e');
@@ -973,6 +993,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
               _waitingForNextQuestion = false;
               _roomCreatorId = null;
               _alreadyLostRace = false; // Reset flag
+              _showingLostDialog = false; // Reset dialog flag
             });
 
             _handlingEndRace = false;
@@ -1776,10 +1797,14 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
     _carController.reset();
     _currentRoomCode = roomCode;
     try {
-      // Create/join room (createRoom calls joinRoom internally)
-      await _collab.createRoom(roomCode, displayName: displayName);
+      // Create/join room based on isCreator flag
       if (isCreator) {
-        _roomCreatorId = _collab.localPlayerId; // Only set if creating the room
+        // Only create room if we're the creator
+        await _collab.createRoom(roomCode, displayName: displayName);
+        _roomCreatorId = _collab.localPlayerId;
+      } else {
+        // Just join existing room without calling createRoom
+        await _collab.joinRoom(roomCode, displayName: displayName);
       }
       // Initial presence touch
       unawaited(_collab.touchPresence(roomCode));
@@ -1787,13 +1812,61 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
       await _collab.cleanupStalePlayers(roomCode, ttl: const Duration(seconds: 15));
       // Subscribe to players list
       _playersSub?.cancel();
-      _playersSub = _collab.playersStream(roomCode).listen((players) {
+      _messagesSub?.cancel();
+      _playersSub = _collab.playersStream(roomCode).listen((players) async {
         if (!mounted) return;
+
+        // SIMPLE: Check if opponent finished all questions (their score = total) → we lost!
+        final localId = _collab.localPlayerId;
+        final opponent = players.firstWhere((p) => p.id != localId, orElse: () => PlayerInfo(
+          id: '', displayName: '', lastSeen: DateTime.now(),
+        ));
+        final totalQuestions = _quizSelectedIndices.length;
+
+        if (opponent.id.isNotEmpty &&
+            opponent.score >= totalQuestions &&
+            totalQuestions > 0 &&
+            !_alreadyLostRace &&
+            !_showingLostDialog &&
+            !_raceEndedByServer &&
+            _raceStarted) {
+          debugPrint('🚨 Opponent finished! ${opponent.displayName} scored ${opponent.score}/$totalQuestions');
+
+          // CRITICAL: Set flags IMMEDIATELY to prevent stream from triggering dialog again
+          _alreadyLostRace = true;
+          _showingLostDialog = true;
+
+          // Show dialog asynchronously without blocking the stream listener
+          Future.microtask(() async {
+            try {
+              final shouldContinue = await _showYouLostDialog(
+                winner: opponent,
+                ratingChange: null, // Will be calculated later if needed
+              );
+
+              _showingLostDialog = false; // Reset flag after dialog closes
+
+              if (!shouldContinue) {
+                await _leaveCurrentRoom();
+                if (mounted) setState(() { _inPublicRaceView = false; _activeTrackIndex = null; _raceStarted = false; });
+              }
+            } catch (e) {
+              debugPrint('❌ Error showing loser dialog: $e');
+              _showingLostDialog = false; // Reset flag on error
+            }
+          });
+        }
+
         // Use Firestore scores directly (persistent state, not local cache)
         // This ensures opponent scores are always up-to-date in real-time
         setState(() {
           _playersInRoom = players;
         });
+
+        // Debug: Log player scores
+        for (final p in players) {
+          debugPrint('👤 Player: ${p.displayName} (${p.id}) - Score: ${p.score}, Errors: ${p.errors}');
+        }
       });
       // Listen for race control messages (start_race, end_race)
       // Score updates now handled via persistent player documents, not messages
@@ -1814,14 +1887,56 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
             }
             // Start the race for all players when the message is received
             if (!_raceStarted) {
-              // CRITICAL: Validate session ID to prevent processing old messages from previous sessions
+              // Accept the host's session ID as authoritative for this race
               final String? messageSessionId = msg.payload['raceSessionId']?.toString();
-              if (messageSessionId == null || messageSessionId != _currentRaceSessionId) {
-                debugPrint('Ignoring start_race: session ID mismatch (message: $messageSessionId, current: $_currentRaceSessionId)');
-                continue;
+              if (messageSessionId != null) {
+                setState(() {
+                  _currentRaceSessionId = messageSessionId;
+                });
+                debugPrint('Synced session ID from host: $messageSessionId');
               }
-              debugPrint('Received start_race message (session: $_currentRaceSessionId), starting race!');
+              debugPrint('Received start_race message, starting race!');
               await _startQuizRace();
+            }
+          } else if (msg.payload['type'] == 'you_lost') {
+            // IMMEDIATE LOSER NOTIFICATION
+            debugPrint('📩 Received you_lost from ${msg.senderName}');
+
+            if (msg.senderId == _collab.localPlayerId) {
+              debugPrint('  ⏭️ Skipping own message');
+              continue;
+            }
+
+            final String? messageSessionId = msg.payload['raceSessionId']?.toString();
+            debugPrint('  🔍 Session: msg=$messageSessionId, current=$_currentRaceSessionId');
+            if (messageSessionId != _currentRaceSessionId) {
+              debugPrint('  ❌ MISMATCH! Ignoring');
+              continue;
+            }
+
+            debugPrint('  ✅ MATCH! Showing dialog...');
+            final winner = PlayerInfo(
+              id: msg.senderId,
+              displayName: msg.payload['winnerName']?.toString() ?? msg.senderName,
+              lastSeen: DateTime.now(),
+              score: msg.payload['winnerScore'] as int? ?? 0,
+              errors: 0,
+            );
+
+            try {
+              final shouldContinue = await _showYouLostDialog(
+                winner: winner,
+                ratingChange: msg.payload['ratingChange'] as int?,
+              );
+
+              if (!shouldContinue) {
+                await _leaveCurrentRoom();
+                if (mounted) setState(() { _inPublicRaceView = false; _activeTrackIndex = null; _raceStarted = false; });
+              } else {
+                if (mounted) setState(() { _alreadyLostRace = true; });
+              }
+            } catch (e) {
+              debugPrint('❌ Error in you_lost: $e');
             }
           } else if (msg.payload['type'] == 'end_race') {
             // Handle race end from server/other player
@@ -2078,7 +2193,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
     final roomCode = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Enter Room Code'),
+        title: Text('race.enterRoomCodeTitle'.tr()),
         content: TextField(
           controller: roomCodeController,
           autofocus: true,
@@ -2096,13 +2211,27 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, roomCodeController.text.trim()),
-            child: Text('Continue'),
+            child: Text('common.continue'.tr()),
           ),
         ],
       ),
     );
 
     if (roomCode == null || roomCode.isEmpty) return;
+
+    // Validate room exists before proceeding
+    final exists = await _collab.roomExists(roomCode.toLowerCase());
+    if (!exists) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('race.roomNotFoundMessage'.tr(namedArgs: {'code': roomCode})),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
     // Then show join dialog
     final profileName = await _fetchProfileUsername();
@@ -2128,7 +2257,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
 
           Future.delayed(const Duration(milliseconds: 250), () {
             if (!mounted) return;
-            _joinPrivateGame(index, playerName, roomCode, isCreator: false);
+            _joinPrivateGame(index, playerName, roomCode.toLowerCase(), isCreator: false);
           });
 
           return true;
@@ -2836,11 +2965,59 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
       _playersSub?.cancel();
       _playersSub = _collab.playersStream(roomCode).listen((players) async {
         if (!mounted) return;
+
+        // SIMPLE: Check if opponent finished all questions (their score = total) → we lost!
+        final localId = _collab.localPlayerId;
+        final opponent = players.firstWhere((p) => p.id != localId, orElse: () => PlayerInfo(
+          id: '', displayName: '', lastSeen: DateTime.now(),
+        ));
+        final totalQuestions = _quizSelectedIndices.length;
+
+        if (opponent.id.isNotEmpty &&
+            opponent.score >= totalQuestions &&
+            totalQuestions > 0 &&
+            !_alreadyLostRace &&
+            !_showingLostDialog &&
+            !_raceEndedByServer &&
+            _raceStarted) {
+          debugPrint('🚨 Opponent finished! ${opponent.displayName} scored ${opponent.score}/$totalQuestions');
+
+          // CRITICAL: Set flags IMMEDIATELY to prevent stream from triggering dialog again
+          _alreadyLostRace = true;
+          _showingLostDialog = true;
+
+          // Show dialog asynchronously without blocking the stream listener
+          Future.microtask(() async {
+            try {
+              final shouldContinue = await _showYouLostDialog(
+                winner: opponent,
+                ratingChange: null, // Will be calculated later if needed
+              );
+
+              _showingLostDialog = false; // Reset flag after dialog closes
+
+              if (!shouldContinue) {
+                await _leaveCurrentRoom();
+                if (mounted) setState(() { _inPublicRaceView = false; _activeTrackIndex = null; _raceStarted = false; });
+              }
+            } catch (e) {
+              debugPrint('❌ Error showing loser dialog: $e');
+              _showingLostDialog = false; // Reset flag on error
+            }
+          });
+        }
+
         // Use Firestore scores directly (persistent state, not local cache)
         // This ensures opponent scores are always up-to-date in real-time
         setState(() {
           _playersInRoom = players;
         });
+
+        // Debug: Log player scores
+        for (final p in players) {
+          debugPrint('👤 Player: ${p.displayName} (${p.id}) - Score: ${p.score}, Errors: ${p.errors}');
+        }
+
         // Auto-start if 2+ players and not already started
         // CRITICAL FIX: Add await to prevent race condition
         if (!_raceStarted && players.length >= 2) {
@@ -2868,14 +3045,56 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
             }
             // Start the race for all players when the message is received
             if (!_raceStarted) {
-              // CRITICAL: Validate session ID to prevent processing old messages from previous sessions
+              // Accept the host's session ID as authoritative for this race
               final String? messageSessionId = msg.payload['raceSessionId']?.toString();
-              if (messageSessionId == null || messageSessionId != _currentRaceSessionId) {
-                debugPrint('Ignoring start_race: session ID mismatch (message: $messageSessionId, current: $_currentRaceSessionId)');
-                continue;
+              if (messageSessionId != null) {
+                setState(() {
+                  _currentRaceSessionId = messageSessionId;
+                });
+                debugPrint('Synced session ID from host: $messageSessionId');
               }
-              debugPrint('Received start_race message (session: $_currentRaceSessionId), starting race!');
+              debugPrint('Received start_race message, starting race!');
               await _startQuizRace();
+            }
+          } else if (msg.payload['type'] == 'you_lost') {
+            // IMMEDIATE LOSER NOTIFICATION
+            debugPrint('📩 Received you_lost from ${msg.senderName}');
+
+            if (msg.senderId == _collab.localPlayerId) {
+              debugPrint('  ⏭️ Skipping own message');
+              continue;
+            }
+
+            final String? messageSessionId = msg.payload['raceSessionId']?.toString();
+            debugPrint('  🔍 Session: msg=$messageSessionId, current=$_currentRaceSessionId');
+            if (messageSessionId != _currentRaceSessionId) {
+              debugPrint('  ❌ MISMATCH! Ignoring');
+              continue;
+            }
+
+            debugPrint('  ✅ MATCH! Showing dialog...');
+            final winner = PlayerInfo(
+              id: msg.senderId,
+              displayName: msg.payload['winnerName']?.toString() ?? msg.senderName,
+              lastSeen: DateTime.now(),
+              score: msg.payload['winnerScore'] as int? ?? 0,
+              errors: 0,
+            );
+
+            try {
+              final shouldContinue = await _showYouLostDialog(
+                winner: winner,
+                ratingChange: msg.payload['ratingChange'] as int?,
+              );
+
+              if (!shouldContinue) {
+                await _leaveCurrentRoom();
+                if (mounted) setState(() { _inPublicRaceView = false; _activeTrackIndex = null; _raceStarted = false; });
+              } else {
+                if (mounted) setState(() { _alreadyLostRace = true; });
+              }
+            } catch (e) {
+              debugPrint('❌ Error in you_lost: $e');
             }
           } else if (msg.payload['type'] == 'end_race') {
             // Handle race end from server/other player
@@ -2982,6 +3201,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
         _processingMessages = false;
         _startingRace = false;
         _alreadyLostRace = false; // Reset loser flag
+        _showingLostDialog = false; // Reset dialog flag
       });
     }
   }
@@ -3311,7 +3531,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                 if (_playersInRoom.isNotEmpty)
                   _buildPlayerStatLine(
                     player: _playersInRoom.firstWhere(
-                      (p) => p.displayName == _nameController.text.trim(),
+                      (p) => p.id == _collab.localPlayerId,
                       orElse: () => PlayerInfo(id: '', displayName: 'You', lastSeen: DateTime.now(), score: _quizScore, errors: 0),
                     ),
                     isLocal: true,
@@ -3320,7 +3540,7 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
                 if (_playersInRoom.length >= 2)
                   _buildPlayerStatLine(
                     player: _playersInRoom.firstWhere(
-                      (p) => p.displayName != _nameController.text.trim(),
+                      (p) => p.id != _collab.localPlayerId,
                       orElse: () => PlayerInfo(id: '', displayName: 'Opponent', lastSeen: DateTime.now(), score: 0, errors: 0),
                     ),
                     isLocal: false,
@@ -5768,17 +5988,11 @@ class _RaceResultDialogContentState extends State<_RaceResultDialogContent>
       child: Container(
         constraints: const BoxConstraints(maxWidth: 400),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: widget.localWon
-                ? [const Color(0xFF1a237e), const Color(0xFF0d47a1), const Color(0xFF01579b)]
-                : [const Color(0xFF263238), const Color(0xFF37474f), const Color(0xFF455a64)],
-          ),
-          borderRadius: BorderRadius.circular(20),
+          color: Colors.grey.shade900,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: widget.localWon ? Colors.blue.withOpacity(0.5) : Colors.black.withOpacity(0.5),
+              color: Colors.black.withOpacity(0.5),
               blurRadius: 20,
               spreadRadius: 5,
             ),
@@ -5790,16 +6004,6 @@ class _RaceResultDialogContentState extends State<_RaceResultDialogContent>
             // Header with trophy
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: widget.localWon
-                      ? [Colors.amber.withOpacity(0.3), Colors.transparent]
-                      : [Colors.white.withOpacity(0.1), Colors.transparent],
-                ),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
               child: Column(
                 children: [
                   // Animated trophy
@@ -5999,23 +6203,22 @@ class _RaceResultDialogContentState extends State<_RaceResultDialogContent>
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 54,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: widget.localWon ? Colors.amber : Colors.white.withOpacity(0.2),
-                    foregroundColor: widget.localWon ? Colors.black : Colors.white,
+                    backgroundColor: Color(0xFFE74C3C),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 5,
+                    elevation: 0,
                   ),
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(
-                    'Continue',
+                    'common.continue'.tr(),
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),

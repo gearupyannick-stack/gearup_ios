@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../tokens.dart';
 import '../../services/collab_wan_service.dart';
 
@@ -141,7 +142,7 @@ class _WaitingLobbyOverlayState extends State<WaitingLobbyOverlay>
 
                   // Small subtitle
                   Text(
-                    '${widget.totalQuestions} questions await',
+                    'race.questionsAwait'.tr(namedArgs: {'count': widget.totalQuestions.toString()}),
                     style: DesignTokens.caption.copyWith(
                       color: DesignTokens.textTertiary,
                     ),
@@ -189,10 +190,10 @@ class _WaitingLobbyOverlayState extends State<WaitingLobbyOverlay>
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.play_arrow, size: 24),
-                            SizedBox(width: DesignTokens.space8),
-                            Text('Start Race', style: TextStyle(fontSize: 18)),
+                          children: [
+                            const Icon(Icons.play_arrow, size: 24),
+                            const SizedBox(width: DesignTokens.space8),
+                            Text('race.startRace'.tr(), style: const TextStyle(fontSize: 18)),
                           ],
                         ),
                       ),
@@ -205,7 +206,7 @@ class _WaitingLobbyOverlayState extends State<WaitingLobbyOverlay>
                     TextButton(
                       onPressed: widget.onLeave,
                       child: Text(
-                        'Leave Lobby',
+                        'race.leaveLobby'.tr(),
                         style: TextStyle(color: DesignTokens.textSecondary),
                       ),
                     ),
@@ -254,7 +255,7 @@ class _RoomCodeCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Room Code',
+            'race.roomCodeLabel'.tr(),
             style: DesignTokens.bodyMedium.copyWith(
               color: DesignTokens.textSecondary,
               fontWeight: DesignTokens.weightMedium,

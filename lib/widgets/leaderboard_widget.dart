@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../models/race_leaderboard_entry.dart';
 import '../services/leaderboard_service.dart';
 
@@ -68,13 +69,13 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                     const Icon(Icons.error_outline, color: Colors.red, size: 48),
                     const SizedBox(height: 16),
                     Text(
-                      'Error loading leaderboard',
+                      'leaderboard.errorLoading'.tr(),
                       style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: _loadCurrentUserData,
-                      child: const Text('Retry'),
+                      child: Text('common.retry'.tr()),
                     ),
                   ],
                 ),
@@ -92,7 +93,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                          color: Colors.white54, size: 64),
                     const SizedBox(height: 16),
                     Text(
-                      'No rankings yet',
+                      'leaderboard.noRankings'.tr(),
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -101,7 +102,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Be the first to compete in 1v1 races!',
+                      'leaderboard.beTheFirst'.tr(),
                       style: TextStyle(color: Colors.white70, fontSize: 14),
                       textAlign: TextAlign.center,
                     ),
@@ -120,7 +121,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                     Icon(Icons.emoji_events, color: Colors.amber, size: 32),
                     const SizedBox(width: 8),
                     Text(
-                      'Global Leaderboard',
+                      'leaderboard.globalTitle'.tr(),
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -131,7 +132,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Top 10 Competitive Racers',
+                  'leaderboard.top10Subtitle'.tr(),
                   style: TextStyle(color: Colors.white70, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),

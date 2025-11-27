@@ -495,7 +495,28 @@
     "clubsTitle": "Club",
     "clubsDesc": "Crea/unisciti a club per giocare con amici e organizzare tornei privati.",
     "roomCodeLabel": "Codice stanza:",
-    "shareRoomCode": "Condividi codice stanza"
+    "shareRoomCode": "Condividi codice stanza",
+    "quit": "Esci",
+    "finishRace": "Termina gara",
+    "continueOrQuitMessage": "Puoi continuare a correre per esercitarti o uscire ora.",
+    "ratingLabel": "Valutazione:",
+    "scoreDisplay": "Punteggio: {score}",
+    "enterRoomCodeTitle": "Inserisci codice stanza",
+    "roomNotFoundMessage": "Stanza \"{code}\" non trovata. Controlla il codice.",
+    "pleaseEnterName": "Inserisci il tuo nome giocatore",
+    "failedToJoinRace": "Impossibile partecipare alla gara. Riprova.",
+    "questionCount": "{count} Domande",
+    "difficultyProgression": "La difficoltà aumenta da facile a difficile",
+    "questionsAwait": "{count} domande ti aspettano",
+    "leaveLobby": "Lascia la lobby",
+    "joinRace": "Unisciti alla gara"
+  },
+  "leaderboard": {
+    "errorLoading": "Errore nel caricamento della classifica",
+    "noRankings": "Nessuna classifica ancora",
+    "beTheFirst": "Sii il primo a competere nelle gare 1v1!",
+    "globalTitle": "Classifica globale",
+    "top10Subtitle": "Top 10 corridori competitivi"
   },
   "common": {
     "ok": "OK",
@@ -520,7 +541,9 @@
     "player": "Giocatore",
     "youInParens": "(Tu)",
     "points": "punti",
-    "errors": "errori"
+    "errors": "errori",
+    "moreInfo": "Più info",
+    "errorOccurred": "Si è verificato un errore. Riprova."
   },
   "language": {
     "title": "Lingua",

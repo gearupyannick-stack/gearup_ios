@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../tokens.dart';
 
 /// Professional race join dialog with elegant design and loading states
@@ -108,7 +109,7 @@ class _RaceJoinDialogState extends State<RaceJoinDialog>
   Future<void> _handleJoin() async {
     if (_nameController.text.trim().isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter your player name';
+        _errorMessage = 'race.pleaseEnterName'.tr();
       });
       HapticFeedback.mediumImpact();
       return;
@@ -127,7 +128,7 @@ class _RaceJoinDialogState extends State<RaceJoinDialog>
         } else if (mounted) {
           setState(() {
             _isLoading = false;
-            _errorMessage = 'Failed to join race. Please try again.';
+            _errorMessage = 'race.failedToJoinRace'.tr();
           });
         }
       } else {
@@ -140,7 +141,7 @@ class _RaceJoinDialogState extends State<RaceJoinDialog>
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'An error occurred. Please try again.';
+          _errorMessage = 'common.errorOccurred'.tr();
         });
       }
     }
@@ -238,7 +239,7 @@ class _RaceJoinDialogState extends State<RaceJoinDialog>
                             ),
                           ),
                           child: Text(
-                            '${widget.questionCount} Questions',
+                            'race.questionCount'.tr(namedArgs: {'count': widget.questionCount.toString()}),
                             style: DesignTokens.bodySmall.copyWith(
                               color: DesignTokens.primaryRed,
                               fontWeight: DesignTokens.weightBold,
@@ -273,7 +274,7 @@ class _RaceJoinDialogState extends State<RaceJoinDialog>
                             },
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
-                            tooltip: 'More info',
+                            tooltip: 'common.moreInfo'.tr(),
                           ),
                         ],
                       ),
@@ -313,7 +314,7 @@ class _RaceJoinDialogState extends State<RaceJoinDialog>
                                         const SizedBox(width: DesignTokens.space8),
                                         Expanded(
                                           child: Text(
-                                            'Difficulty progresses from easy to hard',
+                                            'race.difficultyProgression'.tr(),
                                             style: DesignTokens.bodySmall.copyWith(
                                               color: DesignTokens.textSecondary,
                                             ),
@@ -441,7 +442,7 @@ class _RaceJoinDialogState extends State<RaceJoinDialog>
                                   vertical: DesignTokens.space16,
                                 ),
                               ),
-                              child: const Text('Cancel'),
+                              child: Text('common.cancel'.tr()),
                             ),
                           ),
 
@@ -475,10 +476,10 @@ class _RaceJoinDialogState extends State<RaceJoinDialog>
                                     )
                                   : Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
-                                      children: const [
-                                        Text('Join Race'),
-                                        SizedBox(width: DesignTokens.space8),
-                                        Icon(Icons.arrow_forward, size: 18),
+                                      children: [
+                                        Text('race.joinRace'.tr()),
+                                        const SizedBox(width: DesignTokens.space8),
+                                        const Icon(Icons.arrow_forward, size: 18),
                                       ],
                                     ),
                             ),

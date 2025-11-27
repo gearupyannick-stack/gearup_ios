@@ -494,7 +494,28 @@
     "clubsTitle": "Clubes",
     "clubsDesc": "Crie/entre em clubes para jogar com amigos e organizar torneios privados.",
     "roomCodeLabel": "Código da sala:",
-    "shareRoomCode": "Compartilhar código da sala"
+    "shareRoomCode": "Compartilhar código da sala",
+    "quit": "Sair",
+    "finishRace": "Terminar corrida",
+    "continueOrQuitMessage": "Você pode continuar correndo para praticar ou sair agora.",
+    "ratingLabel": "Classificação:",
+    "scoreDisplay": "Pontuação: {score}",
+    "enterRoomCodeTitle": "Insira o código da sala",
+    "roomNotFoundMessage": "Sala \"{code}\" não encontrada. Verifique o código.",
+    "pleaseEnterName": "Por favor, insira seu nome de jogador",
+    "failedToJoinRace": "Falha ao entrar na corrida. Tente novamente.",
+    "questionCount": "{count} Perguntas",
+    "difficultyProgression": "A dificuldade progride de fácil a difícil",
+    "questionsAwait": "{count} perguntas aguardam",
+    "leaveLobby": "Sair do lobby",
+    "joinRace": "Entrar na corrida"
+  },
+  "leaderboard": {
+    "errorLoading": "Erro ao carregar a tabela de classificação",
+    "noRankings": "Ainda sem classificações",
+    "beTheFirst": "Seja o primeiro a competir em corridas 1v1!",
+    "globalTitle": "Tabela de classificação global",
+    "top10Subtitle": "Top 10 corredores competitivos"
   },
   "common": {
     "ok": "OK",
@@ -519,7 +540,9 @@
     "player": "Jogador",
     "youInParens": "(Você)",
     "points": "pontos",
-    "errors": "erros"
+    "errors": "erros",
+    "moreInfo": "Mais informações",
+    "errorOccurred": "Ocorreu um erro. Tente novamente."
   },
   "language": {
     "title": "Idioma",

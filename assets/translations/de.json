@@ -494,7 +494,28 @@
     "clubsTitle": "Clubs",
     "clubsDesc": "Erstelle/trete Clubs bei, um mit Freunden zu spielen und private Turniere zu veranstalten.",
     "roomCodeLabel": "Raumcode:",
-    "shareRoomCode": "Raumcode teilen"
+    "shareRoomCode": "Raumcode teilen",
+    "quit": "Beenden",
+    "finishRace": "Rennen beenden",
+    "continueOrQuitMessage": "Sie können zum Üben weiterfahren oder jetzt aufhören.",
+    "ratingLabel": "Bewertung:",
+    "scoreDisplay": "Punktzahl: {score}",
+    "enterRoomCodeTitle": "Raumcode eingeben",
+    "roomNotFoundMessage": "Raum \"{code}\" nicht gefunden. Bitte überprüfen Sie den Code.",
+    "pleaseEnterName": "Bitte geben Sie Ihren Spielernamen ein",
+    "failedToJoinRace": "Rennen konnte nicht beigetreten werden. Bitte versuchen Sie es erneut.",
+    "questionCount": "{count} Fragen",
+    "difficultyProgression": "Der Schwierigkeitsgrad steigt von leicht bis schwer",
+    "questionsAwait": "{count} Fragen erwarten dich",
+    "leaveLobby": "Lobby verlassen",
+    "joinRace": "Rennen beitreten"
+  },
+  "leaderboard": {
+    "errorLoading": "Fehler beim Laden der Bestenliste",
+    "noRankings": "Noch keine Rangliste",
+    "beTheFirst": "Sei der Erste, der an 1v1-Rennen teilnimmt!",
+    "globalTitle": "Globale Bestenliste",
+    "top10Subtitle": "Top 10 Wettkampf-Rennfahrer"
   },
   "common": {
     "ok": "OK",
@@ -519,7 +540,9 @@
     "player": "Spieler",
     "youInParens": "(Du)",
     "points": "Punkte",
-    "errors": "Fehler"
+    "errors": "Fehler",
+    "moreInfo": "Mehr Infos",
+    "errorOccurred": "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
   },
   "language": {
     "title": "Sprache",

@@ -494,7 +494,28 @@
     "clubsTitle": "Clubs",
     "clubsDesc": "Créez/rejoignez des clubs pour jouer entre amis et organiser des tournois privés.",
     "roomCodeLabel": "Code de la salle :",
-    "shareRoomCode": "Partager le code de la salle"
+    "shareRoomCode": "Partager le code de la salle",
+    "quit": "Quitter",
+    "finishRace": "Terminer la course",
+    "continueOrQuitMessage": "Vous pouvez continuer à courir pour vous entraîner ou quitter maintenant.",
+    "ratingLabel": "Classement :",
+    "scoreDisplay": "Score : {score}",
+    "enterRoomCodeTitle": "Entrez le code de la salle",
+    "roomNotFoundMessage": "Salle \"{code}\" introuvable. Veuillez vérifier le code.",
+    "pleaseEnterName": "Veuillez entrer votre nom de joueur",
+    "failedToJoinRace": "Échec de la participation à la course. Veuillez réessayer.",
+    "questionCount": "{count} Questions",
+    "difficultyProgression": "La difficulté progresse de facile à difficile",
+    "questionsAwait": "{count} questions vous attendent",
+    "leaveLobby": "Quitter le lobby",
+    "joinRace": "Rejoindre la course"
+  },
+  "leaderboard": {
+    "errorLoading": "Erreur lors du chargement du classement",
+    "noRankings": "Aucun classement pour le moment",
+    "beTheFirst": "Soyez le premier à participer aux courses 1v1 !",
+    "globalTitle": "Classement mondial",
+    "top10Subtitle": "Top 10 des coureurs compétitifs"
   },
   "common": {
     "ok": "OK",
@@ -519,7 +540,9 @@
     "player": "Joueur",
     "youInParens": "(Vous)",
     "points": "points",
-    "errors": "erreurs"
+    "errors": "erreurs",
+    "moreInfo": "Plus d'infos",
+    "errorOccurred": "Une erreur s'est produite. Veuillez réessayer."
   },
   "language": {
     "title": "Langue",

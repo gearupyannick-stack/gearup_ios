@@ -117,15 +117,24 @@ class CollabWanService {
 
   Future<void> createRoom(String roomCode, {required String displayName}) async {
     final roomRef = _db.collection(roomsCollection).doc(roomCode);
-    final snap = await roomRef.get();
-    if (!snap.exists) {
-      await roomRef.set(<String, dynamic>{
-        'createdAt': FieldValue.serverTimestamp(),
-        'host': await _getOrMakeLocalPlayerId(),
-        'meta': {'description': 'Room created via CollabWanService'},
-      });
-    }
-    // join as player immediately
+
+    // Use transaction for atomic check-and-create to prevent race conditions
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(roomRef);
+
+      if (!snapshot.exists) {
+        // Room doesn't exist, safe to create
+        final hostId = await _getOrMakeLocalPlayerId();
+        transaction.set(roomRef, <String, dynamic>{
+          'createdAt': FieldValue.serverTimestamp(),
+          'host': hostId,
+          'meta': {'description': 'Room created via CollabWanService'},
+        });
+      }
+      // If room exists, transaction succeeds without creating
+    });
+
+    // Join as player after ensuring room exists
     await joinRoom(roomCode, displayName: displayName);
   }
 
