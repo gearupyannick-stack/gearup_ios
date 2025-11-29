@@ -530,12 +530,23 @@ class _ProfilePageState extends State<ProfilePage> {
     final title = fullText.split("–")[0].trim();
     final id = _getAchievementIdFromName(fullText);
     final isUnlocked = unlockedAchievementIds.contains(id);
+    final imageName = isUnlocked ? id : '${id}_locked';
+    final imagePath = 'assets/achievements/$imageName.png';
+
     return GestureDetector(
       onTap: () => _showAchievementPopup(context, fullText),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.emoji_events, size: 40, color: isUnlocked ? Colors.amber : Colors.grey),
+          Image.asset(
+            imagePath,
+            width: 40,
+            height: 40,
+            errorBuilder: (context, error, stackTrace) {
+              // Fallback to the original icon if the image fails to load
+              return Icon(Icons.emoji_events, size: 40, color: isUnlocked ? Colors.amber : Colors.grey);
+            },
+          ),
           const SizedBox(height: 4),
           Text(title, style: const TextStyle(fontSize: 12), textAlign: TextAlign.center),
         ],
@@ -797,11 +808,30 @@ class _ProfilePageState extends State<ProfilePage> {
     final parts = fullText.split("–");
     final title = parts[0].trim();
     final description = parts.length > 1 ? parts[1].trim() : "No description available";
+    final id = _getAchievementIdFromName(fullText);
+    final isUnlocked = unlockedAchievementIds.contains(id);
+    final imageName = isUnlocked ? id : '${id}_locked';
+    final imagePath = 'assets/achievements/$imageName.png';
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
-        content: Text(description),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              imagePath,
+              width: 60,
+              height: 60,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(Icons.emoji_events, size: 60, color: isUnlocked ? Colors.amber : Colors.grey);
+              },
+            ),
+            const SizedBox(height: 16),
+            Text(description),
+          ],
+        ),
         actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('common.ok'.tr()))],
       ),
     );
@@ -1821,124 +1851,54 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 16),
           if (unlocked.isNotEmpty) ...[
-            Text(
-              'profileProgress.achievements.unlocked'.tr(),
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.amber[400]),
+            GestureDetector(
+              onTap: () => _showUnlockedAchievementsPopup(context),
+              child: Row(
+                children: [
+                  Text(
+                    'profileProgress.achievements.unlocked'.tr(),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.amber[400]),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(Icons.touch_app, size: 16, color: Colors.white38),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             GridView.count(
               crossAxisCount: 3,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: 1,
+              childAspectRatio: 0.9,
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
-              children: List.generate(3, (i) {
-                final name = topRow[i];
-                if (name.isEmpty) return const SizedBox();
-                final isLast = i == 2;
-                return GestureDetector(
-                  onTap: () {
-                    if (isLast) {
-                      _showUnlockedAchievementsPopup(context);
-                    } else {
-                      _showAchievementPopup(context, name);
-                    }
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.withOpacity(0.3), width: 1),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.emoji_events, size: 40, color: Colors.yellow[700]!),
-                            const SizedBox(height: 6),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
-                              child: Text(
-                                name.split("–")[0].trim(),
-                                style: const TextStyle(fontSize: 11, color: Colors.white),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (isLast)
-                          const Positioned(top: 4, right: 4, child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.white70)),
-                      ],
-                    ),
-                  ),
-                );
-              }),
+              children: unlocked.take(3).map((name) => _buildMiniAchievement(name)).toList(),
             ),
           ],
           if (locked.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text(
-              'profileProgress.achievements.locked'.tr(),
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[500]),
+            GestureDetector(
+              onTap: () => _showLockedAchievementsPopup(context),
+              child: Row(
+                children: [
+                  Text(
+                    'profileProgress.achievements.locked'.tr(),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[500]),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(Icons.touch_app, size: 16, color: Colors.white38),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             GridView.count(
               crossAxisCount: 3,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: 1,
+              childAspectRatio: 0.9,
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
-              children: List.generate(3, (i) {
-                final name = (i < locked.length) ? locked[i] : '';
-                if (name.isEmpty) return const SizedBox();
-                final isLast = i == 2;
-                return GestureDetector(
-                  onTap: () {
-                    if (isLast) {
-                      _showLockedAchievementsPopup(context);
-                    } else {
-                      _showAchievementPopup(context, name);
-                    }
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.emoji_events, size: 40, color: Colors.grey),
-                            const SizedBox(height: 6),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
-                              child: Text(
-                                name.split("–")[0].trim(),
-                                style: const TextStyle(fontSize: 11, color: Colors.white54),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (isLast)
-                          const Positioned(top: 4, right: 4, child: Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                );
-              }),
+              children: locked.take(3).map((name) => _buildMiniAchievement(name)).toList(),
             ),
           ],
         ],

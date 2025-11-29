@@ -1,1 +1,26 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"gearup-ceeb0","appId":"1:947361107260:android:d96311d73e344e03e2a239","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"gearup-ceeb0","configurations":{"android":"1:947361107260:android:d96311d73e344e03e2a239","ios":"1:947361107260:ios:7ec18ae14bac0a0de2a239"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "gearup-ceeb0",
+          "appId": "1:947361107260:android:d96311d73e344e03e2a239",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "gearup-ceeb0",
+          "configurations": {
+            "android": "1:947361107260:android:d96311d73e344e03e2a239",
+            "ios": "1:947361107260:ios:7ec18ae14bac0a0de2a239"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

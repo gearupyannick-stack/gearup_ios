@@ -54,5 +54,6 @@ flutter:
     - assets/images/
     - assets/sounds/
     - assets/model/
+    - assets/achievements/
     - assets/premium_banner.png
     - assets/translations/

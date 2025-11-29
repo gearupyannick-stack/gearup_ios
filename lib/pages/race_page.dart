@@ -17,6 +17,7 @@ import '../services/language_service.dart';
 import '../services/tutorial_service.dart';
 import '../services/leaderboard_service.dart';
 import '../widgets/leaderboard_widget.dart';
+import 'clubs/clubs_hub_page.dart';
 
 // Design System imports
 import '../design_system/tokens.dart';
@@ -2628,34 +2629,60 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
       switchOutCurve: Curves.easeIn,
       child: isPublicMode
           ? const SizedBox.shrink() // Removed - leaderboard now has dedicated tab
-          : Column(
+          : GestureDetector(
               key: const ValueKey('clubs_promo_in_grid'),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'race.clubsTitle'.tr(),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.redAccent,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ClubsHubPage()),
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3D0000), Color(0xFFE53935)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFF3D0000).withOpacity(0.5),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'race.clubsDesc'.tr(),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                child: Row(
+                  children: [
+                    const Icon(Icons.groups, size: 48, color: Colors.white),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'race.clubsTitle'.tr(),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'race.clubsDesc'.tr(),
+                            style: const TextStyle(fontSize: 14, color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios, color: Colors.white70),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 250,
-                  child: Image.asset(
-                    'assets/home/clubs_coming_soon.png',
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ],
+              ),
             ),
     );
   }
