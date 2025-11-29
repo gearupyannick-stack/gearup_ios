@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/race_challenge.dart';
 import '../../services/chat_service.dart';
 import '../../widgets/race_challenge_card.dart';
+import '../race_page.dart';
 
 class RaceChallengeDetailPage extends StatefulWidget {
   final String clubId;
@@ -21,6 +22,7 @@ class RaceChallengeDetailPage extends StatefulWidget {
 
 class _RaceChallengeDetailPageState extends State<RaceChallengeDetailPage> {
   final _user = FirebaseAuth.instance.currentUser;
+  RaceChallenge? _currentChallenge;
 
   Future<void> _joinChallenge() async {
     try {
@@ -129,18 +131,28 @@ class _RaceChallengeDetailPageState extends State<RaceChallengeDetailPage> {
   }
 
   void _enterRace(String roomCode) {
-    // TODO: Navigate to race page with room code
-    // This will be implemented when integrating with the existing race system
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Race room code: $roomCode'),
-        backgroundColor: Colors.blue,
-        duration: const Duration(seconds: 5),
+    if (_currentChallenge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Challenge data not loaded'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to RacePage with club race parameters
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RacePage(
+          clubRaceRoomCode: roomCode,
+          clubId: widget.clubId,
+          challengeId: widget.challengeId,
+          clubRaceQuestions: _currentChallenge!.questionsCount,
+        ),
       ),
     );
-
-    // For now, just show the room code
-    // In Phase 3, we'll properly integrate with race_page.dart
   }
 
   @override
@@ -204,6 +216,7 @@ class _RaceChallengeDetailPageState extends State<RaceChallengeDetailPage> {
           }
 
           final challenge = snapshot.data!;
+          _currentChallenge = challenge; // Store current challenge for navigation
           final isParticipant = _user != null && challenge.isParticipant(_user.uid);
           final isCreator = _user != null && challenge.creatorId == _user.uid;
 

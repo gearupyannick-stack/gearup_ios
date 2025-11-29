@@ -16,6 +16,8 @@ import '../services/analytics_service.dart';
 import '../services/language_service.dart';
 import '../services/tutorial_service.dart';
 import '../services/leaderboard_service.dart';
+import '../services/club_race_service.dart';
+import '../services/club_service.dart';
 import '../widgets/leaderboard_widget.dart';
 import 'clubs/clubs_hub_page.dart';
 
@@ -30,7 +32,18 @@ import '../design_system/widgets/race_join_dialog.dart';
 import '../design_system/widgets/waiting_lobby_overlay.dart';
 
 class RacePage extends StatefulWidget {
-  const RacePage({Key? key}) : super(key: key);
+  final String? clubRaceRoomCode;
+  final String? clubId;
+  final String? challengeId;
+  final int? clubRaceQuestions;
+
+  const RacePage({
+    Key? key,
+    this.clubRaceRoomCode,
+    this.clubId,
+    this.challengeId,
+    this.clubRaceQuestions,
+  }) : super(key: key);
 
   @override
   State<RacePage> createState() => _RacePageState();
@@ -658,6 +671,46 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
         );
       } catch (e) {
         debugPrint('Error updating ELO ratings from winner side: $e');
+      }
+    }
+
+    // CLUB RACE: Process club-specific stats and rewards
+    if (widget.clubId != null && widget.challengeId != null) {
+      try {
+        debugPrint('Club race detected! Processing club stats...');
+
+        // Get club name for the chat message
+        final club = await ClubService.instance.getClub(widget.clubId!);
+        final clubName = club?.name ?? 'Unknown Club';
+
+        // Calculate race time (approximate - based on question count)
+        // Estimate: 10 seconds per question on average
+        final raceTimeSeconds = _quizSelectedIndices.length * 10;
+
+        // Build results for all participants
+        final List<Map<String, dynamic>> results = playersSnapshot.map((player) {
+          return {
+            'userId': player.id,
+            'displayName': player.displayName,
+            'score': player.score,
+            'errors': player.errors,
+            'time': raceTimeSeconds, // Simplified - all use same time
+          };
+        }).toList();
+
+        // Process club race results (updates stats, awards points, posts to chat)
+        await ClubRaceService.instance.processClubRaceResults(
+          clubId: widget.clubId!,
+          clubName: clubName,
+          challengeId: widget.challengeId!,
+          roomCode: room ?? '',
+          results: results,
+          totalQuestions: _quizSelectedIndices.length,
+        );
+
+        debugPrint('Club race stats processed successfully!');
+      } catch (e) {
+        debugPrint('Error processing club race stats: $e');
       }
     }
 
@@ -2476,10 +2529,80 @@ class _RacePageState extends State<RacePage> with SingleTickerProviderStateMixin
     // load CSV now for quiz questions (non-blocking)
     _loadCarData();
 
+    // Auto-join club race if parameters provided
+    if (widget.clubRaceRoomCode != null) {
+      _autoJoinClubRace();
+    }
+
     // Subscribe to public track presence streams so the track buttons update live.
     // We always subscribe so the UI reflects other players even if the user hasn't joined.
     _subscribePublicTracks();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowTabIntro());
+  }
+
+  /// Auto-join a club race room when navigated from a club challenge
+  Future<void> _autoJoinClubRace() async {
+    await Future.delayed(const Duration(milliseconds: 500)); // Wait for UI to settle
+    if (!mounted) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final roomCode = widget.clubRaceRoomCode!;
+      final displayName = user.displayName ?? 'User';
+
+      // Enter public race mode and join the room
+      setState(() {
+        isPublicMode = true;
+        _inPublicRaceView = true;
+      });
+
+      // Join the room (createRoom is safe - it won't override if room exists)
+      await _collab.createRoom(roomCode, displayName: displayName);
+      _currentRoomCode = roomCode;
+
+      // Start presence timer
+      _presenceTimer?.cancel();
+      _presenceTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        if (_currentRoomCode != null) {
+          unawaited(_collab.touchPresence(_currentRoomCode!));
+        }
+      });
+
+      // Subscribe to players stream
+      _playersSub?.cancel();
+      _playersSub = _collab.playersStream(roomCode).listen((players) async {
+        if (!mounted) return;
+        setState(() {
+          _playersInRoom = players;
+        });
+      });
+
+      // Subscribe to messages stream
+      _messagesSub?.cancel();
+      _messagesSub = _collab.messagesStream(roomCode).listen((messages) {
+        if (!mounted) return;
+        // Handle messages if needed
+      });
+
+      if (mounted) {
+        setState(() {
+          _activeTrackIndex = 0; // Default track
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to join race: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _maybeShowTabIntro() async {

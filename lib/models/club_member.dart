@@ -25,8 +25,11 @@ class ClubMember {
     required this.lastSeenAt,
     this.clubRacesCompleted = 0,
     this.clubRacesWon = 0,
+    this.clubPoints = 0,
     this.clubTournamentsPlayed = 0,
     this.clubTournamentsWon = 0,
+    this.averageRaceScore,
+    this.bestRaceTime,
   });
 
   factory ClubMember.fromFirestore(DocumentSnapshot doc) {
@@ -41,8 +44,11 @@ class ClubMember {
       lastSeenAt: (data['lastSeenAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       clubRacesCompleted: data['clubRacesCompleted'] ?? 0,
       clubRacesWon: data['clubRacesWon'] ?? 0,
+      clubPoints: data['clubPoints'] ?? 0,
       clubTournamentsPlayed: data['clubTournamentsPlayed'] ?? 0,
       clubTournamentsWon: data['clubTournamentsWon'] ?? 0,
+      averageRaceScore: (data['averageRaceScore'] as num?)?.toDouble(),
+      bestRaceTime: data['bestRaceTime'] as int?,
     );
   }
 
@@ -78,8 +84,11 @@ class ClubMember {
       'lastSeenAt': Timestamp.fromDate(lastSeenAt),
       'clubRacesCompleted': clubRacesCompleted,
       'clubRacesWon': clubRacesWon,
+      'clubPoints': clubPoints,
       'clubTournamentsPlayed': clubTournamentsPlayed,
       'clubTournamentsWon': clubTournamentsWon,
+      if (averageRaceScore != null) 'averageRaceScore': averageRaceScore,
+      if (bestRaceTime != null) 'bestRaceTime': bestRaceTime,
     };
   }
 
@@ -92,8 +101,11 @@ class ClubMember {
     DateTime? lastSeenAt,
     int? clubRacesCompleted,
     int? clubRacesWon,
+    int? clubPoints,
     int? clubTournamentsPlayed,
     int? clubTournamentsWon,
+    double? averageRaceScore,
+    int? bestRaceTime,
   }) {
     return ClubMember(
       userId: userId ?? this.userId,
@@ -104,8 +116,11 @@ class ClubMember {
       lastSeenAt: lastSeenAt ?? this.lastSeenAt,
       clubRacesCompleted: clubRacesCompleted ?? this.clubRacesCompleted,
       clubRacesWon: clubRacesWon ?? this.clubRacesWon,
+      clubPoints: clubPoints ?? this.clubPoints,
       clubTournamentsPlayed: clubTournamentsPlayed ?? this.clubTournamentsPlayed,
       clubTournamentsWon: clubTournamentsWon ?? this.clubTournamentsWon,
+      averageRaceScore: averageRaceScore ?? this.averageRaceScore,
+      bestRaceTime: bestRaceTime ?? this.bestRaceTime,
     );
   }
 
